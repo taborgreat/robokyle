@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docs &amp; Guides &mdash; Robo Kyle</title>
+    <meta name="description" content="Plain-language accessibility guides from Robo Kyle. Build guides for engineers and designers, plus how-to walkthroughs for people using our tools.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body class="page-body">
+
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <!-- BEGIN: site nav (keep identical across all pages) -->
+    <header class="site-header">
+        <nav class="site-nav" aria-label="Main">
+            <a class="site-logo" href="index.html" aria-label="Robo Kyle home">
+                <span class="logo-mark" aria-hidden="true">RK</span>
+                <span>Robo Kyle</span>
+            </a>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="tools.html">Tools</a></li>
+                <li><a href="designs.html">Designs</a></li>
+                <li><a href="docs.html" aria-current="page">Docs</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+    <!-- END: site nav -->
+
+    <main id="main">
+
+        <!-- ============ DOCS HERO ============ -->
+        <section class="about-hero">
+            <div class="wrap">
+                <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Plain-language docs</span>
+                <h1>Access work, explained without the jargon.</h1>
+                <p class="lede">
+                    Two kinds of docs live here. <strong>Build guides</strong> for engineers and designers
+                    shipping accessible work. <strong>How-tos</strong> for people using the tools we make.
+                    All written for a grade-6 reader, all free to fork.
+                </p>
+            </div>
+        </section>
+
+        <!-- ============ BUILD GUIDES ============ -->
+        <section>
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Build guides</span>
+                    <h2>For the people making things.</h2>
+                    <p>Short, opinionated walkthroughs that skip the 300-page spec and get you to the working answer.</p>
+                </div>
+
+                <div class="pillars">
+                    <article class="pillar">
+                        <div class="icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/><path d="M7 16h4"/></svg>
+                        </div>
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Writing alt text that earns its place</a></h3>
+                        <p>When to write it, when to skip it, and how to say the useful thing in ten words instead of forty.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <div class="icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 12h4"/><path d="M14 12h3"/></svg>
+                        </div>
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Keyboard-first component checklist</a></h3>
+                        <p>Twelve interactions every custom widget should handle before it ships, with the boring reasons why.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <div class="icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>
+                        </div>
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Colour contrast without the mystery</a></h3>
+                        <p>What the 4.5:1 number actually means, why it fails, and the three tweaks that fix 90% of failing pairs.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <div class="icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>
+                        </div>
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Respecting reduced motion</a></h3>
+                        <p>How to detect it, when it means "no animation at all", and how to keep the delight without hurting the vestibular system.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <div class="icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>
+                        </div>
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Running your first co-design session</a></h3>
+                        <p>How to find testers, what to pay them, what to prep, and the questions that surface the most in the least time.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <div class="icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+                        </div>
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Writing for a grade-6 reader</a></h3>
+                        <p>The five rewrites we do on every paragraph, and the free tools that catch the drift automatically.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ HOW-TOS ============ -->
+        <section>
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Tool how-tos</span>
+                    <h2>For the people using the tools.</h2>
+                    <p>Step-by-step walkthroughs for the tools on the <a href="tools.html">Tools page</a>. Each one is under five minutes.</p>
+                </div>
+
+                <div class="pillars">
+                    <article class="pillar">
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Caption Remixer &mdash; first run</a></h3>
+                        <p>Paste a caption file, pick a reading level, download the cleaned version. No account needed.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Contrast Checker in your design tool</a></h3>
+                        <p>Wire it into Figma, Sketch, or the browser so contrast checks live where your team already works.</p>
+                    </article>
+
+                    <article class="pillar">
+                        <h3><a href="guides/example-guide.html" style="text-decoration:none;color:inherit;">Installing the Focus Ring Auditor</a></h3>
+                        <p>Two minutes to add the extension, one minute to run your first audit, ten seconds to file the fix.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ CONTRIBUTE STRIP ============ -->
+        <section>
+            <div class="wrap split">
+                <div>
+                    <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Contribute</span>
+                    <h2>Write a guide with us.</h2>
+                    <p>
+                        Every guide starts from the same template, uses the same voice rules, and gets a
+                        plain-language review from a disabled reader before it ships. If you&rsquo;ve got a
+                        walkthrough you wish existed, we&rsquo;ll help you get it written.
+                    </p>
+                    <ul class="checks">
+                        <li>Start from the guide template &mdash; skeleton and style rules already baked in.</li>
+                        <li>Open a pull request; we&rsquo;ll pair on the edit rounds.</li>
+                        <li>Contributors get credit on the guide and, if you want it, on the About page.</li>
+                    </ul>
+                    <p style="margin-top:1.5rem;">
+                        <a class="btn btn-primary" href="guides/example-guide.html">
+                            Open the template
+                            <span class="arrow" aria-hidden="true">&rarr;</span>
+                        </a>
+                        <a class="btn btn-ghost" href="https://github.com/Mcdrizzy/robokyle" style="margin-left:.5rem;">See the repo</a>
+                    </p>
+                </div>
+                <div class="art" role="img" aria-label="Abstract illustration of stacked pages of documentation"></div>
+            </div>
+        </section>
+
+        <!-- ============ CTA ============ -->
+        <section class="cta-band">
+            <div class="wrap">
+                <div class="cta">
+                    <h2>Want a topic covered?</h2>
+                    <p>Tell us the question you keep having to answer. If it&rsquo;s useful to more than a few people, we&rsquo;ll write the guide.</p>
+                    <div class="hero-cta" style="justify-content:center;">
+                        <a class="btn btn-primary" href="contact.html">
+                            Request a guide
+                            <span class="arrow" aria-hidden="true">&rarr;</span>
+                        </a>
+                        <a class="btn btn-ghost" href="tools.html">Browse the tools</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- BEGIN: site footer (keep identical across all pages) -->
+    <footer class="site-footer">
+        <div class="wrap">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a class="site-logo" href="index.html" aria-label="Robo Kyle home">
+                        <span class="logo-mark" aria-hidden="true">RK</span>
+                        <span>Robo Kyle</span>
+                    </a>
+                    <p>A nonprofit ability-solutions studio building accessible tools with the people who use them.</p>
+                </div>
+                <div>
+                    <h4>Site</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About</a></li>
+                        <li><a href="tools.html">Tools</a></li>
+                        <li><a href="designs.html">Designs</a></li>
+                        <li><a href="docs.html">Docs</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Get in touch</h4>
+                    <ul>
+                        <li><a href="mailto:hello@robokyle.org">hello@robokyle.org</a></li>
+                        <li><a href="https://github.com/Mcdrizzy/robokyle">GitHub</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; <span id="year">2026</span> Robo Kyle. Built to be borrowed.</span>
+                <span>Made with care in the open.</span>
+            </div>
+        </div>
+    </footer>
+    <!-- END: site footer -->
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+
+</body>
+</html>
