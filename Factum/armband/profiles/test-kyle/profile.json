@@ -1,0 +1,29 @@
+{
+  "active_arm": "left",
+  "active_session": {},
+  "created_utc": "2026-08-07T22:23:47.792Z",
+  "limbs": {
+    "left": {
+      "arm": "left",
+      "circumference_mm": 240,
+      "level": "transradial",
+      "measurement_source": "ESTIMATED",
+      "note": "Provisional value pending caliper measurement. CLAUDE.md says: amputated about an inch above the wrist bone; the wrist bone is gone. Long transradial \u2014 nearly the whole forearm. Measurement source is ESTIMATED; recordings made against this anatomy carry the same flag.",
+      "residual_mm": 280
+    },
+    "right": {
+      "arm": "right",
+      "circumference_mm": 240,
+      "level": "transhumeral",
+      "measurement_source": "ESTIMATED",
+      "note": "Amputation at the elbow. No forearm segment. Band cannot be placed on this side.",
+      "residual_mm": 0
+    }
+  },
+  "name": "test-kyle",
+  "notes": "session-boot test. Anatomy values are ESTIMATED pending measurement (left forearm length provisional at 280 mm). Do NOT overwrite the ESTIMATED flag when copying these to production \u2014 recordings inherit the flag they were recorded under.",
+  "placements": {},
+  "schema_version": 2,
+  "subject_context": "",
+  "type": "subject"
+}

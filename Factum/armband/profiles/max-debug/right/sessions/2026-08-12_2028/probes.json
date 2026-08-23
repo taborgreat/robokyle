@@ -1,0 +1,648 @@
+{
+  "arm": "right",
+  "probes": [
+    {
+      "cues": [],
+      "duration_s": 29.807,
+      "effort": "",
+      "fatigue": "",
+      "file": "001_rest_2028.csv",
+      "his_confidence": 0,
+      "index": 1,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 1,
+        "best_channel_db": 16.63,
+        "channel_signature": [
+          0.0,
+          0.89,
+          0.11
+        ],
+        "clip_fraction": [
+          0.0,
+          0.034428,
+          0.0002
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 1.0
+        },
+        "correlations": {
+          "ch1_ch2": 0.0787,
+          "ch1_ch3": 0.2046,
+          "ch2_ch3": 0.0549
+        },
+        "dc_offset": [
+          0.003729,
+          -0.003405,
+          0.000805
+        ],
+        "duration_s": 29.807,
+        "kind": "rest",
+        "n_samples": 25038,
+        "peak": [
+          0.380851,
+          1.003375,
+          0.999165
+        ],
+        "quality": {
+          "flags": [
+            {
+              "fix": "That much clipping throws away the shape of the signal, not just its peaks. Loosen the band slightly and re-record.",
+              "key": "clipping",
+              "message": "ch2 is pinned at the rails for 3% of the recording",
+              "severity": "bad",
+              "value": 0.0344
+            }
+          ],
+          "headline": "Probably unusable \u2014 ch2 is pinned at the rails for 3% of the recording.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 0.55,
+          "verdict": "unusable"
+        },
+        "rms": [
+          0.050652,
+          0.242319,
+          0.066011
+        ],
+        "snr_vs_rest": [
+          0.855,
+          6.782,
+          1.628
+        ],
+        "snr_vs_rest_db": [
+          -1.36,
+          16.63,
+          4.23
+        ],
+        "usability": 0.315,
+        "usable": true
+      },
+      "n_samples": 25038,
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "rest",
+      "protocol": "rest",
+      "quality": {
+        "flags": [
+          {
+            "fix": "That much clipping throws away the shape of the signal, not just its peaks. Loosen the band slightly and re-record.",
+            "key": "clipping",
+            "message": "ch2 is pinned at the rails for 3% of the recording",
+            "severity": "bad",
+            "value": 0.0344
+          }
+        ],
+        "headline": "Probably unusable \u2014 ch2 is pinned at the rails for 3% of the recording.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 0.55,
+        "verdict": "unusable"
+      },
+      "sample_rate_hz": 840,
+      "started": "2026-08-12T20:28:49",
+      "status": "complete"
+    },
+    {
+      "cues": [],
+      "duration_s": 30.166,
+      "effort": "",
+      "fatigue": "",
+      "file": "002_baseline-rest_2031.csv",
+      "his_confidence": 0,
+      "index": 2,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 2,
+        "best_channel_db": 1.71,
+        "channel_signature": [
+          0.205,
+          0.306,
+          0.49
+        ],
+        "clip_fraction": [
+          0.00016,
+          0.0,
+          0.0
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.142
+        },
+        "correlations": {
+          "ch1_ch2": 0.1651,
+          "ch1_ch3": 0.1812,
+          "ch2_ch3": 0.1888
+        },
+        "dc_offset": [
+          0.003515,
+          -0.005202,
+          0.003024
+        ],
+        "duration_s": 30.166,
+        "kind": "rest",
+        "n_samples": 25038,
+        "peak": [
+          0.996455,
+          0.297472,
+          0.304956
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "rms": [
+          0.062933,
+          0.041221,
+          0.049345
+        ],
+        "snr_vs_rest": [
+          1.062,
+          1.154,
+          1.217
+        ],
+        "snr_vs_rest_db": [
+          0.52,
+          1.24,
+          1.71
+        ],
+        "usability": 0.101,
+        "usable": true
+      },
+      "n_samples": 25038,
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "Baseline, rest.",
+      "protocol": "rest",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 830,
+      "started": "2026-08-12T20:31:16",
+      "status": "complete"
+    },
+    {
+      "cues": [],
+      "duration_s": 30.166,
+      "effort": "",
+      "fatigue": "",
+      "file": "003_baseline-rest_2032.csv",
+      "his_confidence": 0,
+      "index": 3,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 0,
+        "best_channel_db": -0.52,
+        "channel_signature": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "clip_fraction": [
+          0.0002,
+          0.0,
+          0.0
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.0
+        },
+        "correlations": {
+          "ch1_ch2": 0.2018,
+          "ch1_ch3": 0.2144,
+          "ch2_ch3": 0.2301
+        },
+        "dc_offset": [
+          0.003826,
+          -0.004586,
+          0.002037
+        ],
+        "duration_s": 30.166,
+        "kind": "rest",
+        "n_samples": 25038,
+        "peak": [
+          1.003826,
+          0.236684,
+          0.201703
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "rms": [
+          0.059252,
+          0.035729,
+          0.040543
+        ],
+        "snr_vs_rest": [
+          0.942,
+          0.867,
+          0.822
+        ],
+        "snr_vs_rest_db": [
+          -0.52,
+          -1.24,
+          -1.71
+        ],
+        "usability": 0.065,
+        "usable": true
+      },
+      "n_samples": 25038,
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "baseline rest",
+      "protocol": "rest",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 830,
+      "started": "2026-08-12T20:32:07",
+      "status": "complete"
+    },
+    {
+      "cues": [],
+      "duration_s": 29.829,
+      "effort": "",
+      "fatigue": "",
+      "file": "004_waving-arm-around-gently-pretending-to-use-band-_2033.csv",
+      "his_confidence": 0,
+      "index": 4,
+      "kind": "distractor",
+      "metrics": {
+        "best_channel": 1,
+        "best_channel_db": 24.54,
+        "channel_signature": [
+          0.258,
+          0.35,
+          0.392
+        ],
+        "clip_fraction": [
+          0.158884,
+          0.272071,
+          0.369413
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 1.0
+        },
+        "consistency": null,
+        "consistency_note": "fewer than 2 repetitions detected \u2014 cannot judge repeatability; record this probe again with several distinct attempts",
+        "correlations": {
+          "ch1_ch2": 0.0599,
+          "ch1_ch3": 0.0052,
+          "ch2_ch3": 0.0443
+        },
+        "cued": false,
+        "dc_offset": [
+          0.018771,
+          0.023164,
+          -0.011619
+        ],
+        "duration_s": 29.829,
+        "duty_fraction": 0.867,
+        "feature_cv": null,
+        "feature_mean": [
+          0.432303,
+          0.347963,
+          21.112899,
+          23.536232,
+          42.94686,
+          33.777778,
+          44.122131,
+          0.229612,
+          0.420434,
+          0.255207,
+          0.601602,
+          0.499408,
+          29.16794,
+          21.971014,
+          39.913043,
+          33.681159,
+          45.578579,
+          0.24037,
+          0.415617,
+          0.243651,
+          0.679696,
+          0.587681,
+          29.138979,
+          20.521739,
+          35.78744,
+          30.512077,
+          43.998487,
+          0.233506,
+          0.444999,
+          0.213668,
+          -0.211828,
+          -0.274638,
+          -0.062811,
+          0.438773,
+          0.93995,
+          1.713601
+        ],
+        "kind": "distractor",
+        "n_feature_windows": 207,
+        "n_reps": 1,
+        "n_reps_detected": 1,
+        "n_samples": 25056,
+        "onset_latency_s": 0.0,
+        "peak": [
+          1.018771,
+          1.023164,
+          1.01159
+        ],
+        "quality": {
+          "flags": [
+            {
+              "fix": "That much clipping throws away the shape of the signal, not just its peaks. Loosen the band slightly and re-record.",
+              "key": "clipping",
+              "message": "ch3 is pinned at the rails for 37% of the recording",
+              "severity": "bad",
+              "value": 0.3694
+            },
+            {
+              "fix": "The band has probably moved, or the arm was not supported. Re-check placement and record rest again before trusting comparisons with earlier probes.",
+              "key": "baseline_drift",
+              "message": "the quiet parts of this recording sit 4.2x above the session's rest level",
+              "severity": "bad",
+              "value": 4.2294
+            }
+          ],
+          "headline": "Probably unusable \u2014 ch3 is pinned at the rails for 37% of the recording.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 0.2,
+          "verdict": "unusable"
+        },
+        "reps": [
+          {
+            "duration_s": 25.85,
+            "end_s": 25.85,
+            "start_s": 0.0
+          }
+        ],
+        "rise_time_s": 2.05,
+        "rms": [
+          0.478013,
+          0.602719,
+          0.676203
+        ],
+        "snr_vs_rest": [
+          8.067,
+          16.869,
+          16.679
+        ],
+        "snr_vs_rest_db": [
+          18.13,
+          24.54,
+          24.44
+        ],
+        "usability": 0.315,
+        "usable": false
+      },
+      "n_samples": 25056,
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "waving arm around gently, pretending to use band as a cursor",
+      "protocol": "distractor",
+      "quality": {
+        "flags": [
+          {
+            "fix": "That much clipping throws away the shape of the signal, not just its peaks. Loosen the band slightly and re-record.",
+            "key": "clipping",
+            "message": "ch3 is pinned at the rails for 37% of the recording",
+            "severity": "bad",
+            "value": 0.3694
+          },
+          {
+            "fix": "The band has probably moved, or the arm was not supported. Re-check placement and record rest again before trusting comparisons with earlier probes.",
+            "key": "baseline_drift",
+            "message": "the quiet parts of this recording sit 4.2x above the session's rest level",
+            "severity": "bad",
+            "value": 4.2294
+          }
+        ],
+        "headline": "Probably unusable \u2014 ch3 is pinned at the rails for 37% of the recording.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 0.2,
+        "verdict": "unusable"
+      },
+      "sample_rate_hz": 840,
+      "started": "2026-08-12T20:33:24",
+      "status": "complete"
+    },
+    {
+      "cues": [
+        [
+          3.0,
+          5.0
+        ],
+        [
+          8.0,
+          10.0
+        ],
+        [
+          13.0,
+          15.0
+        ],
+        [
+          18.0,
+          20.0
+        ],
+        [
+          23.0,
+          25.0
+        ]
+      ],
+      "duration_s": 27.793,
+      "effort": "",
+      "fatigue": "",
+      "file": "005_wiggling-pointer-finger-gently-erecting-gently-p_2034.csv",
+      "his_confidence": 0,
+      "index": 5,
+      "kind": "probe",
+      "metrics": {
+        "best_channel": 1,
+        "best_channel_db": 9.38,
+        "channel_signature": [
+          0.18,
+          0.456,
+          0.364
+        ],
+        "clip_fraction": [
+          0.0006,
+          0.001585,
+          0.000171
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.891,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.782
+        },
+        "consistency": 0.8906,
+        "correlations": {
+          "ch1_ch2": 0.6733,
+          "ch1_ch3": 0.4023,
+          "ch2_ch3": 0.5224
+        },
+        "cue_hit_rate": 1.0,
+        "cued": true,
+        "dc_offset": [
+          0.003684,
+          -0.004283,
+          0.002528
+        ],
+        "duration_s": 27.793,
+        "duty_fraction": 0.36,
+        "feature_cv": 0.1228,
+        "feature_mean": [
+          0.087431,
+          0.063198,
+          7.632352,
+          39.389474,
+          52.263158,
+          70.315789,
+          71.858319,
+          0.062817,
+          0.300697,
+          0.62014,
+          0.112447,
+          0.073283,
+          8.860888,
+          41.115789,
+          52.084211,
+          71.957895,
+          73.531863,
+          0.037438,
+          0.310807,
+          0.636107,
+          0.1031,
+          0.072546,
+          9.248908,
+          42.589474,
+          53.336842,
+          78.147368,
+          77.779725,
+          0.035709,
+          0.272307,
+          0.679062,
+          -0.069594,
+          -0.064902,
+          0.004691,
+          0.396798,
+          0.983339,
+          0.302978
+        ],
+        "kind": "probe",
+        "n_feature_windows": 95,
+        "n_reps": 5,
+        "n_reps_cued": 5,
+        "n_reps_detected": 13,
+        "n_reps_with_signal": 5,
+        "n_samples": 23346,
+        "onset_latency_s": 3.0,
+        "peak": [
+          1.003684,
+          1.004253,
+          0.997442
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "reps": [
+          {
+            "duration_s": 2.0,
+            "end_s": 5.0,
+            "start_s": 3.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 10.0,
+            "start_s": 8.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 15.0,
+            "start_s": 13.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 20.0,
+            "start_s": 18.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 25.0,
+            "start_s": 23.0
+          }
+        ],
+        "rise_time_s": 0.99,
+        "rms": [
+          0.086758,
+          0.105229,
+          0.095967
+        ],
+        "snr_vs_rest": [
+          1.464,
+          2.945,
+          2.367
+        ],
+        "snr_vs_rest_db": [
+          3.31,
+          9.38,
+          7.48
+        ],
+        "usability": 0.661,
+        "usable": true
+      },
+      "n_samples": 23346,
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "wiggling pointer finger, gently. erecting gently pointer finger from relax state",
+      "protocol": "reps",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 840,
+      "started": "2026-08-12T20:34:57",
+      "status": "complete"
+    }
+  ],
+  "profile": "max-debug",
+  "schema": "armband/probes-manifest/1",
+  "session": "2026-08-12_2028",
+  "updated": "2026-08-12T21:40:13"
+}

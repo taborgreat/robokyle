@@ -1,0 +1,4 @@
+{
+  "error": "No band connected within 30s. Is it on, in range, and not held by another app?",
+  "ok": false
+}

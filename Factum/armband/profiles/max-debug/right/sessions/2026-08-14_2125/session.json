@@ -1,0 +1,16 @@
+{
+  "arm": "right",
+  "battery_pct": 80,
+  "date": "2026-08-14",
+  "ended": "2026-08-14T21:45:50",
+  "ended_utc": "2026-08-15T04:45:50.577Z",
+  "location": "",
+  "notes": "",
+  "on_charger": false,
+  "present": "",
+  "profile": "max-debug",
+  "schema": "armband/session/2",
+  "session": "2026-08-14_2125",
+  "started": "2026-08-14T21:25:54",
+  "started_utc": "2026-08-15T04:25:54.944Z"
+}

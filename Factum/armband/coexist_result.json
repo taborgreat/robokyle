@@ -1,0 +1,4 @@
+{
+  "error": "Could not open any endpoint: ['ws://127.0.0.1:8766/events', 'ws://127.0.0.1:8766', 'ws://localhost:8766/events', 'ws://localhost:8766']. Is Mudra Link running with the band connected?",
+  "ok": false
+}

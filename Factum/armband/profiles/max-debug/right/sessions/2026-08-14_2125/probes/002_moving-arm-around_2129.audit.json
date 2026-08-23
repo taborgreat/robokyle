@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-14_2125\\probes\\002_moving-arm-around_2129.csv",
+  "n_samples": 35838,
+  "kind": "distractor",
+  "clip_fraction_ch1": 0.00932,
+  "clip_fraction_ch2": 0.015989,
+  "clip_fraction_ch3": 0.1223,
+  "max_clip_pct": 12.23,
+  "rest_rms_ratio_ch1": 0.635,
+  "rest_rms_ratio_ch2": 0.764,
+  "rest_rms_ratio_ch3": 1.865,
+  "clip_threshold": 0.999,
+  "compromised": false,
+  "reasons": []
+}

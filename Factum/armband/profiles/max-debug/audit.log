@@ -1,0 +1,57 @@
+# Factum audit log — profile 'max-debug'
+# One JSON object per line, append-only. Schema armband/audit/1.
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v1 trained for right: v2, recall 42%, false fires 0.76%", "ts": "2026-08-08T23:38:50", "version": 1}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v2 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-08T23:39:10", "version": 2}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v3 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-08T23:59:13", "version": 3}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v4 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T01:21:45", "version": 4}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v5 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T11:34:24", "version": 5}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v6 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T11:48:30", "version": 6}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v7 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T12:24:08", "version": 7}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v8 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T13:50:31", "version": 8}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v9 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T14:28:05", "version": 9}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v10 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T14:41:08", "version": 10}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v11 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T15:00:59", "version": 11}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v12 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T15:34:54", "version": 12}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v13 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T18:34:37", "version": 13}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v14 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-09T19:35:53", "version": 14}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v15 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-10T20:11:33", "version": 15}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v16 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-10T20:17:14", "version": 16}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v17 trained for right: v2, recall 50%, false fires 1.14%", "ts": "2026-08-11T19:46:10", "version": 17}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-11_1959", "session": "2026-08-11_1959", "ts": "2026-08-11T19:59:03"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-11_1959", "ts": "2026-08-11T19:59:05"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 1)", "ts": "2026-08-11T19:59:05"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-11_1959b", "session": "2026-08-11_1959b", "ts": "2026-08-11T19:59:36"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-11_1959b", "ts": "2026-08-11T19:59:38"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 2)", "ts": "2026-08-11T19:59:38"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-11_2006", "session": "2026-08-11_2006", "ts": "2026-08-11T20:06:10"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-11_2006", "ts": "2026-08-11T20:06:12"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 3)", "ts": "2026-08-11T20:06:12"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-12_2028", "session": "2026-08-12_2028", "ts": "2026-08-12T20:28:48"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: rest (25038 samples)", "file": "001_rest_2028.csv", "kind": "rest", "samples": 25038, "sha256": "ddc23b74572db216e9ad83855e8343e9df630650b70ae1c0bdffa99d29cd690f", "ts": "2026-08-12T20:29:19"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: Baseline, rest. (25038 samples)", "file": "002_baseline-rest_2031.csv", "kind": "rest", "samples": 25038, "sha256": "b3a26ef44f02f4262b56e090b7d4fe48b6c0c60cad92ee56cf79e691c12f1a1d", "ts": "2026-08-12T20:31:46"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: baseline rest (25038 samples)", "file": "003_baseline-rest_2032.csv", "kind": "rest", "samples": 25038, "sha256": "8d5f55dd333fff38921a70b78f2bdf1600218a0e18e4e8a0257b6b7c6146b251", "ts": "2026-08-12T20:32:37"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: waving arm around gently, pretending to use band as a cursor (25056 samples)", "file": "004_waving-arm-around-gently-pretending-to-use-band-_2033.csv", "kind": "distractor", "samples": 25056, "sha256": "aa0446e733bb511e64642a672949d33bc70b4138813296c17e62e85bc7c09cc7", "ts": "2026-08-12T20:33:55"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: wiggling pointer finger, gently. erecting gently pointer finger from relax state (23346 samples)", "file": "005_wiggling-pointer-finger-gently-erecting-gently-p_2034.csv", "kind": "probe", "samples": 23346, "sha256": "7acf193052dff8a1028b41ec0f3e2c0c32d558baf1dd22d79727047afef1cce3", "ts": "2026-08-12T20:35:26"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-12_2028", "ts": "2026-08-12T21:40:12"}
+{"action": "note", "app_version": "0.4.0", "detail": "calibrated right from 2026-08-12_2028: k=6.0, distinct d'>=3.223", "ts": "2026-08-12T21:40:13"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-14_2125", "session": "2026-08-14_2125", "ts": "2026-08-14T21:25:54"}
+{"action": "placement_confirm", "app_version": "0.4.0", "arm": "right", "detail": "placement confirmed for session start", "session": "2026-08-14_2125", "ts": "2026-08-14T21:28:12"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: rest (25056 samples)", "file": "001_rest_2128.csv", "kind": "rest", "samples": 25056, "sha256": "81aedf32415f78f68d399b3cfea1ad4fb6b226c538fe0e94c1640f5eb8bc4325", "ts": "2026-08-14T21:28:46"}
+{"action": "placement_confirm", "app_version": "0.4.0", "arm": "right", "detail": "placement confirmed for session start", "session": "2026-08-14_2125", "ts": "2026-08-14T21:29:48"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: moving arm around (35838 samples)", "file": "002_moving-arm-around_2129.csv", "kind": "distractor", "samples": 35838, "sha256": "6421f1e34f929461a69319d683fdc1fe5b687e3890ee26dbc86e8186a39e5e7f", "ts": "2026-08-14T21:30:35"}
+{"action": "placement_confirm", "app_version": "0.4.0", "arm": "right", "detail": "placement confirmed for session start", "session": "2026-08-14_2125", "ts": "2026-08-14T21:31:48"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: rest (25056 samples)", "file": "003_rest_2131.csv", "kind": "rest", "samples": 25056, "sha256": "302413d027eff37d4a37970a9ee6d64394ab96365d65638dbc8e80fb0d827d97", "ts": "2026-08-14T21:32:22"}
+{"action": "placement_confirm", "app_version": "0.4.0", "arm": "right", "detail": "placement confirmed for session start", "session": "2026-08-14_2125", "ts": "2026-08-14T21:33:33"}
+{"action": "placement_confirm", "app_version": "0.4.0", "arm": "right", "detail": "placement confirmed for session start", "session": "2026-08-14_2125", "ts": "2026-08-14T21:34:15"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: curl index finger (85878 samples)", "file": "004_curl-index-finger_2134.csv", "kind": "probe", "samples": 85878, "sha256": "c95a54d6da08437e40a43ca7139454594006902bd358f86bfd1656228e2f7b1e", "ts": "2026-08-14T21:36:02"}
+{"action": "placement_confirm", "app_version": "0.4.0", "arm": "right", "detail": "placement confirmed for session start", "session": "2026-08-14_2125", "ts": "2026-08-14T21:37:51"}
+{"action": "probe.record", "app_version": "0.4.0", "detail": "probe recorded: curling pinky finger (85896 samples)", "file": "005_curling-pinky-finger_2137.csv", "kind": "probe", "samples": 85896, "sha256": "347735f905e1b271fc11dda7b3ee979774f79ac0b7f53b38f4f86dfcd3029fab", "ts": "2026-08-14T21:39:38"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-14_2125", "ts": "2026-08-14T21:45:50"}
+{"action": "note", "app_version": "0.4.0", "detail": "calibrated right from 2026-08-14_2125: k=4.0, distinct d'>=9.894", "ts": "2026-08-14T21:45:51"}
+{"action": "note", "app_version": "0.4.0", "detail": "session analysed: right/2026-08-14_2125", "ts": "2026-08-14T21:45:51"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 4)", "ts": "2026-08-14T21:45:51"}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v18 trained for right: v2, recall 78%, false fires 0.98%", "ts": "2026-08-14T22:04:49", "version": 18}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v19 trained for right: v2, recall 78%, false fires 0.98%", "ts": "2026-08-14T22:05:14", "version": 19}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v20 trained for right: v2, recall 78%, false fires 0.98%", "ts": "2026-08-14T22:16:28", "version": 20}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v21 trained for right: v2, recall 97%, false fires 0.85%", "ts": "2026-08-14T22:17:09", "version": 21}
+{"action": "model.train", "app_version": "0.4.0", "arm": "right", "detail": "model v22 trained for right: v2, recall 78%, false fires 0.98%", "ts": "2026-08-14T22:22:46", "version": 22}

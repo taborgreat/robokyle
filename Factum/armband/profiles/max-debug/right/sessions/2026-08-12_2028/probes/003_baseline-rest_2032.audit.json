@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-12_2028\\probes\\003_baseline-rest_2032.csv",
+  "n_samples": 25038,
+  "kind": "rest",
+  "clip_fraction_ch1": 0.0002,
+  "clip_fraction_ch2": 0.0,
+  "clip_fraction_ch3": 0.0,
+  "max_clip_pct": 0.02,
+  "rest_rms_ratio_ch1": 1.554,
+  "rest_rms_ratio_ch2": 0.716,
+  "rest_rms_ratio_ch3": 0.854,
+  "clip_threshold": 0.999,
+  "compromised": false,
+  "reasons": []
+}

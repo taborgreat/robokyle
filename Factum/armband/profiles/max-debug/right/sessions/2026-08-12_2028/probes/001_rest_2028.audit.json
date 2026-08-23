@@ -1,0 +1,17 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-12_2028\\probes\\001_rest_2028.csv",
+  "n_samples": 25038,
+  "kind": "rest",
+  "clip_fraction_ch1": 0.0,
+  "clip_fraction_ch2": 0.034428,
+  "clip_fraction_ch3": 0.0002,
+  "max_clip_pct": 3.443,
+  "rest_rms_ratio_ch1": 0.329,
+  "rest_rms_ratio_ch2": 4.154,
+  "rest_rms_ratio_ch3": 0.451,
+  "clip_threshold": 0.999,
+  "compromised": true,
+  "reasons": [
+    "ch2 rest RMS 4.2x neighbours (likely contact fault)"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "arm": "right",
+  "battery_pct": null,
+  "date": "2026-08-10",
+  "ended": "2026-08-10T20:09:35",
+  "ended_utc": "2026-08-11T03:09:35.688Z",
+  "location": "",
+  "notes": "",
+  "on_charger": null,
+  "present": "",
+  "profile": "test-kyle",
+  "schema": "armband/session/2",
+  "session": "2026-08-10_2009",
+  "started": "2026-08-10T20:09:35",
+  "started_utc": "2026-08-11T03:09:35.110Z"
+}

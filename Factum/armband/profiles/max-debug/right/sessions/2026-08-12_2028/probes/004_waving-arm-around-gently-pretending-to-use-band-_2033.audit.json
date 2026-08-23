@@ -1,0 +1,18 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-12_2028\\probes\\004_waving-arm-around-gently-pretending-to-use-band-_2033.csv",
+  "n_samples": 25056,
+  "kind": "distractor",
+  "clip_fraction_ch1": 0.158884,
+  "clip_fraction_ch2": 0.272071,
+  "clip_fraction_ch3": 0.369413,
+  "max_clip_pct": 36.941,
+  "rest_rms_ratio_ch1": 0.748,
+  "rest_rms_ratio_ch2": 1.044,
+  "rest_rms_ratio_ch3": 1.251,
+  "clip_threshold": 0.999,
+  "compromised": true,
+  "reasons": [
+    "ch2 clipped 27.2% (>= 25.0%)",
+    "ch3 clipped 36.9% (>= 25.0%)"
+  ]
+}

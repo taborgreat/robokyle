@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-14_2125\\probes\\005_curling-pinky-finger_2137.csv",
+  "n_samples": 85896,
+  "kind": "probe",
+  "clip_fraction_ch1": 0.003888,
+  "clip_fraction_ch2": 0.003353,
+  "clip_fraction_ch3": 2.3e-05,
+  "max_clip_pct": 0.389,
+  "rest_rms_ratio_ch1": 1.487,
+  "rest_rms_ratio_ch2": 1.171,
+  "rest_rms_ratio_ch3": 0.514,
+  "clip_threshold": 0.999,
+  "compromised": false,
+  "reasons": []
+}

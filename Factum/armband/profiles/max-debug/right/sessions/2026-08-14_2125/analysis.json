@@ -1,0 +1,920 @@
+{
+  "arm": "right",
+  "generated": "2026-08-14T21:45:51",
+  "glossary": {
+    "channel_signature": "Share of the movement's energy carried by each electrode. A movement concentrated on one channel is easier to separate than one spread evenly across all three.",
+    "consistency": "How alike the repetitions are, 0-1, computed as 1/(1 + mean coefficient of variation of the feature vector across repetitions). 1.0 means identical every time. This is the number that matters most: a movement he cannot repeat identically is unusable no matter how strong it is. Above 0.70 is good, below 0.50 is a problem.",
+    "d_prime": "Separability between two probes along the best linear boundary. Below 1.0 the classifier will confuse them; above 1.5 they are usably distinct; above 3.0 they are unmistakable.",
+    "onset_latency_s": "Seconds from the start of the recording to the first burst of activity. Only meaningful when he was cued to start immediately.",
+    "reps": "Bursts of activity found in the recording \u2014 one per attempt at the movement.",
+    "rise_time_s": "How long the first burst took to go from 10% to 90% of its peak. Shorter is a crisper onset and easier to trigger on.",
+    "snr_vs_rest": "How much louder the channel is than this session's rest recording, in dB. 0 dB means indistinguishable from rest. Above ~6 dB is a signal you can see; above ~12 dB is comfortable.",
+    "usability": "Overall 0-1 score, weighted heavily toward whether the movement repeats reliably. Effort and fatigue are recorded but carry little weight: a tiring movement that gives a good, repeatable result is worth keeping. See 'How usability is scored'."
+  },
+  "probes": [
+    {
+      "effort": "",
+      "fatigue": "",
+      "file": "001_rest_2128.csv",
+      "his_confidence": 0,
+      "index": 1,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 1,
+        "best_channel_db": 7.65,
+        "channel_signature": [
+          0.158,
+          0.517,
+          0.325
+        ],
+        "clip_fraction": [
+          0.0,
+          4e-05,
+          0.0
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.638
+        },
+        "correlations": {
+          "ch1_ch2": 0.8841,
+          "ch1_ch3": 0.8698,
+          "ch2_ch3": 0.9169
+        },
+        "dc_offset": [
+          -0.003588,
+          -0.015867,
+          -0.006576
+        ],
+        "duration_s": 29.829,
+        "kind": "rest",
+        "n_samples": 25056,
+        "peak": [
+          0.548448,
+          1.015837,
+          0.761826
+        ],
+        "quality": {
+          "flags": [
+            {
+              "fix": "Some independence is being lost. A small rotation of the band usually helps.",
+              "key": "channel_collapse",
+              "message": "ch2 and ch3 track each other closely (r=0.92)",
+              "severity": "warn",
+              "value": 0.9169
+            }
+          ],
+          "headline": "Usable but flagged \u2014 ch2 and ch3 track each other closely (r=0.92).",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 0.85,
+          "verdict": "suspect"
+        },
+        "rms": [
+          0.138389,
+          0.234524,
+          0.185324
+        ],
+        "snr_vs_rest": [
+          1.433,
+          2.413,
+          1.871
+        ],
+        "snr_vs_rest_db": [
+          3.12,
+          7.65,
+          5.44
+        ],
+        "usability": 0.224,
+        "usable": true
+      },
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "rest",
+      "quality": {
+        "flags": [
+          {
+            "fix": "Some independence is being lost. A small rotation of the band usually helps.",
+            "key": "channel_collapse",
+            "message": "ch2 and ch3 track each other closely (r=0.92)",
+            "severity": "warn",
+            "value": 0.9169
+          }
+        ],
+        "headline": "Usable but flagged \u2014 ch2 and ch3 track each other closely (r=0.92).",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 0.85,
+        "verdict": "suspect"
+      },
+      "sample_rate_hz": 840,
+      "sample_rate_source": "measured",
+      "started": "2026-08-14T21:28:15",
+      "status": "complete"
+    },
+    {
+      "effort": "",
+      "fatigue": "",
+      "file": "002_moving-arm-around_2129.csv",
+      "his_confidence": 0,
+      "index": 2,
+      "kind": "distractor",
+      "metrics": {
+        "best_channel": 2,
+        "best_channel_db": 12.87,
+        "channel_signature": [
+          0.199,
+          0.25,
+          0.552
+        ],
+        "clip_fraction": [
+          0.00932,
+          0.015989,
+          0.1223
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.892,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 1.0
+        },
+        "consistency": 0.8925,
+        "correlations": {
+          "ch1_ch2": 0.4746,
+          "ch1_ch3": 0.2603,
+          "ch2_ch3": 0.2648
+        },
+        "cue_hit_rate": 1.0,
+        "cued": true,
+        "dc_offset": [
+          -0.003085,
+          -0.012361,
+          -0.007313
+        ],
+        "duration_s": 43.178,
+        "duty_fraction": 0.579,
+        "feature_cv": 0.1205,
+        "feature_mean": [
+          0.210086,
+          0.159187,
+          17.042323,
+          36.152381,
+          50.242857,
+          0.240295,
+          0.182625,
+          17.735664,
+          34.295238,
+          50.666667,
+          0.396969,
+          0.334419,
+          21.523712,
+          29.561905,
+          44.97619
+        ],
+        "kind": "distractor",
+        "n_feature_windows": 210,
+        "n_reps": 5,
+        "n_reps_cued": 5,
+        "n_reps_detected": 11,
+        "n_reps_with_signal": 5,
+        "n_samples": 35838,
+        "onset_latency_s": 3.0,
+        "peak": [
+          1.003055,
+          1.012331,
+          1.007283
+        ],
+        "quality": {
+          "flags": [
+            {
+              "fix": "Some peak information is lost. Fine if the movement is strong; worth re-seating that electrode if it gets worse.",
+              "key": "clipping",
+              "message": "ch3 clips on 12.2% of samples at the peaks",
+              "severity": "warn",
+              "value": 0.1223
+            }
+          ],
+          "headline": "Usable but flagged \u2014 ch3 clips on 12.2% of samples at the peaks.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 0.775,
+          "verdict": "suspect"
+        },
+        "reps": [
+          {
+            "duration_s": 5.0,
+            "end_s": 8.0,
+            "start_s": 3.0
+          },
+          {
+            "duration_s": 5.0,
+            "end_s": 16.0,
+            "start_s": 11.0
+          },
+          {
+            "duration_s": 5.0,
+            "end_s": 24.0,
+            "start_s": 19.0
+          },
+          {
+            "duration_s": 5.0,
+            "end_s": 32.0,
+            "start_s": 27.0
+          },
+          {
+            "duration_s": 5.0,
+            "end_s": 40.0,
+            "start_s": 35.0
+          }
+        ],
+        "rise_time_s": 3.26,
+        "rms": [
+          0.21787,
+          0.249775,
+          0.436027
+        ],
+        "snr_vs_rest": [
+          2.256,
+          2.57,
+          4.401
+        ],
+        "snr_vs_rest_db": [
+          7.07,
+          8.2,
+          12.87
+        ],
+        "usability": 0.717,
+        "usable": true
+      },
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "moving arm around",
+      "quality": {
+        "flags": [
+          {
+            "fix": "Some peak information is lost. Fine if the movement is strong; worth re-seating that electrode if it gets worse.",
+            "key": "clipping",
+            "message": "ch3 clips on 12.2% of samples at the peaks",
+            "severity": "warn",
+            "value": 0.1223
+          }
+        ],
+        "headline": "Usable but flagged \u2014 ch3 clips on 12.2% of samples at the peaks.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 0.775,
+        "verdict": "suspect"
+      },
+      "sample_rate_hz": 830,
+      "sample_rate_source": "measured",
+      "started": "2026-08-14T21:29:52",
+      "status": "complete"
+    },
+    {
+      "effort": "",
+      "fatigue": "",
+      "file": "003_rest_2131.csv",
+      "his_confidence": 0,
+      "index": 3,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 0,
+        "best_channel_db": 0.0,
+        "channel_signature": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "clip_fraction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.0
+        },
+        "correlations": {
+          "ch1_ch2": 0.8465,
+          "ch1_ch3": 0.8362,
+          "ch2_ch3": 0.8355
+        },
+        "dc_offset": [
+          -0.001023,
+          -0.009315,
+          -0.002215
+        ],
+        "duration_s": 29.478,
+        "kind": "rest",
+        "n_samples": 25056,
+        "peak": [
+          0.365523,
+          0.384105,
+          0.419265
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "rms": [
+          0.096587,
+          0.097199,
+          0.099076
+        ],
+        "snr_vs_rest": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "snr_vs_rest_db": [
+          0.0,
+          -0.0,
+          -0.0
+        ],
+        "usability": 0.065,
+        "usable": true
+      },
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "rest",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 850,
+      "sample_rate_source": "measured",
+      "started": "2026-08-14T21:31:52",
+      "status": "complete"
+    },
+    {
+      "effort": "",
+      "fatigue": "",
+      "file": "004_curl-index-finger_2134.csv",
+      "his_confidence": 0,
+      "index": 4,
+      "kind": "probe",
+      "metrics": {
+        "best_channel": 1,
+        "best_channel_db": 10.2,
+        "channel_signature": [
+          0.431,
+          0.434,
+          0.135
+        ],
+        "clip_fraction": [
+          0.042758,
+          0.043876,
+          0.005485
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.878,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.85
+        },
+        "consistency": 0.8779,
+        "correlations": {
+          "ch1_ch2": 0.5846,
+          "ch1_ch3": 0.7284,
+          "ch2_ch3": 0.6999
+        },
+        "cue_hit_rate": 1.0,
+        "cued": true,
+        "dc_offset": [
+          -0.014861,
+          -0.007348,
+          -0.002788
+        ],
+        "duration_s": 102.236,
+        "duty_fraction": 0.391,
+        "feature_cv": 0.1391,
+        "feature_mean": [
+          0.387719,
+          0.303378,
+          35.074643,
+          39.455263,
+          52.368421,
+          0.392991,
+          0.307831,
+          38.454738,
+          42.357895,
+          53.55,
+          0.197093,
+          0.144119,
+          17.432491,
+          39.052632,
+          51.781579
+        ],
+        "kind": "probe",
+        "n_feature_windows": 380,
+        "n_reps": 20,
+        "n_reps_cued": 20,
+        "n_reps_detected": 20,
+        "n_reps_with_signal": 20,
+        "n_samples": 85878,
+        "onset_latency_s": 3.0,
+        "peak": [
+          1.014831,
+          1.007318,
+          1.002758
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "reps": [
+          {
+            "duration_s": 2.0,
+            "end_s": 5.0,
+            "start_s": 3.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 10.0,
+            "start_s": 8.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 15.0,
+            "start_s": 13.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 20.0,
+            "start_s": 18.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 25.0,
+            "start_s": 23.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 30.0,
+            "start_s": 28.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 35.0,
+            "start_s": 33.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 40.0,
+            "start_s": 38.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 45.0,
+            "start_s": 43.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 50.0,
+            "start_s": 48.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 55.0,
+            "start_s": 53.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 60.0,
+            "start_s": 58.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 65.0,
+            "start_s": 63.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 70.0,
+            "start_s": 68.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 75.0,
+            "start_s": 73.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 80.0,
+            "start_s": 78.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 85.0,
+            "start_s": 83.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 90.0,
+            "start_s": 88.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 95.0,
+            "start_s": 93.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 100.0,
+            "start_s": 98.0
+          }
+        ],
+        "rise_time_s": 0.57,
+        "rms": [
+          0.312046,
+          0.314372,
+          0.166375
+        ],
+        "snr_vs_rest": [
+          3.231,
+          3.234,
+          1.679
+        ],
+        "snr_vs_rest_db": [
+          10.19,
+          10.2,
+          4.5
+        ],
+        "usability": 0.673,
+        "usable": true
+      },
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "curl index finger",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 840,
+      "sample_rate_source": "measured",
+      "started": "2026-08-14T21:34:18",
+      "status": "complete"
+    },
+    {
+      "effort": "",
+      "fatigue": "",
+      "file": "005_curling-pinky-finger_2137.csv",
+      "his_confidence": 0,
+      "index": 5,
+      "kind": "probe",
+      "metrics": {
+        "best_channel": 0,
+        "best_channel_db": 4.25,
+        "channel_signature": [
+          0.609,
+          0.391,
+          0.0
+        ],
+        "clip_fraction": [
+          0.003888,
+          0.003353,
+          2.3e-05
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.902,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.354
+        },
+        "consistency": 0.9017,
+        "correlations": {
+          "ch1_ch2": 0.363,
+          "ch1_ch3": 0.4852,
+          "ch2_ch3": 0.3132
+        },
+        "cue_hit_rate": 0.65,
+        "cue_note": "7 of 20 cued attempts produced no detectable signal",
+        "cued": true,
+        "dc_offset": [
+          0.001842,
+          -0.009029,
+          -0.000212
+        ],
+        "duration_s": 103.489,
+        "duty_fraction": 0.387,
+        "feature_cv": 0.109,
+        "feature_mean": [
+          0.16863,
+          0.116857,
+          13.355355,
+          37.046961,
+          49.571823,
+          0.141298,
+          0.099143,
+          11.186252,
+          36.541436,
+          49.773481,
+          0.080116,
+          0.062362,
+          7.33641,
+          38.066298,
+          50.251381
+        ],
+        "kind": "probe",
+        "n_feature_windows": 362,
+        "n_reps": 20,
+        "n_reps_cued": 20,
+        "n_reps_detected": 23,
+        "n_reps_with_signal": 13,
+        "n_samples": 85896,
+        "onset_latency_s": 3.0,
+        "peak": [
+          1.001842,
+          1.008999,
+          0.999788
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "reps": [
+          {
+            "duration_s": 2.0,
+            "end_s": 5.0,
+            "start_s": 3.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 10.0,
+            "start_s": 8.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 15.0,
+            "start_s": 13.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 20.0,
+            "start_s": 18.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 25.0,
+            "start_s": 23.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 30.0,
+            "start_s": 28.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 35.0,
+            "start_s": 33.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 40.0,
+            "start_s": 38.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 45.0,
+            "start_s": 43.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 50.0,
+            "start_s": 48.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 55.0,
+            "start_s": 53.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 60.0,
+            "start_s": 58.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 65.0,
+            "start_s": 63.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 70.0,
+            "start_s": 68.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 75.0,
+            "start_s": 73.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 80.0,
+            "start_s": 78.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 85.0,
+            "start_s": 83.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 90.0,
+            "start_s": 88.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 95.0,
+            "start_s": 93.0
+          },
+          {
+            "duration_s": 2.0,
+            "end_s": 100.0,
+            "start_s": 98.0
+          }
+        ],
+        "rise_time_s": 0.35,
+        "rms": [
+          0.157576,
+          0.136409,
+          0.075499
+        ],
+        "snr_vs_rest": [
+          1.631,
+          1.403,
+          0.762
+        ],
+        "snr_vs_rest_db": [
+          4.25,
+          2.94,
+          -2.36
+        ],
+        "usability": 0.559,
+        "usable": true
+      },
+      "notes": "",
+      "placement": "right forearm; 235mm from elbow; rotated 0 deg",
+      "probe": "curling pinky finger",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 830,
+      "sample_rate_source": "measured",
+      "started": "2026-08-14T21:37:55",
+      "status": "complete"
+    }
+  ],
+  "profile": "max-debug",
+  "ranking": [
+    {
+      "best_channel_db": 10.2,
+      "consistency": 0.8779,
+      "effort": "",
+      "fatigue": "",
+      "file": "004_curl-index-finger_2134.csv",
+      "n_reps": 20,
+      "probe": "curl index finger",
+      "usability": 0.673
+    },
+    {
+      "best_channel_db": 4.25,
+      "consistency": 0.9017,
+      "effort": "",
+      "fatigue": "",
+      "file": "005_curling-pinky-finger_2137.csv",
+      "n_reps": 20,
+      "probe": "curling pinky finger",
+      "usability": 0.559
+    }
+  ],
+  "recommendations": [
+    "'curling pinky finger' separates cleanly from ordinary movement (d'=2.52) \u2014 a promising trigger candidate.",
+    "'curl index finger' separates cleanly from ordinary movement (d'=2.58) \u2014 a promising trigger candidate.",
+    "Best candidate so far: 'curl index finger' (usability 0.67, consistency 0.8779, effort unrated). Record it again next session to confirm it repeats across days."
+  ],
+  "repeatability": [],
+  "rest": {
+    "available": true,
+    "clip_fraction": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "combined_mean": 0.095042,
+    "combined_sd": 0.022378,
+    "dc_offset": [
+      -0.001023,
+      -0.009315,
+      -0.002215
+    ],
+    "duration_s": 29.478,
+    "env_mean": [
+      0.093934,
+      0.094635,
+      0.096557
+    ],
+    "env_sd": [
+      0.022593,
+      0.022239,
+      0.022303
+    ],
+    "file": "003_rest_2131.csv",
+    "n_samples": 25056,
+    "rms": [
+      0.096587,
+      0.097199,
+      0.099076
+    ]
+  },
+  "schema": "armband/analysis/1",
+  "scoring": "usability = 0.45 x consistency + 0.25 x strength + 0.20 x his confidence + 0.10 x effort, minus a small fatigue tie-breaker (none 0, some 0.02, high 0.05). Consistency is weighted highest on purpose: a movement he cannot repeat identically is unusable no matter how strong it is. Effort and fatigue are recorded and reported but deliberately carry little weight \u2014 a movement that produces a good, repeatable result is worth keeping even if it is tiring, and should not be scored out of contention for it.",
+  "separability": [
+    {
+      "a": "curl index finger",
+      "a_file": "004_curl-index-finger_2134.csv",
+      "b": "curling pinky finger",
+      "b_file": "005_curling-pinky-finger_2137.csv",
+      "d_prime": 2.272,
+      "distinct": false,
+      "expected_error": 0.1279,
+      "mean_cosine": 0.9617,
+      "top_features": [
+        "ch2_wl",
+        "ch1_wl",
+        "ch2_zc"
+      ]
+    },
+    {
+      "a": "moving arm around",
+      "a_file": "002_moving-arm-around_2129.csv",
+      "b": "curling pinky finger",
+      "b_file": "005_curling-pinky-finger_2137.csv",
+      "d_prime": 2.518,
+      "distinct": true,
+      "expected_error": 0.104,
+      "mean_cosine": 0.9846,
+      "top_features": [
+        "ch3_wl",
+        "ch3_zc",
+        "ch3_ssc"
+      ]
+    },
+    {
+      "a": "moving arm around",
+      "a_file": "002_moving-arm-around_2129.csv",
+      "b": "curl index finger",
+      "b_file": "004_curl-index-finger_2134.csv",
+      "d_prime": 2.58,
+      "distinct": true,
+      "expected_error": 0.0985,
+      "mean_cosine": 0.9779,
+      "top_features": [
+        "ch2_wl",
+        "ch3_wl",
+        "ch1_wl"
+      ]
+    }
+  ],
+  "session": "2026-08-14_2125",
+  "session_info": {
+    "arm": "right",
+    "battery_pct": 80,
+    "date": "2026-08-14",
+    "ended": "2026-08-14T21:45:50",
+    "ended_utc": "2026-08-15T04:45:50.577Z",
+    "location": "",
+    "notes": "",
+    "on_charger": false,
+    "present": "",
+    "profile": "max-debug",
+    "schema": "armband/session/2",
+    "session": "2026-08-14_2125",
+    "started": "2026-08-14T21:25:54",
+    "started_utc": "2026-08-15T04:25:54.944Z"
+  }
+}

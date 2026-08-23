@@ -1,0 +1,3 @@
+- 2026-08-08 17:00:59 — Wearing band 2 finger lengths above right wrist.
+- 2026-08-08 20:46:18 — RIGHT arm, 1 inch above the wrist bone
+- 2026-08-12 20:28:12 — right forearm; 235mm from elbow; rotated 0 deg

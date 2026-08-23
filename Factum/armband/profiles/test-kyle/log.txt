@@ -1,0 +1,115 @@
+# armband log — profile 'test-kyle' — created 2026-08-07T22:23:47.792Z
+2026-08-08T07:28:36.162Z  session opened: right/2026-08-08_0028
+2026-08-08T07:28:36.235Z  session closed: right/2026-08-08_0028
+2026-08-08T07:34:43.755Z  session opened: right/2026-08-08_0034
+2026-08-08T07:34:43.827Z  session closed: right/2026-08-08_0034
+2026-08-08T23:33:01.589Z  session opened: right/2026-08-08_1633
+2026-08-08T23:33:01.664Z  session closed: right/2026-08-08_1633
+2026-08-08T23:33:06.284Z  session opened: right/2026-08-08_1633b
+2026-08-08T23:33:06.361Z  session closed: right/2026-08-08_1633b
+2026-08-08T23:33:27.469Z  session opened: right/2026-08-08_1633c
+2026-08-08T23:33:27.548Z  session closed: right/2026-08-08_1633c
+2026-08-08T23:34:09.991Z  session opened: right/2026-08-08_1634
+2026-08-08T23:34:10.061Z  session closed: right/2026-08-08_1634
+2026-08-08T23:38:21.826Z  session opened: right/2026-08-08_1638
+2026-08-08T23:38:21.898Z  session closed: right/2026-08-08_1638
+2026-08-09T02:53:05.538Z  session opened: right/2026-08-08_1953
+2026-08-09T02:53:05.655Z  session closed: right/2026-08-08_1953
+2026-08-09T03:02:37.939Z  session opened: right/2026-08-08_2002
+2026-08-09T03:02:38.022Z  session closed: right/2026-08-08_2002
+2026-08-09T04:02:06.556Z  session opened: right/2026-08-08_2102
+2026-08-09T04:02:06.641Z  session closed: right/2026-08-08_2102
+2026-08-09T04:18:48.867Z  session opened: right/2026-08-08_2118
+2026-08-09T04:18:48.940Z  session closed: right/2026-08-08_2118
+2026-08-09T04:19:07.953Z  session opened: right/2026-08-08_2119
+2026-08-09T04:19:08.024Z  session closed: right/2026-08-08_2119
+2026-08-09T04:34:50.492Z  session opened: right/2026-08-08_2134
+2026-08-09T04:34:50.572Z  session closed: right/2026-08-08_2134
+2026-08-09T04:34:50.624Z  integrity manifest written (revision 1)
+2026-08-09T06:59:30.525Z  session opened: right/2026-08-08_2359
+2026-08-09T06:59:30.619Z  session closed: right/2026-08-08_2359
+2026-08-09T06:59:30.778Z  integrity manifest written (revision 2)
+2026-08-09T08:21:57.204Z  session opened: right/2026-08-09_0121
+2026-08-09T08:21:57.275Z  session closed: right/2026-08-09_0121
+2026-08-09T08:21:57.320Z  integrity manifest written (revision 3)
+2026-08-09T18:34:37.206Z  session opened: right/2026-08-09_1134
+2026-08-09T18:34:37.278Z  session closed: right/2026-08-09_1134
+2026-08-09T18:34:37.374Z  integrity manifest written (revision 4)
+2026-08-09T18:48:42.631Z  session opened: right/2026-08-09_1148
+2026-08-09T18:48:42.706Z  session closed: right/2026-08-09_1148
+2026-08-09T18:48:42.754Z  integrity manifest written (revision 5)
+2026-08-09T19:24:48.055Z  session opened: right/2026-08-09_1224
+2026-08-09T19:24:48.136Z  session closed: right/2026-08-09_1224
+2026-08-09T19:24:48.181Z  integrity manifest written (revision 6)
+2026-08-09T20:50:40.845Z  session opened: right/2026-08-09_1350
+2026-08-09T20:50:40.913Z  session closed: right/2026-08-09_1350
+2026-08-09T20:50:40.958Z  integrity manifest written (revision 7)
+2026-08-09T21:28:14.357Z  session opened: right/2026-08-09_1428
+2026-08-09T21:28:14.426Z  session closed: right/2026-08-09_1428
+2026-08-09T21:28:14.474Z  integrity manifest written (revision 8)
+2026-08-09T21:41:15.715Z  session opened: right/2026-08-09_1441
+2026-08-09T21:41:15.785Z  session closed: right/2026-08-09_1441
+2026-08-09T21:41:15.831Z  integrity manifest written (revision 9)
+2026-08-09T22:01:07.612Z  session opened: right/2026-08-09_1501
+2026-08-09T22:01:07.683Z  session closed: right/2026-08-09_1501
+2026-08-09T22:01:07.733Z  integrity manifest written (revision 10)
+2026-08-09T22:35:02.273Z  session opened: right/2026-08-09_1535
+2026-08-09T22:35:02.358Z  session closed: right/2026-08-09_1535
+2026-08-09T22:35:02.421Z  integrity manifest written (revision 11)
+2026-08-09T23:39:03.877Z  session opened: right/2026-08-09_1639
+2026-08-09T23:39:03.954Z  session closed: right/2026-08-09_1639
+2026-08-09T23:39:04.022Z  integrity manifest written (revision 12)
+2026-08-09T23:46:09.707Z  session opened: right/2026-08-09_1646
+2026-08-09T23:46:09.791Z  session closed: right/2026-08-09_1646
+2026-08-09T23:46:09.859Z  integrity manifest written (revision 13)
+2026-08-10T00:23:20.738Z  session opened: right/2026-08-09_1723
+2026-08-10T00:23:20.819Z  session closed: right/2026-08-09_1723
+2026-08-10T00:23:20.886Z  integrity manifest written (revision 14)
+2026-08-10T00:25:50.951Z  session opened: right/2026-08-09_1725
+2026-08-10T00:25:51.422Z  session closed: right/2026-08-09_1725
+2026-08-10T00:25:51.516Z  integrity manifest written (revision 15)
+2026-08-10T01:12:40.024Z  session opened: right/2026-08-09_1812
+2026-08-10T01:12:40.424Z  session closed: right/2026-08-09_1812
+2026-08-10T01:12:40.481Z  integrity manifest written (revision 16)
+2026-08-10T01:35:02.283Z  session opened: right/2026-08-09_1835
+2026-08-10T01:35:02.397Z  session closed: right/2026-08-09_1835
+2026-08-10T01:35:02.451Z  integrity manifest written (revision 17)
+2026-08-10T01:37:01.528Z  session opened: right/2026-08-09_1837
+2026-08-10T01:37:01.933Z  session closed: right/2026-08-09_1837
+2026-08-10T01:37:01.990Z  integrity manifest written (revision 18)
+2026-08-10T01:39:06.942Z  session opened: right/2026-08-09_1839
+2026-08-10T01:39:07.504Z  session closed: right/2026-08-09_1839
+2026-08-10T01:39:07.564Z  integrity manifest written (revision 19)
+2026-08-10T02:40:15.462Z  session opened: right/2026-08-09_1940
+2026-08-10T02:40:15.939Z  session closed: right/2026-08-09_1940
+2026-08-10T02:40:15.996Z  integrity manifest written (revision 20)
+2026-08-11T01:23:07.581Z  session opened: right/2026-08-10_1823
+2026-08-11T01:23:08.129Z  session closed: right/2026-08-10_1823
+2026-08-11T01:23:08.344Z  integrity manifest written (revision 21)
+2026-08-11T01:47:38.396Z  session opened: right/2026-08-10_1847
+2026-08-11T01:47:38.998Z  session closed: right/2026-08-10_1847
+2026-08-11T01:47:39.064Z  integrity manifest written (revision 22)
+2026-08-11T03:09:35.109Z  session opened: right/2026-08-10_2009
+2026-08-11T03:09:35.691Z  session closed: right/2026-08-10_2009
+2026-08-11T03:09:35.754Z  integrity manifest written (revision 23)
+2026-08-11T03:10:27.398Z  session opened: right/2026-08-10_2010
+2026-08-11T03:10:28.003Z  session closed: right/2026-08-10_2010
+2026-08-11T03:10:28.065Z  integrity manifest written (revision 24)
+2026-08-11T03:10:49.242Z  session opened: right/2026-08-10_2010b
+2026-08-11T03:10:50.074Z  session closed: right/2026-08-10_2010b
+2026-08-11T03:10:50.138Z  integrity manifest written (revision 25)
+2026-08-11T03:14:41.878Z  session opened: right/2026-08-10_2014
+2026-08-11T03:14:42.376Z  session closed: right/2026-08-10_2014
+2026-08-11T03:14:42.438Z  integrity manifest written (revision 26)
+2026-08-11T03:17:21.973Z  session opened: right/2026-08-10_2017
+2026-08-11T03:17:22.787Z  session closed: right/2026-08-10_2017
+2026-08-11T03:17:22.852Z  integrity manifest written (revision 27)
+2026-08-11T04:04:10.862Z  session opened: right/2026-08-10_2104
+2026-08-11T04:04:11.404Z  session closed: right/2026-08-10_2104
+2026-08-11T04:04:11.468Z  integrity manifest written (revision 28)
+2026-08-11T04:22:46.106Z  session opened: right/2026-08-10_2122
+2026-08-11T04:22:46.642Z  session closed: right/2026-08-10_2122
+2026-08-11T04:22:46.706Z  integrity manifest written (revision 29)
+2026-08-12T02:46:18.177Z  session opened: right/2026-08-11_1946
+2026-08-12T02:46:18.778Z  session closed: right/2026-08-11_1946
+2026-08-12T02:46:19.025Z  integrity manifest written (revision 30)

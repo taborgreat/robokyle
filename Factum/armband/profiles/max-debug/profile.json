@@ -1,0 +1,35 @@
+{
+  "active_arm": "right",
+  "active_session": {},
+  "created_utc": "2026-08-07T23:37:52.627Z",
+  "limbs": {
+    "left": {
+      "arm": "left",
+      "circumference_mm": 240,
+      "level": "intact",
+      "note": "Developer's own arm \u2014 debug profile.",
+      "residual_mm": 260
+    },
+    "right": {
+      "arm": "right",
+      "circumference_mm": 240,
+      "level": "intact",
+      "note": "Developer's own arm \u2014 debug profile.",
+      "residual_mm": 260
+    }
+  },
+  "name": "max-debug",
+  "notes": "Initial testing for SNC values. Testing Hand length down from elbow, right arm",
+  "placements": {
+    "right": {
+      "arm": "right",
+      "distance_mm": 235,
+      "note": "",
+      "on_upper_arm": false,
+      "rotation_deg": 0
+    }
+  },
+  "schema_version": 2,
+  "subject_context": "",
+  "type": "debug"
+}

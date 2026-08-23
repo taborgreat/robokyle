@@ -1,0 +1,92 @@
+# Factum audit log — profile 'test-kyle'
+# One JSON object per line, append-only. Schema armband/audit/1.
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-08_2134", "session": "2026-08-08_2134", "ts": "2026-08-08T21:34:50"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-08_2134", "ts": "2026-08-08T21:34:50"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 1)", "ts": "2026-08-08T21:34:50"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-08_2359", "session": "2026-08-08_2359", "ts": "2026-08-08T23:59:30"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-08_2359", "ts": "2026-08-08T23:59:30"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 2)", "ts": "2026-08-08T23:59:30"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_0121", "session": "2026-08-09_0121", "ts": "2026-08-09T01:21:57"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_0121", "ts": "2026-08-09T01:21:57"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 3)", "ts": "2026-08-09T01:21:57"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1134", "session": "2026-08-09_1134", "ts": "2026-08-09T11:34:37"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1134", "ts": "2026-08-09T11:34:37"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 4)", "ts": "2026-08-09T11:34:37"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1148", "session": "2026-08-09_1148", "ts": "2026-08-09T11:48:42"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1148", "ts": "2026-08-09T11:48:42"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 5)", "ts": "2026-08-09T11:48:42"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1224", "session": "2026-08-09_1224", "ts": "2026-08-09T12:24:48"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1224", "ts": "2026-08-09T12:24:48"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 6)", "ts": "2026-08-09T12:24:48"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1350", "session": "2026-08-09_1350", "ts": "2026-08-09T13:50:40"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1350", "ts": "2026-08-09T13:50:40"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 7)", "ts": "2026-08-09T13:50:40"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1428", "session": "2026-08-09_1428", "ts": "2026-08-09T14:28:14"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1428", "ts": "2026-08-09T14:28:14"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 8)", "ts": "2026-08-09T14:28:14"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1441", "session": "2026-08-09_1441", "ts": "2026-08-09T14:41:15"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1441", "ts": "2026-08-09T14:41:15"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 9)", "ts": "2026-08-09T14:41:15"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1501", "session": "2026-08-09_1501", "ts": "2026-08-09T15:01:07"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1501", "ts": "2026-08-09T15:01:07"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 10)", "ts": "2026-08-09T15:01:07"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1535", "session": "2026-08-09_1535", "ts": "2026-08-09T15:35:02"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1535", "ts": "2026-08-09T15:35:02"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 11)", "ts": "2026-08-09T15:35:02"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1639", "session": "2026-08-09_1639", "ts": "2026-08-09T16:39:03"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1639", "ts": "2026-08-09T16:39:03"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 12)", "ts": "2026-08-09T16:39:04"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1646", "session": "2026-08-09_1646", "ts": "2026-08-09T16:46:09"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1646", "ts": "2026-08-09T16:46:09"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 13)", "ts": "2026-08-09T16:46:09"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1723", "session": "2026-08-09_1723", "ts": "2026-08-09T17:23:20"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1723", "ts": "2026-08-09T17:23:20"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 14)", "ts": "2026-08-09T17:23:20"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1725", "session": "2026-08-09_1725", "ts": "2026-08-09T17:25:50"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1725", "ts": "2026-08-09T17:25:51"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 15)", "ts": "2026-08-09T17:25:51"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1812", "session": "2026-08-09_1812", "ts": "2026-08-09T18:12:40"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1812", "ts": "2026-08-09T18:12:40"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 16)", "ts": "2026-08-09T18:12:40"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1835", "session": "2026-08-09_1835", "ts": "2026-08-09T18:35:02"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1835", "ts": "2026-08-09T18:35:02"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 17)", "ts": "2026-08-09T18:35:02"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1837", "session": "2026-08-09_1837", "ts": "2026-08-09T18:37:01"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1837", "ts": "2026-08-09T18:37:01"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 18)", "ts": "2026-08-09T18:37:01"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1839", "session": "2026-08-09_1839", "ts": "2026-08-09T18:39:06"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1839", "ts": "2026-08-09T18:39:07"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 19)", "ts": "2026-08-09T18:39:07"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-09_1940", "session": "2026-08-09_1940", "ts": "2026-08-09T19:40:15"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-09_1940", "ts": "2026-08-09T19:40:15"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 20)", "ts": "2026-08-09T19:40:15"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_1823", "session": "2026-08-10_1823", "ts": "2026-08-10T18:23:07"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_1823", "ts": "2026-08-10T18:23:08"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 21)", "ts": "2026-08-10T18:23:08"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_1847", "session": "2026-08-10_1847", "ts": "2026-08-10T18:47:38"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_1847", "ts": "2026-08-10T18:47:38"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 22)", "ts": "2026-08-10T18:47:39"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2009", "session": "2026-08-10_2009", "ts": "2026-08-10T20:09:35"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2009", "ts": "2026-08-10T20:09:35"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 23)", "ts": "2026-08-10T20:09:35"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2010", "session": "2026-08-10_2010", "ts": "2026-08-10T20:10:27"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2010", "ts": "2026-08-10T20:10:28"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 24)", "ts": "2026-08-10T20:10:28"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2010b", "session": "2026-08-10_2010b", "ts": "2026-08-10T20:10:49"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2010b", "ts": "2026-08-10T20:10:50"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 25)", "ts": "2026-08-10T20:10:50"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2014", "session": "2026-08-10_2014", "ts": "2026-08-10T20:14:41"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2014", "ts": "2026-08-10T20:14:42"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 26)", "ts": "2026-08-10T20:14:42"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2017", "session": "2026-08-10_2017", "ts": "2026-08-10T20:17:21"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2017", "ts": "2026-08-10T20:17:22"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 27)", "ts": "2026-08-10T20:17:22"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2104", "session": "2026-08-10_2104", "ts": "2026-08-10T21:04:10"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2104", "ts": "2026-08-10T21:04:11"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 28)", "ts": "2026-08-10T21:04:11"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-10_2122", "session": "2026-08-10_2122", "ts": "2026-08-10T21:22:46"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-10_2122", "ts": "2026-08-10T21:22:46"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 29)", "ts": "2026-08-10T21:22:46"}
+{"action": "session.open", "app_version": "0.4.0", "arm": "right", "detail": "session opened: right/2026-08-11_1946", "session": "2026-08-11_1946", "ts": "2026-08-11T19:46:18"}
+{"action": "note", "app_version": "0.4.0", "detail": "session closed: right/2026-08-11_1946", "ts": "2026-08-11T19:46:18"}
+{"action": "integrity.manifest", "app_version": "0.4.0", "detail": "integrity manifest written (revision 30)", "ts": "2026-08-11T19:46:19"}

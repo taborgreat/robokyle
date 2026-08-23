@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-08_2046\\probes\\004_normal-movement-using-band-like-a-mouse-cursor_2049.csv",
+  "n_samples": 25002,
+  "kind": "distractor",
+  "clip_fraction_ch1": 0.00544,
+  "clip_fraction_ch2": 0.012199,
+  "clip_fraction_ch3": 0.070634,
+  "max_clip_pct": 7.063,
+  "rest_rms_ratio_ch1": 0.645,
+  "rest_rms_ratio_ch2": 0.787,
+  "rest_rms_ratio_ch3": 1.801,
+  "clip_threshold": 0.999,
+  "compromised": false,
+  "reasons": []
+}

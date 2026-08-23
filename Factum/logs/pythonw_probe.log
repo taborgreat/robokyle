@@ -1,0 +1,5 @@
+stdout=<_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
+stderr=<_io.TextIOWrapper name='<stderr>' mode='w' encoding='utf-8'>
+import app: OK
+App() constructed OK
+mainloop returned OK

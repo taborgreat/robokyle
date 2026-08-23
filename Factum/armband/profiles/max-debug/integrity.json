@@ -1,0 +1,528 @@
+{
+  "app_version": "0.4.0",
+  "files": {
+    "CLAUDE.md": {
+      "bytes": 8961,
+      "modified": "2026-08-09T18:04:03",
+      "mutable": true,
+      "sha256": "a729af8d3c1061594e9d5a5fb2c97814ac5961ecf117cf8316e34b8ebbfd2dcf"
+    },
+    "README.md": {
+      "bytes": 5835,
+      "modified": "2026-08-09T18:04:03",
+      "mutable": true,
+      "sha256": "c121d5bc8c99ca97a55d454b46362ade9347c9ea5309685ae3092adf19c95b81"
+    },
+    "audit.log": {
+      "bytes": 9807,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "167dfc748825c5bedd38a5d72f3961d4ce3ca73891cfef82a1bcbdfd61770493"
+    },
+    "log.txt": {
+      "bytes": 4319,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "704edb967994182f4a3fe0c9a9dd8524fa3c98ce5bc0198538ca46d1b470bc82"
+    },
+    "placement/README.md": {
+      "bytes": 782,
+      "modified": "2026-08-09T18:04:03",
+      "mutable": true,
+      "sha256": "0f2d804a8c97300e5606119dc57ec04faf8c12e13775a992a8e572ba3a6145f5"
+    },
+    "profile.json": {
+      "bytes": 859,
+      "modified": "2026-08-14T21:45:50",
+      "mutable": true,
+      "sha256": "fb0a0b19fd2297800ba08baba48b9c942cd7a49291aae4ec23934c75e071c426"
+    },
+    "right/calibration.json": {
+      "bytes": 1800,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "3cc364cbaff9afb6065a6edbd5ff4d58323d7830a10b420ea0a111962c15eac6"
+    },
+    "right/model.json": {
+      "bytes": 10232,
+      "modified": "2026-08-11T19:46:08",
+      "mutable": true,
+      "sha256": "5c5d178579224334b4b777d28eaf6caee430035f6757d04341f438fc63a34879"
+    },
+    "right/models/index.json": {
+      "bytes": 37803,
+      "modified": "2026-08-11T19:46:08",
+      "mutable": false,
+      "sha256": "0565f8462f86d9ca52865b3eb87812aef3da3ae44f44fb97fb0a89e6e6a8743f"
+    },
+    "right/models/model_001_2026-08-08_2046.json": {
+      "bytes": 10227,
+      "modified": "2026-08-08T23:38:48",
+      "mutable": false,
+      "sha256": "df8797d9853e7f2fb1b8e9e7cc19f87be06758c40e434d539f3408902fa21d45"
+    },
+    "right/models/model_002_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-08T23:39:09",
+      "mutable": false,
+      "sha256": "b2d43394a040d97fee2701a792f22c3c9e4b794170d514d2612c95ab9aec4163"
+    },
+    "right/models/model_003_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-08T23:59:11",
+      "mutable": false,
+      "sha256": "207411c3ec5cb31f7a21470ce3b2d3887e54d21048f49afe862042f18b36c86f"
+    },
+    "right/models/model_004_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T01:21:44",
+      "mutable": false,
+      "sha256": "35b4901631d48adc2156922b706c173870c1b1d578ba75860606a1e19d68c87e"
+    },
+    "right/models/model_005_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T11:34:23",
+      "mutable": false,
+      "sha256": "63961c71c8eb2d4cd067176f564c3ad85979cc1de0c237f2167e43f0b90ababd"
+    },
+    "right/models/model_006_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T11:48:29",
+      "mutable": false,
+      "sha256": "9ba3b848c71c4b8548eeee56f7b985ec38fae1f1daa0a1d0c5709e574746f0ee"
+    },
+    "right/models/model_007_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T12:24:07",
+      "mutable": false,
+      "sha256": "738f996f676d8dc1fad57848e1c18171aab775f99fa9606094cff0e9229e03bf"
+    },
+    "right/models/model_008_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T13:50:30",
+      "mutable": false,
+      "sha256": "b6638886425c7288b07b87819fbe74bd88dff45fce754514c53d3cc83404eb85"
+    },
+    "right/models/model_009_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T14:28:04",
+      "mutable": false,
+      "sha256": "72ea049e7d37cde0319cfeb665d8c2c4ce80ebbcbdfe13cdf97b9b052f92107e"
+    },
+    "right/models/model_010_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T14:41:07",
+      "mutable": false,
+      "sha256": "e9e0fc61f6d7d80cae7e5dbf9714121c7c0f8a35a2c61df229d641edbb42928b"
+    },
+    "right/models/model_011_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T15:00:57",
+      "mutable": false,
+      "sha256": "b97f629a21719f9a611ad0ec9be5aa39c10bc20675dbcd7d1672a8b4b6480fed"
+    },
+    "right/models/model_012_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T15:34:52",
+      "mutable": false,
+      "sha256": "93b5c1edd1b218ae30c1f3d130e3157ee4dd841b2a797e362bd299a1f1564ebd"
+    },
+    "right/models/model_013_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T18:34:35",
+      "mutable": false,
+      "sha256": "434bfaab1b93846a19bac30dfc4c8cbf312918b9266a561402ee73847be8bf78"
+    },
+    "right/models/model_014_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-09T19:35:52",
+      "mutable": false,
+      "sha256": "5efbc486eb50efac9ffc1bf2d6574dc6e0de2aab04ee81fe2ca2088d72db2c84"
+    },
+    "right/models/model_015_2026-08-08_2046.json": {
+      "bytes": 10213,
+      "modified": "2026-08-10T20:11:31",
+      "mutable": false,
+      "sha256": "296c28fa49307e7b14040fe77bfeda24296a4e58596e12e5286f308292e3de29"
+    },
+    "right/models/model_016_2026-08-08_2046.json": {
+      "bytes": 10232,
+      "modified": "2026-08-10T20:17:13",
+      "mutable": false,
+      "sha256": "80f5bcbb35ab4b919d4841be459d099bceeddc7bc688447621d0b7a3136f8b38"
+    },
+    "right/models/model_017_2026-08-08_2046.json": {
+      "bytes": 10232,
+      "modified": "2026-08-11T19:46:08",
+      "mutable": false,
+      "sha256": "5c5d178579224334b4b777d28eaf6caee430035f6757d04341f438fc63a34879"
+    },
+    "right/placement_notes.md": {
+      "bytes": 216,
+      "modified": "2026-08-12T20:28:12",
+      "mutable": true,
+      "sha256": "f1dd7cbe8f544081e53c85f6599e96a57ab6915a5e6d403ccca20296cd2b1295"
+    },
+    "right/sessions/2026-08-07_23-41-02/baseline_rest.csv": {
+      "bytes": 151539,
+      "modified": "2026-08-07T23:41:14",
+      "mutable": false,
+      "sha256": "17c76ff11581907610f06fc237b780a11d53b4da650186e5b788c96a9956d2df"
+    },
+    "right/sessions/2026-08-07_23-41-02/session.json": {
+      "bytes": 163,
+      "modified": "2026-08-07T23:41:27",
+      "mutable": true,
+      "sha256": "b88d02526a75645fdf1a1a51bbd90da9fdf402f2972bb2a1abba53911daf2f6e"
+    },
+    "right/sessions/2026-08-08_1701/ANALYSIS_PROMPT.md": {
+      "bytes": 1701,
+      "modified": "2026-08-08T19:53:11",
+      "mutable": true,
+      "sha256": "6901d2643d9e88651c9cb315d6216a0f0e29b070a778f6a093b0f5e08fef1a9f"
+    },
+    "right/sessions/2026-08-08_1701/REPORT.md": {
+      "bytes": 3785,
+      "modified": "2026-08-08T19:53:11",
+      "mutable": true,
+      "sha256": "b2232fea76fd2043c1b8b7a26da486036485ec83bd1355fea90e2440dbf7f8b2"
+    },
+    "right/sessions/2026-08-08_1701/analysis.json": {
+      "bytes": 6248,
+      "modified": "2026-08-08T19:53:11",
+      "mutable": true,
+      "sha256": "e28b5a3ca6bfb52d01c3f4de46a5e0f00953ce8faaa9e3a54416822c5c915466"
+    },
+    "right/sessions/2026-08-08_1701/probes.json": {
+      "bytes": 5615,
+      "modified": "2026-08-09T16:46:50",
+      "mutable": true,
+      "sha256": "ffc8d552efd112020027bbc64b8a97da3fbf9846894e039fbb5ec88bcda66645"
+    },
+    "right/sessions/2026-08-08_1701/probes/001_rest_1701.audit.json": {
+      "bytes": 465,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "2a133c926562761656fbbabfb08c93c2aaf018c3db518be2dc275f81a5bcf001"
+    },
+    "right/sessions/2026-08-08_1701/probes/001_rest_1701.csv": {
+      "bytes": 781849,
+      "modified": "2026-08-08T17:02:04",
+      "mutable": false,
+      "sha256": "aa2c6f736b2ad6b486c49ffa6186435a62be2e09a721cebfe36dd0ab13b51322"
+    },
+    "right/sessions/2026-08-08_1701/probes/002_baseline_1704.audit.json": {
+      "bytes": 472,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "9aa1aad616c3498b9c9dfaa2580136c11fa43732618088533eda26fc6cb1dcaa"
+    },
+    "right/sessions/2026-08-08_1701/probes/002_baseline_1704.csv": {
+      "bytes": 783727,
+      "modified": "2026-08-08T19:52:40",
+      "mutable": false,
+      "sha256": "7ef6785114b5cfd19bdc0ba4429232f9d05439a1094e0d104d877e65eaaa6dc8"
+    },
+    "right/sessions/2026-08-08_1701/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-08T19:53:11",
+      "mutable": true,
+      "sha256": "89161a489007f3da64cfe8f5dc2d9056858d24f11ccccbbf29e62acb1185e0ad"
+    },
+    "right/sessions/2026-08-08_1701/session_notes.md": {
+      "bytes": 251,
+      "modified": "2026-08-08T19:52:40",
+      "mutable": true,
+      "sha256": "f6f5226b77586c5cf6d519ba51a31aef1cf86835e44538402830ea196448edc7"
+    },
+    "right/sessions/2026-08-08_2046/ANALYSIS_PROMPT.md": {
+      "bytes": 2978,
+      "modified": "2026-08-08T20:50:05",
+      "mutable": true,
+      "sha256": "6dabb8a423e9ac4ab74df124e1b66afdbda8407f29ad4f2fc80a3359ac210e11"
+    },
+    "right/sessions/2026-08-08_2046/ASSISTANT_NOTES.md": {
+      "bytes": 1842,
+      "modified": "2026-08-09T14:40:56",
+      "mutable": false,
+      "sha256": "ec6359d9ffa5c439b0646ebb0e52d147b49bb9d6c9916b24095e3374b199f465"
+    },
+    "right/sessions/2026-08-08_2046/REPORT.md": {
+      "bytes": 5420,
+      "modified": "2026-08-08T20:50:05",
+      "mutable": true,
+      "sha256": "fbf22d0cd3bb22413eda0266022c92c33aa720f4b5454c691eaab082d0176de9"
+    },
+    "right/sessions/2026-08-08_2046/analysis.json": {
+      "bytes": 17600,
+      "modified": "2026-08-08T20:50:05",
+      "mutable": true,
+      "sha256": "5b2001a8b5aa34a9fc7612574434690ddbe033eab9486de6023043b8eae274bf"
+    },
+    "right/sessions/2026-08-08_2046/probes.json": {
+      "bytes": 20330,
+      "modified": "2026-08-09T16:47:32",
+      "mutable": true,
+      "sha256": "8ebd7e36757ecbb380028878a16e2da66c60463b64dc6681efed9ea2b98841e8"
+    },
+    "right/sessions/2026-08-08_2046/probes/001_rest_2046.audit.json": {
+      "bytes": 464,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "23b3e6e9e7dd044d3c0012bce42c096e72f4e6c393030dd5edb0fbd31d0c934b"
+    },
+    "right/sessions/2026-08-08_2046/probes/001_rest_2046.csv": {
+      "bytes": 780524,
+      "modified": "2026-08-08T20:47:00",
+      "mutable": false,
+      "sha256": "4406a1ac433a914739037a6674d7d4a83dd21e7bec35418739ec75c0ed754150"
+    },
+    "right/sessions/2026-08-08_2046/probes/002_rest-2_2047.audit.json": {
+      "bytes": 461,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "3cbce3a0287bbeeb03edbf66c5149944786039d4f4cfed2af7f483513b880106"
+    },
+    "right/sessions/2026-08-08_2046/probes/002_rest-2_2047.csv": {
+      "bytes": 780370,
+      "modified": "2026-08-08T20:47:45",
+      "mutable": false,
+      "sha256": "42571c77225da684d5afec449aed016710e222326af47644f908a5fc20b14964"
+    },
+    "right/sessions/2026-08-08_2046/probes/003_curling-pointer-finger_2048.audit.json": {
+      "bytes": 601,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "e847a255ce2d14c28365701c64e189c7a5be82e9a276bc6a54523a16f5f546f3"
+    },
+    "right/sessions/2026-08-08_2046/probes/003_curling-pointer-finger_2048.csv": {
+      "bytes": 728026,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "ee4d9eaffe24a069f26415fd58c88040c553be7982cce45f1df1bf07c5cca357"
+    },
+    "right/sessions/2026-08-08_2046/probes/004_normal-movement-using-band-like-a-mouse-cursor_2049.audit.json": {
+      "bytes": 560,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "196f81977df76384195cdd53f6f95ae2a00585f0dfc3c0066ceb8ca35581d376"
+    },
+    "right/sessions/2026-08-08_2046/probes/004_normal-movement-using-band-like-a-mouse-cursor_2049.csv": {
+      "bytes": 778751,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "e54cdf8188b28ce19458e6f775b1863c842a2c4031bda87a6f627950230d0dc5"
+    },
+    "right/sessions/2026-08-08_2046/probes/005_curling-pointer-finger-sustained_2049.audit.json": {
+      "bytes": 609,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "d24fa45f9ba8132f7389be9ece8a3c7ae7b1e83ff690347ed6c9bc0d4c0748a7"
+    },
+    "right/sessions/2026-08-08_2046/probes/005_curling-pointer-finger-sustained_2049.csv": {
+      "bytes": 203984,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "5b3ae2e8654069d8dd51f1b95897415a81cd05aac787f5299b36199787db21a0"
+    },
+    "right/sessions/2026-08-08_2046/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-08T20:50:05",
+      "mutable": true,
+      "sha256": "485da7870a725b4933b7952313b0506520b262b63142f148a8c9380bd5dfcdb2"
+    },
+    "right/sessions/2026-08-08_2046/session_notes.md": {
+      "bytes": 146,
+      "modified": "2026-08-08T20:46:30",
+      "mutable": true,
+      "sha256": "b437b645a9d209b2b529787aeb0d15baae322f911019ffff21384e779edd52d3"
+    },
+    "right/sessions/2026-08-11_1959/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-11T19:59:05",
+      "mutable": true,
+      "sha256": "729eb0d8adabf1b6f416ebb45fb6efa34204f0c2ee6f0b35c99a8e2c809ffb72"
+    },
+    "right/sessions/2026-08-11_1959/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-11T19:59:03",
+      "mutable": true,
+      "sha256": "fc8dce10992d45c117ac5d1881ce9d950ed31f0eb8a7475e252eb050979c816e"
+    },
+    "right/sessions/2026-08-11_1959b/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-11T19:59:38",
+      "mutable": true,
+      "sha256": "a5d6da977b11df702e7b65709c307967d99accb0ab39f1fa4bb143264ce389bd"
+    },
+    "right/sessions/2026-08-11_1959b/session_notes.md": {
+      "bytes": 183,
+      "modified": "2026-08-11T19:59:36",
+      "mutable": true,
+      "sha256": "5814afb886d04dd5963ba8175406ecaabe734b0104716763f5a91146ffe2e985"
+    },
+    "right/sessions/2026-08-11_2006/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-11T20:06:12",
+      "mutable": true,
+      "sha256": "a60d870404f97e5333314162c347bbf30644134f7e9128fb684f0550eafdb635"
+    },
+    "right/sessions/2026-08-11_2006/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-11T20:06:10",
+      "mutable": true,
+      "sha256": "6f676f7ce5a308f116b7778f17680fde58ef0217845eece23df33f1ce7b130fa"
+    },
+    "right/sessions/2026-08-12_2028/probes.json": {
+      "bytes": 18063,
+      "modified": "2026-08-12T21:40:13",
+      "mutable": true,
+      "sha256": "6f037c80f1ed0c01de93b117fdb0c284bd79166ea72b52f805bdbe046083ca33"
+    },
+    "right/sessions/2026-08-12_2028/probes/001_rest_2028.audit.json": {
+      "bytes": 566,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "24b241243081fdf5c9acdbc878fbc9cafdee298bad2c014b28f52245b3de59c4"
+    },
+    "right/sessions/2026-08-12_2028/probes/001_rest_2028.csv": {
+      "bytes": 780343,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "15ccaf5da8e73b88cf77af2417b417b93812e4a670fe46b242f019806bc4f3cd"
+    },
+    "right/sessions/2026-08-12_2028/probes/002_baseline-rest_2031.audit.json": {
+      "bytes": 473,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "d8da94466273a26cff2913fd320275dd571b9d0037eda203ae84e8f62dbf12fd"
+    },
+    "right/sessions/2026-08-12_2028/probes/002_baseline-rest_2031.csv": {
+      "bytes": 780503,
+      "modified": "2026-08-12T20:31:46",
+      "mutable": false,
+      "sha256": "b3a26ef44f02f4262b56e090b7d4fe48b6c0c60cad92ee56cf79e691c12f1a1d"
+    },
+    "right/sessions/2026-08-12_2028/probes/003_baseline-rest_2032.audit.json": {
+      "bytes": 472,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "34a70a055cde4eb0e6b779bf4462b92b63012375b543d6a0de3dc66b353d38c2"
+    },
+    "right/sessions/2026-08-12_2028/probes/003_baseline-rest_2032.csv": {
+      "bytes": 780532,
+      "modified": "2026-08-12T20:32:37",
+      "mutable": false,
+      "sha256": "8d5f55dd333fff38921a70b78f2bdf1600218a0e18e4e8a0257b6b7c6146b251"
+    },
+    "right/sessions/2026-08-12_2028/probes/004_waving-arm-around-gently-pretending-to-use-band-_2033.audit.json": {
+      "bytes": 637,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "b0d7bb0026320c294efabb28aff49d2cc2ca7e8460280fd9d794f79a078b5280"
+    },
+    "right/sessions/2026-08-12_2028/probes/004_waving-arm-around-gently-pretending-to-use-band-_2033.csv": {
+      "bytes": 780687,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "fe6bce59980ff211c63c56bf65a30889aad22d0311863c8dcd9bd71257adc2a1"
+    },
+    "right/sessions/2026-08-12_2028/probes/005_wiggling-pointer-finger-gently-erecting-gently-p_2034.audit.json": {
+      "bytes": 517,
+      "modified": "2026-08-14T18:26:40",
+      "mutable": false,
+      "sha256": "05eb8b9e88306fccc757a7d288fd959344cdf51bf383bb676960449e994d0921"
+    },
+    "right/sessions/2026-08-12_2028/probes/005_wiggling-pointer-finger-gently-erecting-gently-p_2034.csv": {
+      "bytes": 726531,
+      "modified": "2026-08-12T20:35:25",
+      "mutable": false,
+      "sha256": "7acf193052dff8a1028b41ec0f3e2c0c32d558baf1dd22d79727047afef1cce3"
+    },
+    "right/sessions/2026-08-12_2028/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-12T21:40:12",
+      "mutable": true,
+      "sha256": "076afce524a19c6198932e9c552493297da7fdd922f995e70d48612ea2895cc1"
+    },
+    "right/sessions/2026-08-12_2028/session_notes.md": {
+      "bytes": 146,
+      "modified": "2026-08-12T20:28:48",
+      "mutable": true,
+      "sha256": "d48267ac7348c4752cf59273e13ffc5b1063640c05502a4430863daa573969a6"
+    },
+    "right/sessions/2026-08-14_2125/ANALYSIS_PROMPT.md": {
+      "bytes": 3292,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "770955f790d6ac95fe26393423bdbc2496cb6e0735789e346325edadd251c817"
+    },
+    "right/sessions/2026-08-14_2125/REPORT.md": {
+      "bytes": 5698,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "2b698b2d877551ff98645081d8dcf6d8b478101c7a3f269f307337aefda719be"
+    },
+    "right/sessions/2026-08-14_2125/analysis.json": {
+      "bytes": 25186,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "32154c5d8b166fc56d0dc9bdf34791e284dde01e427c45768b59aa2251483e27"
+    },
+    "right/sessions/2026-08-14_2125/probes.json": {
+      "bytes": 25281,
+      "modified": "2026-08-14T21:45:51",
+      "mutable": true,
+      "sha256": "d1ffbd08050cfc3ce4256729147c0ac853dcedef177c22be3486cb76a107ae98"
+    },
+    "right/sessions/2026-08-14_2125/probes/001_rest_2128.csv": {
+      "bytes": 783229,
+      "modified": "2026-08-14T21:28:46",
+      "mutable": false,
+      "sha256": "81aedf32415f78f68d399b3cfea1ad4fb6b226c538fe0e94c1640f5eb8bc4325"
+    },
+    "right/sessions/2026-08-14_2125/probes/002_moving-arm-around_2129.csv": {
+      "bytes": 1125473,
+      "modified": "2026-08-14T21:30:35",
+      "mutable": false,
+      "sha256": "6421f1e34f929461a69319d683fdc1fe5b687e3890ee26dbc86e8186a39e5e7f"
+    },
+    "right/sessions/2026-08-14_2125/probes/003_rest_2131.csv": {
+      "bytes": 782830,
+      "modified": "2026-08-14T21:32:22",
+      "mutable": false,
+      "sha256": "302413d027eff37d4a37970a9ee6d64394ab96365d65638dbc8e80fb0d827d97"
+    },
+    "right/sessions/2026-08-14_2125/probes/004_curl-index-finger_2134.csv": {
+      "bytes": 2713488,
+      "modified": "2026-08-14T21:36:01",
+      "mutable": false,
+      "sha256": "c95a54d6da08437e40a43ca7139454594006902bd358f86bfd1656228e2f7b1e"
+    },
+    "right/sessions/2026-08-14_2125/probes/005_curling-pinky-finger_2137.csv": {
+      "bytes": 2707762,
+      "modified": "2026-08-14T21:39:38",
+      "mutable": false,
+      "sha256": "347735f905e1b271fc11dda7b3ee979774f79ac0b7f53b38f4f86dfcd3029fab"
+    },
+    "right/sessions/2026-08-14_2125/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-14T21:45:50",
+      "mutable": true,
+      "sha256": "70bf3e282257045dcbdc1f3a6c6ea40f0f223b9758ca92ffd99a5e4198ffb4d9"
+    },
+    "right/sessions/2026-08-14_2125/session_notes.md": {
+      "bytes": 967,
+      "modified": "2026-08-14T21:40:03",
+      "mutable": true,
+      "sha256": "7c3b681e1cbe6a57161037da04b279c46ce06c65febf7a8c0957fcfec77e7aed"
+    }
+  },
+  "generated": "2026-08-14T21:45:51",
+  "n_files": 86,
+  "note": "sha256 of every file at the time of writing. Probe CSVs are immutable once finalised \u2014 a changed hash on one of those means the file was altered or corrupted after recording.",
+  "profile": "max-debug",
+  "revision": 4,
+  "schema": "armband/integrity/1",
+  "total_bytes": 17358807
+}

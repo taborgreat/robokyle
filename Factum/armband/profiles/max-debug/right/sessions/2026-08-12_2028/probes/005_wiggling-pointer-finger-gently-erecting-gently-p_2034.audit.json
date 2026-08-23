@@ -1,0 +1,15 @@
+{
+  "path": "C:\\Users\\user\\mudra-project\\armband\\profiles\\max-debug\\right\\sessions\\2026-08-12_2028\\probes\\005_wiggling-pointer-finger-gently-erecting-gently-p_2034.csv",
+  "n_samples": 23346,
+  "kind": "probe",
+  "clip_fraction_ch1": 0.0006,
+  "clip_fraction_ch2": 0.001585,
+  "clip_fraction_ch3": 0.000171,
+  "max_clip_pct": 0.158,
+  "rest_rms_ratio_ch1": 0.862,
+  "rest_rms_ratio_ch2": 1.152,
+  "rest_rms_ratio_ch3": 1.0,
+  "clip_threshold": 0.999,
+  "compromised": false,
+  "reasons": []
+}

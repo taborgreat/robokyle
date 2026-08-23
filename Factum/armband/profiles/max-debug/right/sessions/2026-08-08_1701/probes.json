@@ -1,0 +1,197 @@
+{
+  "arm": "right",
+  "probes": [
+    {
+      "duration_s": 29.807,
+      "effort": "",
+      "fatigue": "",
+      "file": "001_rest_1701.csv",
+      "his_confidence": 0,
+      "index": 1,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 2,
+        "best_channel_db": 6.46,
+        "channel_signature": [
+          0.084,
+          0.346,
+          0.57
+        ],
+        "clip_fraction": [
+          0.0,
+          0.000599,
+          0.0
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.538
+        },
+        "correlations": {
+          "ch1_ch2": 0.6687,
+          "ch1_ch3": 0.5693,
+          "ch2_ch3": 0.8532
+        },
+        "dc_offset": [
+          0.00107,
+          -0.010619,
+          -0.002312
+        ],
+        "duration_s": 29.807,
+        "kind": "rest",
+        "n_samples": 25038,
+        "peak": [
+          0.84588,
+          1.010589,
+          0.788532
+        ],
+        "quality": {
+          "flags": [
+            {
+              "fix": "Some independence is being lost. A small rotation of the band usually helps.",
+              "key": "channel_collapse",
+              "message": "ch2 and ch3 track each other closely (r=0.85)",
+              "severity": "warn",
+              "value": 0.8532
+            }
+          ],
+          "headline": "Usable but flagged \u2014 ch2 and ch3 track each other closely (r=0.85).",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 0.85,
+          "verdict": "suspect"
+        },
+        "rms": [
+          0.104602,
+          0.211463,
+          0.202646
+        ],
+        "snr_vs_rest": [
+          1.176,
+          1.44,
+          2.103
+        ],
+        "snr_vs_rest_db": [
+          1.41,
+          3.17,
+          6.46
+        ],
+        "usability": 0.2,
+        "usable": true
+      },
+      "n_samples": 25038,
+      "notes": "arm UNSUPPORTED - superseded by 002",
+      "placement": "Wearing band 2 finger lengths above right wrist.",
+      "probe": "rest",
+      "quality": {
+        "flags": [
+          {
+            "fix": "Some independence is being lost. A small rotation of the band usually helps.",
+            "key": "channel_collapse",
+            "message": "ch2 and ch3 track each other closely (r=0.85)",
+            "severity": "warn",
+            "value": 0.8532
+          }
+        ],
+        "headline": "Usable but flagged \u2014 ch2 and ch3 track each other closely (r=0.85).",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 0.85,
+        "verdict": "suspect"
+      },
+      "sample_rate_hz": 840,
+      "started": "2026-08-08T17:01:34",
+      "status": "complete"
+    },
+    {
+      "duration_s": 29.85,
+      "effort": "",
+      "fatigue": "",
+      "file": "002_baseline_1704.csv",
+      "his_confidence": 0,
+      "index": 2,
+      "kind": "rest",
+      "metrics": {
+        "best_channel": 2,
+        "best_channel_db": 0.0,
+        "channel_signature": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "clip_fraction": [
+          8e-05,
+          0.000558,
+          0.0
+        ],
+        "components": {
+          "confidence": 0.0,
+          "consistency": 0.0,
+          "effort": 0.75,
+          "fatigue_penalty": 0.01,
+          "strength": 0.0
+        },
+        "correlations": {
+          "ch1_ch2": 0.7312,
+          "ch1_ch3": 0.5692,
+          "ch2_ch3": 0.7018
+        },
+        "dc_offset": [
+          0.001025,
+          -0.008872,
+          -0.000551
+        ],
+        "duration_s": 29.85,
+        "kind": "rest",
+        "n_samples": 25074,
+        "peak": [
+          1.001025,
+          1.008842,
+          0.885769
+        ],
+        "quality": {
+          "flags": [],
+          "headline": "Looks clean.",
+          "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+          "score": 1.0,
+          "verdict": "good"
+        },
+        "rms": [
+          0.088927,
+          0.14687,
+          0.096343
+        ],
+        "snr_vs_rest": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "snr_vs_rest_db": [
+          -0.0,
+          -0.0,
+          0.0
+        ],
+        "usability": 0.065,
+        "usable": true
+      },
+      "n_samples": 25074,
+      "notes": "forearm supported on table; recorded to replace the unsupported first rest",
+      "placement": "Wearing band 2 finger lengths above right wrist.",
+      "probe": "baseline",
+      "quality": {
+        "flags": [],
+        "headline": "Looks clean.",
+        "note": "Assessed automatically from the recording itself. Nothing is discarded \u2014 a suspect recording is still analysed, and conclusions that rest on one say so.",
+        "score": 1.0,
+        "verdict": "good"
+      },
+      "sample_rate_hz": 840,
+      "started": "2026-08-08T17:04:39",
+      "status": "complete"
+    }
+  ],
+  "profile": "max-debug",
+  "schema": "armband/probes-manifest/1",
+  "session": "2026-08-08_1701",
+  "updated": "2026-08-09T16:46:50"
+}

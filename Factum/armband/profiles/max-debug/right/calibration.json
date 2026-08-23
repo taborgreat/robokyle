@@ -1,0 +1,67 @@
+{
+  "arm": "right",
+  "d_prime_floor": {
+    "available": true,
+    "distinct_threshold": 9.894,
+    "floor": 7.067,
+    "note": "two recordings of the same resting arm should be indistinguishable; whatever they score is the floor below which no separability claim is meaningful",
+    "pairs": 1
+  },
+  "generated": "2026-08-14T21:45:51",
+  "n_attempts": 2,
+  "n_distractors": 1,
+  "n_rest": 2,
+  "noise_floor": {
+    "available": true,
+    "channel_rms": [
+      0.117488,
+      0.165862,
+      0.1422
+    ],
+    "env_max": 0.312518,
+    "env_mean": 0.136969,
+    "env_p99": 0.272775,
+    "env_sd": 0.056482,
+    "n_recordings": 2
+  },
+  "onset": {
+    "clean_at_k": 3.0,
+    "false_reps_at_k": 0,
+    "k": 4.0,
+    "margin": 1.0,
+    "method": "searched \u2014 lowest k with zero attempts detected in rest, plus margin"
+  },
+  "onset_threshold_value": 0.362897,
+  "profile": "max-debug",
+  "sample_rate_hz": 830,
+  "schema": "armband/calibration/1",
+  "separable_d_prime": 9.894,
+  "source_session": "2026-08-14_2125",
+  "trigger": {
+    "available": true,
+    "candidates": [
+      {
+        "compared_against": "moving arm around",
+        "d_prime_vs_movement": 2.653,
+        "hold_time_s": 0.75,
+        "hold_windows": 3,
+        "probe": "curling pinky finger",
+        "projected_false_fire": 0.000786,
+        "safe": false,
+        "window_error": 0.0923
+      },
+      {
+        "compared_against": "moving arm around",
+        "d_prime_vs_movement": 2.613,
+        "hold_time_s": 0.75,
+        "hold_windows": 3,
+        "probe": "curl index finger",
+        "projected_false_fire": 0.000876,
+        "safe": false,
+        "window_error": 0.0957
+      }
+    ],
+    "target_false_fire": 0.001,
+    "window_s": 0.25
+  }
+}

@@ -1,0 +1,552 @@
+{
+  "app_version": "0.4.0",
+  "files": {
+    "CLAUDE.md": {
+      "bytes": 8961,
+      "modified": "2026-08-09T18:04:03",
+      "mutable": true,
+      "sha256": "988d269474ce4e4626d0390cd5751f6dd67d89750c4d327b42a27ab9257cef59"
+    },
+    "README.md": {
+      "bytes": 5835,
+      "modified": "2026-08-09T18:04:03",
+      "mutable": true,
+      "sha256": "657334c3466fb70c268d2e04a76fa14296754f1224ecb790a0a15902aa089791"
+    },
+    "audit.log": {
+      "bytes": 13253,
+      "modified": "2026-08-11T19:46:18",
+      "mutable": true,
+      "sha256": "2f295fb5f77cd4ee374a6dfc3b2ffb362aebc4fc8b69526317a40a0f52542769"
+    },
+    "log.txt": {
+      "bytes": 7505,
+      "modified": "2026-08-11T19:46:18",
+      "mutable": true,
+      "sha256": "11195061640a267210268d8afd6954e3963474a3640e2c1869b7337314f67654"
+    },
+    "placement/README.md": {
+      "bytes": 782,
+      "modified": "2026-08-09T18:04:03",
+      "mutable": true,
+      "sha256": "0f2d804a8c97300e5606119dc57ec04faf8c12e13775a992a8e572ba3a6145f5"
+    },
+    "profile.json": {
+      "bytes": 647,
+      "modified": "2026-08-11T19:46:18",
+      "mutable": true,
+      "sha256": "d4643ffffd79e52574c6230d8be1391bd4cecc9ddf162f99638260a87dfb1795"
+    },
+    "right/sessions/2026-08-08_0028/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-08T00:28:36",
+      "mutable": true,
+      "sha256": "020a86c84198bd0a77164609f7db8ce37fcab59f8b82d5a6653803b5975c4898"
+    },
+    "right/sessions/2026-08-08_0028/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T00:28:36",
+      "mutable": true,
+      "sha256": "7a55cb6bca962513407f1b190d868eb0bb6821e7122b3fa6d64f91b3adb458df"
+    },
+    "right/sessions/2026-08-08_0034/session.json": {
+      "bytes": 402,
+      "modified": "2026-08-08T00:34:43",
+      "mutable": true,
+      "sha256": "921115a5cc87af857ef626baa584b3ad351574e0883885238bf09364329d3f27"
+    },
+    "right/sessions/2026-08-08_0034/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T00:34:43",
+      "mutable": true,
+      "sha256": "4910713f76470deb19db67e3ab0f6a4b370cd47fbe43f64d1b7077a31ef65172"
+    },
+    "right/sessions/2026-08-08_1633/session.json": {
+      "bytes": 404,
+      "modified": "2026-08-08T16:33:01",
+      "mutable": true,
+      "sha256": "ce83fb4102732e32c5efb28442f314b35bc95ccdad6003a787df7cbfc61bc3cb"
+    },
+    "right/sessions/2026-08-08_1633/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T16:33:01",
+      "mutable": true,
+      "sha256": "f3a31b3ea7cd121a276121a70b0385b62ea66789414cc7475403ea4e2995beb6"
+    },
+    "right/sessions/2026-08-08_1633b/session.json": {
+      "bytes": 405,
+      "modified": "2026-08-08T16:33:06",
+      "mutable": true,
+      "sha256": "a20b8b89a59972c0f49253b3094536d94144c4850601f710482ba2e3a244de66"
+    },
+    "right/sessions/2026-08-08_1633b/session_notes.md": {
+      "bytes": 183,
+      "modified": "2026-08-08T16:33:06",
+      "mutable": true,
+      "sha256": "84cd68eed79b5e21552af41a8ea61570c22b9d52849cf3e7d99f8d11a91b4fcb"
+    },
+    "right/sessions/2026-08-08_1633c/session.json": {
+      "bytes": 405,
+      "modified": "2026-08-08T16:33:27",
+      "mutable": true,
+      "sha256": "c2121655497017015cbe66fef69da0a02d5f4f234d9473b14851b9b3282a9d42"
+    },
+    "right/sessions/2026-08-08_1633c/session_notes.md": {
+      "bytes": 183,
+      "modified": "2026-08-08T16:33:27",
+      "mutable": true,
+      "sha256": "920cd966139ff9d9fa821feca2fa8c420b61d7d26a28f5807b34c23779960551"
+    },
+    "right/sessions/2026-08-08_1634/session.json": {
+      "bytes": 404,
+      "modified": "2026-08-08T16:34:10",
+      "mutable": true,
+      "sha256": "a7df35a9058df093d37d40ed4e72c1f6320151d59fbd4e49eff0afdc8d946758"
+    },
+    "right/sessions/2026-08-08_1634/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T16:34:09",
+      "mutable": true,
+      "sha256": "022283b33dbabfe52e24864efe2de142c01d973ee4c83bf67fff106f9718cb33"
+    },
+    "right/sessions/2026-08-08_1638/session.json": {
+      "bytes": 404,
+      "modified": "2026-08-08T16:38:21",
+      "mutable": true,
+      "sha256": "a706f5df38de9a0887219ebcd48dcfc224610cb3b4ec05dea298530f2d844b33"
+    },
+    "right/sessions/2026-08-08_1638/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T16:38:21",
+      "mutable": true,
+      "sha256": "b21765b02f07aeef6a7b6c30d3e8e6d84ac68d65d66b0a905d880a801b7f25ba"
+    },
+    "right/sessions/2026-08-08_1953/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T19:53:05",
+      "mutable": true,
+      "sha256": "31d0b0cba9a0d9e81d2817b452f60d39190fdf28c356b64e7f0a7e419b80a718"
+    },
+    "right/sessions/2026-08-08_1953/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T19:53:05",
+      "mutable": true,
+      "sha256": "f8da05847ac9aafc2b94f20153e56d044adbcff2ec7579663ad44d7110ee62da"
+    },
+    "right/sessions/2026-08-08_2002/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T20:02:38",
+      "mutable": true,
+      "sha256": "27a44b725eb5dc185553a468f0f9e6c2cba9c41581c99d651acf31c7dd0e9c9c"
+    },
+    "right/sessions/2026-08-08_2002/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T20:02:37",
+      "mutable": true,
+      "sha256": "6fc66f2170bc043226f1744d97039d84243f8a9363c93bd32e6c51bbdfde838f"
+    },
+    "right/sessions/2026-08-08_2102/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T21:02:06",
+      "mutable": true,
+      "sha256": "c2487c73529e061707d1b455d9763b88420478fbe3f0c0d413261370785ae583"
+    },
+    "right/sessions/2026-08-08_2102/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T21:02:06",
+      "mutable": true,
+      "sha256": "266263a4845d20a8a9835e990d732b17dc258e39a881f8e8db1cac0a2f72c757"
+    },
+    "right/sessions/2026-08-08_2118/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T21:18:48",
+      "mutable": true,
+      "sha256": "2d668c2f25dbc303bb1f450a812225f18ca680fcaca4721730b8ec593ac086b0"
+    },
+    "right/sessions/2026-08-08_2118/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T21:18:48",
+      "mutable": true,
+      "sha256": "ada1ab6307515d78700654642fe0273a66681748821071bdb000e7ecee3fd007"
+    },
+    "right/sessions/2026-08-08_2119/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T21:19:08",
+      "mutable": true,
+      "sha256": "1e4864f86bfb9c0170cc0f38cad1977dd9c7ab48be91c8108748c961064d4b56"
+    },
+    "right/sessions/2026-08-08_2119/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T21:19:07",
+      "mutable": true,
+      "sha256": "91c5596d36bb20807cd7e3c3ff433027f44f923b5b438d91da9b1c26b28ecd36"
+    },
+    "right/sessions/2026-08-08_2134/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T21:34:50",
+      "mutable": true,
+      "sha256": "c2ff16ed3598a73ba6f2e05d9b306475dcf7d180e30937e7a2924e1d4704f1f0"
+    },
+    "right/sessions/2026-08-08_2134/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T21:34:50",
+      "mutable": true,
+      "sha256": "cba3acc3ff29abe9007fdeb918fb2b3074c0501afc9b499a24e3b8f7e53f6676"
+    },
+    "right/sessions/2026-08-08_2359/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-08T23:59:30",
+      "mutable": true,
+      "sha256": "27a99cdfa8c116de244679841e149bf2313b9be7dc7769ca9b826d8cf797fdd8"
+    },
+    "right/sessions/2026-08-08_2359/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-08T23:59:30",
+      "mutable": true,
+      "sha256": "35e0d72aa29257dd9e66ff74c8ed7333b2048c84fa44146b98ea36b344904160"
+    },
+    "right/sessions/2026-08-09_0121/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T01:21:57",
+      "mutable": true,
+      "sha256": "905d945c4f367d8e092c07f49d2dba0c656606b50f15623111a05804f87bf93e"
+    },
+    "right/sessions/2026-08-09_0121/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T01:21:57",
+      "mutable": true,
+      "sha256": "495caa514f192d67034af5aaf82a78d56f744921ca35caf9ff506db65be09388"
+    },
+    "right/sessions/2026-08-09_1134/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T11:34:37",
+      "mutable": true,
+      "sha256": "f9b9ae0f599de00fb6042fb57be4f663d3c8e9e87569508a3fc378eb739112a0"
+    },
+    "right/sessions/2026-08-09_1134/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T11:34:37",
+      "mutable": true,
+      "sha256": "bca6880c147d3c1de676ddc290ff3feb90d9c1ca9b848172837a495a29f74573"
+    },
+    "right/sessions/2026-08-09_1148/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T11:48:42",
+      "mutable": true,
+      "sha256": "72c66ef8f8cd9afcd8bbd6f5181427560403acf565981dbdb295ec350c1f7f3a"
+    },
+    "right/sessions/2026-08-09_1148/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T11:48:42",
+      "mutable": true,
+      "sha256": "7ff8596e25ddb998f3dd126cfbde442342a8fc70c7e69dfa0446c4d8d7458f3e"
+    },
+    "right/sessions/2026-08-09_1224/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T12:24:48",
+      "mutable": true,
+      "sha256": "e838eed5663baff5150d09c0eb1b8348467984c84350083592d884478d5fd005"
+    },
+    "right/sessions/2026-08-09_1224/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T12:24:48",
+      "mutable": true,
+      "sha256": "3b6c2d2ff0c6fd9c7022630920d12c037970951df9a7ea09992433b941a51918"
+    },
+    "right/sessions/2026-08-09_1350/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T13:50:40",
+      "mutable": true,
+      "sha256": "fd2fa71db6d7376946c2d50a5aa5bf9ade2afd8d60e57cf44e59cdc8b2c7bee4"
+    },
+    "right/sessions/2026-08-09_1350/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T13:50:40",
+      "mutable": true,
+      "sha256": "5acbbe6de9b87b14a32d9bc988be2c912ada1c6386f2378f8d3a09cd34450847"
+    },
+    "right/sessions/2026-08-09_1428/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T14:28:14",
+      "mutable": true,
+      "sha256": "e94c166d2fcd5e700f3e3f4620f369629dfbfb85b5e6ec1f2377a539f27d733e"
+    },
+    "right/sessions/2026-08-09_1428/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T14:28:14",
+      "mutable": true,
+      "sha256": "de14165e174daf352954e347a3f1e2139cb30ef5fc5b04bb7c15e406dd71776e"
+    },
+    "right/sessions/2026-08-09_1441/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T14:41:15",
+      "mutable": true,
+      "sha256": "5e57e5c2f0ff22d7631120e96b18e08a7d3cbdb7b293a94e599ecfc324212af2"
+    },
+    "right/sessions/2026-08-09_1441/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T14:41:15",
+      "mutable": true,
+      "sha256": "ea618e5968ae65076a973df5676e61fd49bfa891cf595b079c5431b804ae51c6"
+    },
+    "right/sessions/2026-08-09_1501/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T15:01:07",
+      "mutable": true,
+      "sha256": "a8adef347ff1d41df489709db3142868089359eb372a41e62460233eaa4bdc3e"
+    },
+    "right/sessions/2026-08-09_1501/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T15:01:07",
+      "mutable": true,
+      "sha256": "55691db7efd7b60f2593306d1c54d25d3553b5d73ef5320f425b852847f00b8a"
+    },
+    "right/sessions/2026-08-09_1535/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T15:35:02",
+      "mutable": true,
+      "sha256": "caf90208919c0023b1ced953f1d43601b546f424b5146f36733c8f37eb245c8a"
+    },
+    "right/sessions/2026-08-09_1535/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T15:35:02",
+      "mutable": true,
+      "sha256": "6fe65bfc00b06b2f8c84cee434db7442bc370d81a22748e5bad02c15d1c7f9e7"
+    },
+    "right/sessions/2026-08-09_1639/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T16:39:03",
+      "mutable": true,
+      "sha256": "738e189f34f0277e353dc77e303dfa5c0e5a70e540aebf710de8d787d2526465"
+    },
+    "right/sessions/2026-08-09_1639/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T16:39:03",
+      "mutable": true,
+      "sha256": "a18249776c8b889acbea161d702e0b71924f51be1e4089fdd942590285a1ddaa"
+    },
+    "right/sessions/2026-08-09_1646/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T16:46:09",
+      "mutable": true,
+      "sha256": "8f565e41fadf6029801bbba6484ae2a26a6df7515ffc65c66478d3fbd5a74a91"
+    },
+    "right/sessions/2026-08-09_1646/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T16:46:09",
+      "mutable": true,
+      "sha256": "f92e9434f968f349743a3643a4b69a841901bfcd19b7f3825666878f1172bbe2"
+    },
+    "right/sessions/2026-08-09_1723/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T17:23:20",
+      "mutable": true,
+      "sha256": "e4bff7ec86ac63e3c1f44651ec604f037e5943a3762d86629871c2dbc2fbf19f"
+    },
+    "right/sessions/2026-08-09_1723/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T17:23:20",
+      "mutable": true,
+      "sha256": "dd7224a886c4493733e8dbf04e2d7873838bd705dc98e82aaada43a7209406c2"
+    },
+    "right/sessions/2026-08-09_1725/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T17:25:51",
+      "mutable": true,
+      "sha256": "b08f9acd12bb26264bd1a6a3ad724b36999846b1c0961f2fb94c4c4f8cc2e664"
+    },
+    "right/sessions/2026-08-09_1725/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T17:25:50",
+      "mutable": true,
+      "sha256": "ecde3961a9a43decb336a5e061668d58e7aef38ebfb8ded6f0069c70146c18e4"
+    },
+    "right/sessions/2026-08-09_1812/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T18:12:40",
+      "mutable": true,
+      "sha256": "c6bd00a7205f1dfa6042d2be1946763790e6dec684819dec203d3dea71c47971"
+    },
+    "right/sessions/2026-08-09_1812/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T18:12:40",
+      "mutable": true,
+      "sha256": "b29ba5e661c7613162f338d51b070efc761e059836bfbeb6e87677d6d321fd33"
+    },
+    "right/sessions/2026-08-09_1835/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T18:35:02",
+      "mutable": true,
+      "sha256": "2e81b792a4370d7d125c60ec9f3d6095b577474707bd90e07ba28a7bb5381704"
+    },
+    "right/sessions/2026-08-09_1835/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T18:35:02",
+      "mutable": true,
+      "sha256": "14c111d3a12e76fef248f68cbf652e5becd927d338caeb7c57eadcb96b8c5867"
+    },
+    "right/sessions/2026-08-09_1837/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T18:37:01",
+      "mutable": true,
+      "sha256": "0cb77223487b810b93dbd7140c9c6b8bf36ac37184144fbca1fa0c78634c11a8"
+    },
+    "right/sessions/2026-08-09_1837/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T18:37:01",
+      "mutable": true,
+      "sha256": "02189bd8efd1b79100a7dddfdde9beb1bc986c178f5f3864239280e180d68201"
+    },
+    "right/sessions/2026-08-09_1839/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T18:39:07",
+      "mutable": true,
+      "sha256": "c8baf617f6def01efd7feda9a578a399abaee1d2cd21e200ece349aedc89ff8f"
+    },
+    "right/sessions/2026-08-09_1839/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T18:39:06",
+      "mutable": true,
+      "sha256": "4f7218894b72f9dd05cd04a692091078e1e8c820b4cc7c2653f7a02386b227b3"
+    },
+    "right/sessions/2026-08-09_1940/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-09T19:40:15",
+      "mutable": true,
+      "sha256": "d94a0536cdcac933916ed980bd43b5c9be2446ee1a65a8d04638e58a59b6ae53"
+    },
+    "right/sessions/2026-08-09_1940/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-09T19:40:15",
+      "mutable": true,
+      "sha256": "f51951f6144c9c5b6e23c92fd3caf63548bb943be429d7ba9eab653ae9800c40"
+    },
+    "right/sessions/2026-08-10_1823/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T18:23:08",
+      "mutable": true,
+      "sha256": "1065e9d3739ea1bb7da7fef66902a8afa29d06543b9386ad9eb40f1e83354fa0"
+    },
+    "right/sessions/2026-08-10_1823/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T18:23:07",
+      "mutable": true,
+      "sha256": "a29bebc329d02f6207b8ee82268a3d396bb7ec90f5289ddee91ddfdf44ebd699"
+    },
+    "right/sessions/2026-08-10_1847/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T18:47:38",
+      "mutable": true,
+      "sha256": "da4c1c66f01faa9c2ba46e3884a904f5f6d72ff676c7fc0a0de8e922b48ec217"
+    },
+    "right/sessions/2026-08-10_1847/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T18:47:38",
+      "mutable": true,
+      "sha256": "83ab756901b883f21615e0848462a9c03a8ab4fa6bac24cea7a06c279ba5e5aa"
+    },
+    "right/sessions/2026-08-10_2009/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T20:09:35",
+      "mutable": true,
+      "sha256": "0a7925d5beafb94689ca53555e08dfacc29f4ecd59ad8a1337afdca7876a83c8"
+    },
+    "right/sessions/2026-08-10_2009/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T20:09:35",
+      "mutable": true,
+      "sha256": "bac1da331afb61fb1e5fecf60c942069a72441e49c342b151f821856785a87d1"
+    },
+    "right/sessions/2026-08-10_2010/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T20:10:28",
+      "mutable": true,
+      "sha256": "688e3710745750d763186dae0558d5f7ff08380fde636962745481ae5892ba10"
+    },
+    "right/sessions/2026-08-10_2010/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T20:10:27",
+      "mutable": true,
+      "sha256": "715e57ad02ffc33a334bd6a1732f1456b02908ac59cbf6a9dc407a7c889f032e"
+    },
+    "right/sessions/2026-08-10_2010b/session.json": {
+      "bytes": 404,
+      "modified": "2026-08-10T20:10:50",
+      "mutable": true,
+      "sha256": "64c86c8c58635dc320a3f2f2da9dcef79040ea4ab95573e6f178676d2ce42859"
+    },
+    "right/sessions/2026-08-10_2010b/session_notes.md": {
+      "bytes": 183,
+      "modified": "2026-08-10T20:10:49",
+      "mutable": true,
+      "sha256": "5bc8add7e6a09dd763ce9997d4da52e0666f0029239223b2f0ce53c0d6c1bddf"
+    },
+    "right/sessions/2026-08-10_2014/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T20:14:42",
+      "mutable": true,
+      "sha256": "48e8c3b7b8ad37a067bd4550950b20caa4af225ab52a2abf84c75980e5238e63"
+    },
+    "right/sessions/2026-08-10_2014/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T20:14:41",
+      "mutable": true,
+      "sha256": "d74f54918fd344968fc2ce5cba8c0c7e64b85b2619749347a6a3c6d26658be30"
+    },
+    "right/sessions/2026-08-10_2017/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T20:17:22",
+      "mutable": true,
+      "sha256": "72166736a28b560d65e601441b1a2b692772de0d53ca9c3a4ebaa38e412ab15a"
+    },
+    "right/sessions/2026-08-10_2017/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T20:17:21",
+      "mutable": true,
+      "sha256": "8b89ec6a24eb1a31fdec6fdd59ad7be3f6002686274f1611f93c66038ee0b027"
+    },
+    "right/sessions/2026-08-10_2104/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T21:04:11",
+      "mutable": true,
+      "sha256": "b29b1dc530a0af7bcdbfff0b608e565932a1eb99ce2692458e73648a1488e742"
+    },
+    "right/sessions/2026-08-10_2104/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T21:04:10",
+      "mutable": true,
+      "sha256": "e14ae95c57ba7b353a8636905a42f31491929b7c9357cff68926e31a61592c99"
+    },
+    "right/sessions/2026-08-10_2122/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-10T21:22:46",
+      "mutable": true,
+      "sha256": "622b015ea5ac2264355ce8dac446bb0fc24d50222eb049158c0da501e7cb98b1"
+    },
+    "right/sessions/2026-08-10_2122/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-10T21:22:46",
+      "mutable": true,
+      "sha256": "570ed55d6451fce8a360e7740a5dbdc49d5fce948f82f59e58104441d3455924"
+    },
+    "right/sessions/2026-08-11_1946/session.json": {
+      "bytes": 403,
+      "modified": "2026-08-11T19:46:18",
+      "mutable": true,
+      "sha256": "d0433fc78a95d2cc603002f160792a1b0c79cbd249c4075ec6cd20bc4611a158"
+    },
+    "right/sessions/2026-08-11_1946/session_notes.md": {
+      "bytes": 182,
+      "modified": "2026-08-11T19:46:18",
+      "mutable": true,
+      "sha256": "5f3931da69fbd068092941f5fc1049920756a774d5b7a2df875dd6cac32d49b7"
+    }
+  },
+  "generated": "2026-08-11T19:46:19",
+  "n_files": 90,
+  "note": "sha256 of every file at the time of writing. Probe CSVs are immutable once finalised \u2014 a changed hash on one of those means the file was altered or corrupted after recording.",
+  "profile": "test-kyle",
+  "revision": 30,
+  "schema": "armband/integrity/1",
+  "total_bytes": 61562
+}

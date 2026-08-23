@@ -1,0 +1,62 @@
+# armband log — profile 'max-debug' — created 2026-08-07T23:37:52.627Z
+2026-08-09T00:01:25.789Z  session opened: right/2026-08-08_1701
+2026-08-09T02:53:11.841Z  session closed: right/2026-08-08_1701
+2026-08-09T02:53:11.941Z  session analysed: right/2026-08-08_1701
+2026-08-09T03:46:30.459Z  session opened: right/2026-08-08_2046
+2026-08-09T03:50:05.015Z  session closed: right/2026-08-08_2046
+2026-08-09T03:50:05.224Z  session analysed: right/2026-08-08_2046
+2026-08-09T06:38:50.187Z  model v1 trained for right: v2, recall 42%, false fires 0.76%
+2026-08-09T06:39:10.750Z  model v2 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T06:59:13.336Z  model v3 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T08:21:45.801Z  model v4 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T18:34:24.910Z  model v5 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T18:48:30.844Z  model v6 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T19:24:08.396Z  model v7 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T20:50:31.697Z  model v8 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T21:28:05.143Z  model v9 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T21:41:08.966Z  model v10 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T22:00:59.056Z  model v11 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-09T22:34:54.291Z  model v12 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-10T01:34:37.127Z  model v13 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-10T02:35:53.563Z  model v14 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-11T03:11:33.101Z  model v15 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-11T03:17:14.959Z  model v16 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-12T02:46:10.038Z  model v17 trained for right: v2, recall 50%, false fires 1.14%
+2026-08-12T02:59:03.645Z  session opened: right/2026-08-11_1959
+2026-08-12T02:59:05.559Z  session closed: right/2026-08-11_1959
+2026-08-12T02:59:05.746Z  integrity manifest written (revision 1)
+2026-08-12T02:59:36.294Z  session opened: right/2026-08-11_1959b
+2026-08-12T02:59:38.108Z  session closed: right/2026-08-11_1959b
+2026-08-12T02:59:38.160Z  integrity manifest written (revision 2)
+2026-08-12T03:06:10.979Z  session opened: right/2026-08-11_2006
+2026-08-12T03:06:12.718Z  session closed: right/2026-08-11_2006
+2026-08-12T03:06:12.768Z  integrity manifest written (revision 3)
+2026-08-13T03:28:48.864Z  session opened: right/2026-08-12_2028
+2026-08-13T03:29:19.165Z  probe recorded: rest (25038 samples)
+2026-08-13T03:31:46.621Z  probe recorded: Baseline, rest. (25038 samples)
+2026-08-13T03:32:37.874Z  probe recorded: baseline rest (25038 samples)
+2026-08-13T03:33:55.208Z  probe recorded: waving arm around gently, pretending to use band as a cursor (25056 samples)
+2026-08-13T03:35:26.024Z  probe recorded: wiggling pointer finger, gently. erecting gently pointer finger from relax state (23346 samples)
+2026-08-13T04:40:12.747Z  session closed: right/2026-08-12_2028
+2026-08-13T04:40:13.251Z  calibrated right from 2026-08-12_2028: k=6.0, distinct d'>=3.223
+2026-08-15T04:25:54.943Z  session opened: right/2026-08-14_2125
+2026-08-15T04:28:12.283Z  placement confirmed for session start
+2026-08-15T04:28:46.075Z  probe recorded: rest (25056 samples)
+2026-08-15T04:29:48.651Z  placement confirmed for session start
+2026-08-15T04:30:35.519Z  probe recorded: moving arm around (35838 samples)
+2026-08-15T04:31:48.786Z  placement confirmed for session start
+2026-08-15T04:32:22.565Z  probe recorded: rest (25056 samples)
+2026-08-15T04:33:33.233Z  placement confirmed for session start
+2026-08-15T04:34:15.115Z  placement confirmed for session start
+2026-08-15T04:36:02.045Z  probe recorded: curl index finger (85878 samples)
+2026-08-15T04:37:51.489Z  placement confirmed for session start
+2026-08-15T04:39:38.397Z  probe recorded: curling pinky finger (85896 samples)
+2026-08-15T04:45:50.580Z  session closed: right/2026-08-14_2125
+2026-08-15T04:45:51.065Z  calibrated right from 2026-08-14_2125: k=4.0, distinct d'>=9.894
+2026-08-15T04:45:51.572Z  session analysed: right/2026-08-14_2125
+2026-08-15T04:45:51.638Z  integrity manifest written (revision 4)
+2026-08-15T05:04:49.662Z  model v18 trained for right: v2, recall 78%, false fires 0.98%
+2026-08-15T05:05:14.535Z  model v19 trained for right: v2, recall 78%, false fires 0.98%
+2026-08-15T05:16:28.043Z  model v20 trained for right: v2, recall 78%, false fires 0.98%
+2026-08-15T05:17:09.705Z  model v21 trained for right: v2, recall 97%, false fires 0.85%
+2026-08-15T05:22:46.262Z  model v22 trained for right: v2, recall 78%, false fires 0.98%

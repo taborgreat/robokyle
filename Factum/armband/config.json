@@ -1,0 +1,33 @@
+{
+  "advanced": true,
+  "auto_analyse_on_close": true,
+  "auto_opinion": true,
+  "auto_prompt_rest": true,
+  "calibration_revision": 2,
+  "consistency_good": 0.7,
+  "countdown_s": 3,
+  "fallback_sample_rate_hz": 840,
+  "fatigue_reminder_min": 20,
+  "last_band_address": "E1:DE:69:81:92:E1",
+  "onset_threshold_k": 4.0,
+  "probe_duration_s": 30,
+  "protocol_hold_s": 2.0,
+  "protocol_relax_s": 3.0,
+  "protocol_reps": 20,
+  "rep_gap_s": 0.25,
+  "rep_min_duration_s": 0.3,
+  "rest_duration_s": 30,
+  "separable_d_prime": 2.5,
+  "splash_seconds": 2.0,
+  "transport": "websocket",
+  "trigger_d_prime": 3.0,
+  "walkthrough_open": true,
+  "window_geometry": "2752x1089+20+0",
+  "ws_candidates": [
+    "ws://127.0.0.1:8766/events",
+    "ws://127.0.0.1:8766",
+    "ws://localhost:8766/events",
+    "ws://localhost:8766"
+  ],
+  "ws_url": ""
+}
