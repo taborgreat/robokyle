@@ -4,45 +4,212 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About &mdash; Robo Kyle</title>
-    <link rel="stylesheet" href="index.css">
+    <meta name="description" content="Robo Kyle is a nonprofit ability-solutions studio. Meet the people, the mission, and the values that shape what we build.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body class="page-body">
 
-    <!-- BEGIN: site nav (keep identical across all pages) -->
     <a class="skip-link" href="#main">Skip to main content</a>
+
+    <!-- BEGIN: site nav (keep identical across all pages) -->
     <header class="site-header">
         <nav class="site-nav" aria-label="Main">
-            <a class="site-logo" href="/">Robo Kyle</a>
+            <a class="site-logo" href="/" aria-label="Robo Kyle home">
+                <span class="logo-mark" aria-hidden="true">RK</span>
+                <span>Robo Kyle</span>
+            </a>
             <ul>
-                <li><a href="/about.html">About</a></li>
-                <li><a href="/tools.html">Tools</a></li>
-                <li><a href="/docs.html">Docs</a></li>
-                <li><a href="/contact.html">Contact</a></li>
+                <li><a href="/robokyle/">Home</a></li>
+                <li><a href="/robokyle/about.html" aria-current="page">About</a></li>
             </ul>
         </nav>
     </header>
     <!-- END: site nav -->
 
-    <main id="main" class="page">
-        <h1>About Robo Kyle</h1>
+    <main id="main">
 
-        <p>[PLACEHOLDER: One-sentence description of what Robo Kyle is &mdash; a nonprofit building accessibility tools.]</p>
+        <!-- ============ ABOUT HERO ============ -->
+        <section class="about-hero">
+            <div class="wrap">
+                <p><a href="/robokyle/">&larr; testing debug</a></p>
+                <span class="eyebrow"><span class="dot" aria-hidden="true"></span>About Robo Kyle</span>
+                <h1>A small studio with one stubborn belief.</h1>
+                <p class="lede">
+                    The web was built to be open. Somewhere along the way it stopped being open
+                    to everyone. We&rsquo;re a nonprofit trying to nudge that back &mdash; one
+                    accessible tool, one honest guide, one paid co-design session at a time.
+                </p>
+            </div>
+        </section>
 
-        <h2>Our mission</h2>
-        <p>[PLACEHOLDER: Mission statement. Name the accessibility problem you exist to solve and why it matters now.]</p>
+        <!-- ============ TWO-COLUMN STORY ============ -->
+        <section>
+            <div class="wrap about-grid">
+                <aside>
+                    <h4>At a glance</h4>
+                    <p><strong>Founded:</strong><br>2024</p>
 
-        <h2>Who is behind it</h2>
-        <p>[PLACEHOLDER: Founder names, backgrounds, and roles. One short paragraph per person, or a bulleted list.]</p>
+                    <h4>Structure</h4>
+                    <p><strong>Registered nonprofit</strong><br>Volunteer-led, community-funded.</p>
 
-        <h2>How we work</h2>
-        <p>[PLACEHOLDER: Nonprofit structure, funding model, who the tools are for, and how people can get involved. Link to <a href="/contact.html">contact</a>.]</p>
+                    <h4>Location</h4>
+                    <p>Distributed. We meet online and ship in the open.</p>
+
+                    <h4>Focus</h4>
+                    <p>Accessible software, adaptive tech, open-source guides.</p>
+
+                    <h4>Contact</h4>
+                    <p><a href="mailto:hello@robokyle.org">hello@robokyle.org</a></p>
+                </aside>
+
+                <article>
+                    <h2>Why we exist</h2>
+                    <p>
+                        More than a billion people live with a disability. Most of the software they touch every day
+                        wasn&rsquo;t designed with them in mind. It works &mdash; barely &mdash; when it works at all,
+                        and the workarounds fall on the person, not the product.
+                    </p>
+                    <p>
+                        Robo Kyle exists to shift that weight. We build small, focused tools that solve real problems
+                        for real people, and we publish everything we learn so other teams can do the same.
+                    </p>
+
+                    <h2>How we work</h2>
+                    <p>
+                        We co-design. That means the first sketch is drawn with a disabled tester in the room, not
+                        after the fact. It means we pay for that time &mdash; access labour is labour. And it means
+                        we&rsquo;re willing to throw away a beautiful prototype the moment it stops serving the person
+                        it was built for.
+                    </p>
+                    <p>
+                        Everything we ship is free, open source, and documented in plain language. If a tool
+                        we made ends up buried inside somebody else&rsquo;s product with our name filed off, we count
+                        that as a win.
+                    </p>
+
+                    <h2>What we value</h2>
+                    <ul class="values">
+                        <li>
+                            <strong>Access before polish</strong>
+                            <span>A rough tool that works with a screen reader beats a beautiful one that doesn&rsquo;t.</span>
+                        </li>
+                        <li>
+                            <strong>Pay for lived experience</strong>
+                            <span>Testers, advisors, and co-designers get invoiced hours, not gift cards.</span>
+                        </li>
+                        <li>
+                            <strong>Plain language, always</strong>
+                            <span>If we can&rsquo;t explain it to a grade-6 reader, we don&rsquo;t understand it yet.</span>
+                        </li>
+                        <li>
+                            <strong>Open by default</strong>
+                            <span>Code, guides, decisions, budgets. All in the open, all forkable.</span>
+                        </li>
+                    </ul>
+
+                    <h2>The story so far</h2>
+                    <ol class="timeline">
+                        <li>
+                            <span class="yr">2024</span>
+                            <strong>The studio starts.</strong>
+                            A handful of engineers, designers, and disabled advisors decide the accessibility gap
+                            is worth a nonprofit, not a side project.
+                        </li>
+                        <li>
+                            <span class="yr">2025</span>
+                            <strong>First tools ship.</strong>
+                            A caption remixer, a colour-contrast checker, and a keyboard-first file picker land in
+                            production &mdash; all under permissive licenses.
+                        </li>
+                        <li>
+                            <span class="yr">2026</span>
+                            <strong>Guides go public.</strong>
+                            We open up the plain-language guide library so other teams can build accessible work
+                            without reinventing the checklist.
+                        </li>
+                        <li>
+                            <span class="yr">Next</span>
+                            <strong>Grow the co-design bench.</strong>
+                            Expanding the paid tester network so every project has three voices in the room from
+                            day one.
+                        </li>
+                    </ol>
+
+                    <h2>Want to help?</h2>
+                    <p>
+                        We&rsquo;re a small team and there&rsquo;s more to do than we can carry alone. If you build
+                        software, test it with lived experience, teach accessibility, or just want to point us at a
+                        broken tool that&rsquo;s hurting people, we&rsquo;d love to hear from you.
+                    </p>
+                    <p>
+                        <a class="btn btn-primary" href="mailto:hello@robokyle.org">
+                            Get in touch
+                            <span class="arrow" aria-hidden="true">&rarr;</span>
+                        </a>
+                        <a class="btn btn-ghost" href="/" style="margin-left:.5rem;">Back to home</a>
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- ============ CTA ============ -->
+        <section class="cta-band">
+            <div class="wrap">
+                <div class="cta">
+                    <h2>See what we&rsquo;ve built.</h2>
+                    <p>The home page has the short version &mdash; what we do, who we do it with, and how to get involved.</p>
+                    <div class="hero-cta" style="justify-content:center;">
+                        <a class="btn btn-primary" href="/">
+                            Return to home
+                            <span class="arrow" aria-hidden="true">&rarr;</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <!-- BEGIN: site footer (keep identical across all pages) -->
     <footer class="site-footer">
-        <p>Robo Kyle &mdash; <a href="/contact.html">Contact</a></p>
+        <div class="wrap">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a class="site-logo" href="/" aria-label="Robo Kyle home">
+                        <span class="logo-mark" aria-hidden="true">RK</span>
+                        <span>Robo Kyle</span>
+                    </a>
+                    <p>A nonprofit ability-solutions studio building accessible tools with the people who use them.</p>
+                </div>
+                <div>
+                    <h4>Site</h4>
+                    <ul>
+                        <li><a href="/robokyle/">Home</a></li>
+                        <li><a href="/robokyle/about.html">About</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Get in touch</h4>
+                    <ul>
+                        <li><a href="mailto:hello@robokyle.org">hello@robokyle.org</a></li>
+                        <li><a href="https://github.com/Mcdrizzy/robokyle">GitHub</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; <span id="year">2026</span> Robo Kyle. Built to be borrowed.</span>
+                <span>Made with care in the open.</span>
+            </div>
+        </div>
     </footer>
     <!-- END: site footer -->
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
 
 </body>
 </html>
