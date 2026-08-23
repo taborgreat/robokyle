@@ -102,6 +102,16 @@
     mouseY: 0,
     mouseDown: false,
     lastTime: 0,
+    // touch input (mobile). moveX/moveY and aimX/aimY are unit-ish
+    // vectors from the on-screen sticks; magnitude drives walk speed.
+    touch: {
+      active: false,   // touch control scheme is live for this session
+      moveX: 0, moveY: 0,
+      aimX: 1, aimY: 0,
+      aiming: false,
+      firing: false,
+      sprint: false,
+    },
     // camera
     cam: { x: W/2, y: H/2, zoom: 1.0, targetZoom: 1.0 },
   };
@@ -879,6 +889,237 @@
     S.cam.targetZoom = clamp(S.cam.targetZoom + delta, 0.55, 1.75);
   }, { passive: false });
 
+  // ==================== TOUCH CONTROLS ====================
+  // Two virtual sticks plus a small button cluster. Only wired up on
+  // touch-capable devices (site.js decides that and puts `is-touch` on
+  // <html>); a desktop mouse never sees any of it.
+  const touchUI  = document.getElementById('touchUI');
+  const gameFrame = document.querySelector('.game-frame');
+
+  function isTouchDevice() {
+    if (window.RK && window.RK.device) return window.RK.device.touch;
+    // site.js should always be loaded first, but don't hard-depend on it.
+    return ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+  }
+
+  function setTouchMode(on) {
+    S.touch.active = !!on;
+    if (gameFrame) gameFrame.classList.toggle('touch-mode', !!on);
+    if (touchUI) touchUI.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!on) resetTouchInput();
+  }
+
+  function resetTouchInput() {
+    S.touch.moveX = 0; S.touch.moveY = 0;
+    S.touch.aiming = false;
+    S.touch.firing = false;
+    S.touch.sprint = false;
+  }
+
+  if (touchUI && isTouchDevice()) {
+    const MOVE_DEAD = 0.14;   // fraction of radius ignored near the centre
+    const AIM_DEAD  = 0.18;
+
+    // ---- Stick factory. Tracks one contact per stick by id, so two
+    //      thumbs can drive both sticks at the same time.
+    //      Uses Pointer Events where available and falls back to Touch
+    //      Events (iOS 12 and older) so no device is left without input.
+    const hasPointer = typeof window.PointerEvent === 'function';
+
+    function makeStick(rootEl, knobEl, onMove, onEnd, deadZone) {
+      let activeId = null;
+      let originX = 0, originY = 0, radius = 50;
+
+      const place = (cx, cy) => {
+        let dx = cx - originX, dy = cy - originY;
+        const d = Math.hypot(dx, dy);
+        if (d > radius) { dx = dx / d * radius; dy = dy / d * radius; }
+        knobEl.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+        let nx = dx / radius, ny = dy / radius;
+        const n = Math.hypot(nx, ny);
+        if (n < deadZone) { nx = 0; ny = 0; }
+        onMove(nx, ny, Math.min(1, n));
+      };
+
+      const grab = (id, cx, cy) => {
+        activeId = id;
+        const r = rootEl.getBoundingClientRect();
+        originX = r.left + r.width / 2;
+        originY = r.top + r.height / 2;
+        radius = r.width / 2 || 50;
+        rootEl.classList.add('is-active');
+        ensureAudio();
+        place(cx, cy);
+      };
+
+      const release = () => {
+        if (activeId === null) return;
+        activeId = null;
+        knobEl.style.transform = '';
+        rootEl.classList.remove('is-active');
+        onEnd();
+      };
+
+      if (hasPointer) {
+        rootEl.addEventListener('pointerdown', e => {
+          if (activeId !== null) return;
+          // Capture keeps the thumb bound to this stick even if it slides
+          // off the pad. Not every engine implements it — never let a
+          // failure here abort the rest of the handler.
+          try { rootEl.setPointerCapture(e.pointerId); } catch (err) {}
+          grab(e.pointerId, e.clientX, e.clientY);
+          e.preventDefault();
+        });
+
+        rootEl.addEventListener('pointermove', e => {
+          if (e.pointerId !== activeId) return;
+          place(e.clientX, e.clientY);
+          e.preventDefault();
+        });
+
+        const endIf = e => { if (e.pointerId === activeId) { release(); e.preventDefault(); } };
+        rootEl.addEventListener('pointerup', endIf);
+        rootEl.addEventListener('pointercancel', endIf);
+        rootEl.addEventListener('lostpointercapture', e => {
+          if (e.pointerId === activeId) release();
+        });
+      } else {
+        const find = list => {
+          for (let i = 0; i < list.length; i++) if (list[i].identifier === activeId) return list[i];
+          return null;
+        };
+        rootEl.addEventListener('touchstart', e => {
+          if (activeId !== null) return;
+          const t = e.changedTouches[0];
+          grab(t.identifier, t.clientX, t.clientY);
+          e.preventDefault();
+        }, { passive: false });
+        // Bind move/end to the document: without pointer capture the
+        // events stop targeting the pad once the thumb leaves it.
+        document.addEventListener('touchmove', e => {
+          const t = find(e.touches);
+          if (!t) return;
+          place(t.clientX, t.clientY);
+          e.preventDefault();
+        }, { passive: false });
+        const endTouch = e => { if (find(e.changedTouches)) release(); };
+        document.addEventListener('touchend', endTouch);
+        document.addEventListener('touchcancel', endTouch);
+      }
+    }
+
+    // ---- Move stick
+    makeStick(
+      document.getElementById('tcMove'),
+      document.getElementById('tcMoveKnob'),
+      (nx, ny) => { S.touch.moveX = nx; S.touch.moveY = ny; },
+      () => { S.touch.moveX = 0; S.touch.moveY = 0; },
+      MOVE_DEAD
+    );
+
+    // ---- Aim stick: pushing it aims AND fires, so one thumb does both.
+    makeStick(
+      document.getElementById('tcAim'),
+      document.getElementById('tcAimKnob'),
+      (nx, ny, n) => {
+        if (n > AIM_DEAD) {
+          S.touch.aimX = nx; S.touch.aimY = ny;
+          S.touch.aiming = true;
+          S.touch.firing = true;
+        } else {
+          S.touch.aiming = false;
+          S.touch.firing = false;
+        }
+      },
+      () => { S.touch.aiming = false; S.touch.firing = false; },
+      0
+    );
+
+    // ---- Weapon slots
+    document.querySelectorAll('.tc-wpn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        ensureAudio();
+        switchWeapon(btn.dataset.weapon);
+      });
+    });
+
+    // ---- Sprint: hold to run
+    const sprintBtn = document.querySelector('.tc-sprint');
+    if (sprintBtn) {
+      const on  = e => { S.touch.sprint = true;  sprintBtn.classList.add('is-active'); e.preventDefault(); };
+      const off = e => { S.touch.sprint = false; sprintBtn.classList.remove('is-active'); e.preventDefault(); };
+      if (hasPointer) {
+        sprintBtn.addEventListener('pointerdown', on);
+        sprintBtn.addEventListener('pointerup', off);
+        sprintBtn.addEventListener('pointercancel', off);
+        sprintBtn.addEventListener('pointerleave', off);
+      } else {
+        sprintBtn.addEventListener('touchstart', on, { passive: false });
+        sprintBtn.addEventListener('touchend', off);
+        sprintBtn.addEventListener('touchcancel', off);
+      }
+    }
+
+    // ---- Pause + zoom
+    document.querySelectorAll('[data-touch]').forEach(btn => {
+      const kind = btn.dataset.touch;
+      if (kind === 'sprint') return;
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        if (kind === 'pause') { resetTouchInput(); togglePause(); }
+        if (kind === 'zoomin')  S.cam.targetZoom = clamp(S.cam.targetZoom + 0.15, 0.55, 1.75);
+        if (kind === 'zoomout') S.cam.targetZoom = clamp(S.cam.targetZoom - 0.15, 0.55, 1.75);
+      });
+    });
+
+    // Two-finger pinch on the canvas as a second way to zoom.
+    // Pointer-Events only; the +/- buttons cover engines without it.
+    let pinchStart = 0, pinchZoom = 1;
+    const pinchPts = new Map();
+    if (hasPointer) canvas.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch') return;
+      pinchPts.set(e.pointerId, e);
+      if (pinchPts.size === 2) {
+        const [a, b] = [...pinchPts.values()];
+        pinchStart = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        pinchZoom = S.cam.targetZoom;
+      }
+    });
+    if (hasPointer) canvas.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'touch' || !pinchPts.has(e.pointerId)) return;
+      pinchPts.set(e.pointerId, e);
+      if (pinchPts.size === 2 && pinchStart > 0) {
+        const [a, b] = [...pinchPts.values()];
+        const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        S.cam.targetZoom = clamp(pinchZoom * (d / pinchStart), 0.55, 1.75);
+        e.preventDefault();
+      }
+    }, { passive: false });
+    const dropPinch = e => { pinchPts.delete(e.pointerId); if (pinchPts.size < 2) pinchStart = 0; };
+    if (hasPointer) {
+      canvas.addEventListener('pointerup', dropPinch);
+      canvas.addEventListener('pointercancel', dropPinch);
+    }
+
+    // Stop input dead if the tab/app goes away mid-round.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) resetTouchInput();
+    });
+    window.addEventListener('blur', resetTouchInput);
+  }
+
+  // Keep the weapon slots in sync with what the player actually carries.
+  function updateTouchWeapons() {
+    if (!S.touch.active || !S.player) return;
+    document.querySelectorAll('.tc-wpn').forEach(btn => {
+      const w = btn.dataset.weapon;
+      const ammo = S.player.ammo[w];
+      btn.classList.toggle('is-active', S.player.weapon === w);
+      btn.classList.toggle('is-empty', w !== 'pistol' && !(ammo > 0));
+    });
+  }
+
   // ==================== FLOW ====================
   function startGame(mapKey) {
     S.map = mapKey;
@@ -917,6 +1158,7 @@
     pauseOverlay.classList.remove('active');
     gameoverOverlay.classList.remove('active');
     hud.combo.classList.remove('show');
+    setTouchMode(isTouchDevice());
 
     const spawn = findPlayerSpawn();
     S.player = {
@@ -965,6 +1207,7 @@
   function togglePause() {
     if (!S.running || !S.player || !S.player.alive) return;
     S.paused = !S.paused;
+    if (S.paused) resetTouchInput();
     pauseOverlay.classList.toggle('active', S.paused);
     if (S.paused) { if (audioCtx) setMusicVolume(S.settings.musicVolume * 0.35); }
     else          { S.lastTime = performance.now(); if (audioCtx) setMusicVolume(S.settings.musicVolume); }
@@ -973,6 +1216,7 @@
   function quitToMenu() {
     S.running = false;
     S.paused = false;
+    setTouchMode(false);
     pauseOverlay.classList.remove('active');
     gameoverOverlay.classList.remove('active');
     music.stop();
@@ -1305,9 +1549,17 @@
     if (S.keys['s'] || S.keys['arrowdown'])  vy += 1;
     if (S.keys['a'] || S.keys['arrowleft'])  vx -= 1;
     if (S.keys['d'] || S.keys['arrowright']) vx += 1;
-    const mag = Math.hypot(vx, vy);
-    if (mag > 0) { vx /= mag; vy /= mag; }
-    const sprinting = (S.keys['shift'] && p.sprint > 0 && mag > 0);
+    let mag = Math.hypot(vx, vy);
+    if (mag > 0) { vx /= mag; vy /= mag; mag = 1; }
+    // The move stick is analog and outranks the keys when pushed: vx/vy
+    // carry its magnitude, so a half-push walks at half speed.
+    const stickMag = Math.hypot(S.touch.moveX, S.touch.moveY);
+    if (stickMag > 0.12) {
+      vx = S.touch.moveX;
+      vy = S.touch.moveY;
+      mag = Math.min(1, stickMag);
+    }
+    const sprinting = ((S.keys['shift'] || S.touch.sprint) && p.sprint > 0 && mag > 0);
     p.sprinting = sprinting;
     const speed = sprinting ? SPRINT_SPEED : BASE_SPEED;
     if (sprinting) p.sprint = Math.max(0, p.sprint - dtMs);
@@ -1337,12 +1589,18 @@
     S.cam.y = clamp(S.cam.y, by0 + viewH / 2, by1 - viewH / 2);
 
     recomputeWorldMouse();
-    p.angle = Math.atan2(S.mouseY - p.y, S.mouseX - p.x);
+    if (S.touch.active) {
+      // Aim stick sets the facing directly; let go and the angle holds,
+      // rather than snapping back to a stale mouse position.
+      if (S.touch.aiming) p.angle = Math.atan2(S.touch.aimY, S.touch.aimX);
+    } else {
+      p.angle = Math.atan2(S.mouseY - p.y, S.mouseX - p.x);
+    }
 
     // Fire
     if (p.cd > 0) p.cd -= dtMs;
     if (p.lastShotFlash > 0) p.lastShotFlash -= dtMs;
-    if (S.mouseDown) {
+    if (S.mouseDown || S.touch.firing) {
       const w = WEAPONS[p.weapon];
       if (w.auto || p.cd <= 0) tryShoot();
     }
@@ -3255,6 +3513,7 @@
     const w = WEAPONS[S.player.weapon];
     hud.weapon.textContent = w.name;
     hud.ammo.innerHTML = S.player.weapon === 'pistol' ? '&infin;' : String(S.player.ammo[S.player.weapon]);
+    updateTouchWeapons();
   }
 
   // ==================== LOOP ====================

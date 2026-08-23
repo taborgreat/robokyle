@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tools &mdash; Robo Kyle</title>
     <meta name="description" content="A growing library of small, focused, accessible tools from Robo Kyle. Free, open source, and co-designed with disabled testers.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +21,12 @@
                 <span class="logo-mark" aria-hidden="true">RK</span>
                 <span>Robo Kyle</span>
             </a>
-            <ul>
+            <button class="nav-toggle" id="navToggle" type="button"
+                    aria-expanded="false" aria-controls="site-menu" aria-label="Open menu">
+                <span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="nav-toggle-text">Menu</span>
+            </button>
+            <ul id="site-menu" class="nav-links">
                 <li><a href="index.html">Home</a></li>
                 <li><a href="about.html">About</a></li>
                 <li><a href="tools.html" aria-current="page">Tools</a></li>
@@ -226,9 +231,6 @@
     </footer>
     <!-- END: site footer -->
 
-    <script>
-      document.getElementById('year').textContent = new Date().getFullYear();
-    </script>
-
+    <script src="site.js"></script>
 </body>
 </html>

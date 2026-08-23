@@ -33,6 +33,29 @@ body.game-body::before {
     z-index: 0;
 }
 
+/* Skip link — game.html doesn't load index.css, so it needs its own
+   copy. Without a :focus rule it was parked off-screen permanently. */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 12px;
+    z-index: 100;
+    background: var(--gm-ink);
+    color: var(--gm-bg);
+    padding: .6rem .9rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+}
+.skip-link:focus { top: 12px; }
+
+/* Visible focus ring for keyboard users. */
+.game-body :focus-visible {
+    outline: 3px solid var(--gm-orange);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
 /* Page shell — take the whole viewport, dark chrome */
 body.game-body {
     background: var(--gm-bg);
@@ -85,8 +108,10 @@ body.game-body {
     text-align: center;
 }
 
-/* ---------- Big RoboKyle title logo ---------- */
-@import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap');
+/* ---------- Big RoboKyle title logo ----------
+   'Black Ops One' is loaded via <link> in game.html: an @import sitting
+   this far down the file is ignored by every browser, so the whole game
+   UI was silently falling back to Impact. */
 
 .rk-logo {
     font-family: 'Black Ops One', 'Fraunces', Impact, sans-serif;
@@ -681,4 +706,339 @@ body.game-body {
     .hud { grid-template-columns: 1fr; gap: .4rem; padding: .6rem .8rem; }
     .hud-l, .hud-r { justify-self: stretch; }
     .health-bar { width: 100%; }
+}
+
+/* ---------- "How to play" sub-headings ---------- */
+.controls-head {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: .82rem;
+    color: var(--gm-orange);
+    margin: 1.6rem 0 .7rem;
+}
+.controls-head:first-of-type { margin-top: 1rem; }
+
+/* ============================================================
+   TOUCH CONTROLS
+   Hidden by default. site.js puts `is-touch` on <html>, and game.js
+   adds `touch-mode` to the frame while a round is running — both must
+   be true before the pads appear, so a desktop mouse never sees them.
+   ============================================================ */
+.touch-ui { display: none; }
+
+html.is-touch .game-frame.touch-mode .touch-ui {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 4;              /* above the HUD, below the overlays (z-index 5) */
+    pointer-events: none;    /* children opt back in individually */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- Thumb sticks ---------- */
+.tc-stick {
+    position: absolute;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    width: 128px;
+    height: 128px;
+    pointer-events: auto;
+    touch-action: none;
+}
+.tc-move { left: calc(1rem + env(safe-area-inset-left, 0px)); }
+.tc-aim  { right: calc(1rem + env(safe-area-inset-right, 0px)); }
+
+.tc-stick-base {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(30,23,21,.55), rgba(10,9,12,.4));
+    border: 2px solid rgba(227,85,43,.35);
+    display: grid;
+    place-items: center;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.tc-stick-label {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: .6rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--gm-ink-mute);
+    opacity: .8;
+    pointer-events: none;
+}
+.tc-stick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 54px;
+    height: 54px;
+    margin: -27px 0 0 -27px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,122,61,.95), rgba(180,35,28,.85));
+    border: 2px solid rgba(241,228,210,.35);
+    box-shadow: 0 6px 18px rgba(0,0,0,.6);
+    pointer-events: none;
+    transition: transform .08s linear, opacity .15s ease;
+}
+.tc-stick.is-active .tc-stick-base { border-color: rgba(227,85,43,.75); }
+.tc-stick.is-active .tc-stick-label { opacity: 0; }
+
+/* ---------- Weapon slots ---------- */
+.tc-weapons {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    gap: .4rem;
+    pointer-events: auto;
+}
+.tc-wpn {
+    width: 52px;
+    min-height: 52px;
+    border-radius: 12px;
+    background: rgba(20,16,15,.72);
+    border: 1px solid var(--gm-line);
+    color: var(--gm-ink-soft);
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: .95rem;
+    line-height: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .18rem;
+    padding: .35rem .2rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.tc-wpn span {
+    font-size: .5rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gm-ink-mute);
+}
+.tc-wpn.is-active {
+    border-color: var(--gm-orange);
+    color: var(--gm-orange);
+    background: rgba(227,85,43,.18);
+}
+.tc-wpn.is-active span { color: var(--gm-orange); }
+.tc-wpn.is-empty { opacity: .38; }
+
+/* ---------- Utility buttons ---------- */
+.tc-btn {
+    border-radius: 50%;
+    background: rgba(20,16,15,.72);
+    border: 1px solid var(--gm-line);
+    color: var(--gm-ink-soft);
+    font-family: 'Black Ops One', Impact, sans-serif;
+    letter-spacing: .06em;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.tc-btn:active { border-color: var(--gm-orange); color: var(--gm-orange); }
+
+.tc-utils {
+    position: absolute;
+    top: calc(.6rem + env(safe-area-inset-top, 0px));
+    right: calc(.6rem + env(safe-area-inset-right, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    pointer-events: auto;
+    z-index: 2;              /* clear of the HUD score box */
+}
+.tc-utils .tc-btn { width: 42px; height: 42px; font-size: .9rem; }
+
+.tc-sprint {
+    position: absolute;
+    left: calc(1rem + env(safe-area-inset-left, 0px));
+    bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
+    width: 58px;
+    height: 58px;
+    font-size: .72rem;
+}
+.tc-sprint.is-active { border-color: var(--gm-teal); color: var(--gm-teal); }
+.tc-sprint.is-spent  { opacity: .4; }
+
+/* ---------- Layout tweaks while touch controls are live ---------- */
+html.is-touch .game-frame.touch-mode .hud {
+    padding: .5rem .7rem;
+    font-size: .78rem;
+}
+html.is-touch .game-frame.touch-mode .hint { display: none; }
+html.is-touch .game-frame.touch-mode .minimap-wrap canvas { width: 104px; height: 70px; }
+
+/* Small phones: shrink the pads so they never swallow the arena. */
+@media (max-width: 560px) {
+    .tc-stick { width: 104px; height: 104px; }
+    .tc-stick-knob { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+    .tc-wpn { width: 44px; min-height: 46px; font-size: .85rem; }
+    .tc-sprint { width: 50px; height: 50px; font-size: .62rem; bottom: calc(8rem + env(safe-area-inset-bottom, 0px)); }
+    .tc-utils .tc-btn { width: 38px; height: 38px; }
+}
+
+/* Landscape phones are short: pull everything tighter to the edges. */
+@media (max-height: 460px) and (orientation: landscape) {
+    .tc-stick { width: 96px; height: 96px; bottom: calc(.5rem + env(safe-area-inset-bottom, 0px)); }
+    .tc-stick-knob { width: 42px; height: 42px; margin: -21px 0 0 -21px; }
+    .tc-sprint { bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
+    .tc-weapons { bottom: calc(.5rem + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- Rotate-to-landscape nudge ---------- */
+.rotate-note {
+    display: none;
+    margin: .9rem auto 0;
+    max-width: 32rem;
+    text-align: center;
+    background: rgba(30,23,21,.6);
+    border: 1px solid var(--gm-line);
+    border-radius: 10px;
+    padding: .6rem .9rem;
+    color: var(--gm-ink-soft);
+    font-size: .8rem;
+    line-height: 1.5;
+}
+html.is-touch.is-portrait .rotate-note { display: block; }
+
+/* ---------- Menus on small screens ---------- */
+@media (max-width: 620px) {
+    .game-shell { padding: .6rem; }
+    .game-frame { border-radius: 10px; }
+    .menu-btn { width: 100%; min-height: 48px; }
+    .menu-list { width: min(100%, 320px); margin-inline: auto; }
+    .map-card { min-height: 48px; }
+    .overlay { padding: 1.1rem; }
+    .overlay .stats { gap: .6rem; }
+    .overlay .stat { min-width: 92px; padding: .6rem .7rem; }
+    .overlay .stat .v { font-size: 1.2rem; }
+    .overlay .buttons { flex-direction: column; width: min(100%, 260px); margin-inline: auto; }
+    .overlay .buttons .menu-btn { min-width: 0 !important; width: 100%; }
+    .settings-grid { gap: 1rem; }
+    .setting .seg { flex-wrap: wrap; }
+    .setting .seg span { min-height: 44px; display: inline-flex; align-items: center; }
+    .setting input[type="range"] { height: 32px; }
+    .controls-grid { grid-template-columns: 1fr; }
+    .back-strip { gap: .3rem 1rem; padding-bottom: calc(.5rem + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Coarse pointers: kill hover transforms that stick after a tap. */
+@media (hover: none) {
+    .menu-btn:hover { transform: none; }
+    .map-card:hover { transform: none; }
+}
+
+/* ============================================================
+   TOUCH-MODE PLAY LAYOUT
+   With two thumb sticks pinned to the bottom corners, the default HUD
+   furniture collides: the minimap sits under the move stick and the
+   utility cluster lands on the score box. This block re-flows the
+   whole play screen for touch, and sizes the arena so the round always
+   fits on screen without the page scrolling.
+   ============================================================ */
+
+/* --- Fit the arena to the viewport ---
+   The canvas keeps its 3:2 ratio and is sized by whichever axis runs
+   out first: width in portrait, height in landscape. The reserved
+   5.5rem covers the shell padding, the back strip and the rotate note. */
+html.is-touch .game-frame.touch-mode #screen-play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    /* First line is the fallback: site.js keeps --vh in sync with the
+       real visible height, which older Safari needs because it has no
+       dvh unit (and would drop the whole declaration). */
+    height: min(calc(var(--vh, 1vh) * 100 - 5.5rem), calc((100vw - 1.2rem) / 1.5));
+    height: min(calc(100dvh - 5.5rem), calc((100vw - 1.2rem) / 1.5));
+}
+html.is-touch .game-frame.touch-mode #gameCanvas {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    cursor: default;
+}
+
+/* --- Compact HUD row: never let it stack down the left edge --- */
+html.is-touch .game-frame.touch-mode .hud {
+    grid-template-columns: 1fr auto 1fr;
+    gap: .4rem;
+    align-items: start;
+}
+html.is-touch .game-frame.touch-mode .hud-l { justify-self: start; }
+html.is-touch .game-frame.touch-mode .hud-r { justify-self: end; }
+html.is-touch .game-frame.touch-mode .hud .box {
+    padding: .35rem .5rem;
+    font-size: .7rem;
+    border-radius: 8px;
+}
+html.is-touch .game-frame.touch-mode .hud .box .v { font-size: .85rem; }
+html.is-touch .game-frame.touch-mode .hud .box .k { font-size: .55rem; margin-bottom: 0; }
+html.is-touch .game-frame.touch-mode .health-bar,
+html.is-touch .game-frame.touch-mode .sprint-bar {
+    width: 96px;
+    height: 7px;
+}
+
+/* --- Utility cluster: top-left, tucked under the health box --- */
+html.is-touch .game-frame.touch-mode .tc-utils {
+    right: auto;
+    bottom: auto;
+    left: calc(.6rem + env(safe-area-inset-left, 0px));
+    top: 5.4rem;
+    flex-direction: row;
+}
+
+/* --- Minimap: top-right, clear of the aim stick and the score box --- */
+html.is-touch .game-frame.touch-mode .minimap-wrap {
+    left: auto;
+    bottom: auto;
+    right: calc(.6rem + env(safe-area-inset-right, 0px));
+    top: 5.4rem;
+    padding: 4px;
+}
+
+/* --- Combo badge drops below the wave box, which is shorter now --- */
+html.is-touch .game-frame.touch-mode .combo {
+    top: 4rem;
+    padding: .3rem .6rem;
+    font-size: .72rem;
+}
+html.is-touch .game-frame.touch-mode .combo .combo-num { font-size: 1.05rem; }
+html.is-touch .game-frame.touch-mode .combo .combo-label { display: none; }
+
+/* --- Wave banner sits above the sticks --- */
+html.is-touch .game-frame.touch-mode .wave-banner { top: 38%; }
+
+/* Very short landscape phones: reclaim the second HUD row. */
+@media (max-height: 420px) and (orientation: landscape) {
+    html.is-touch .game-frame.touch-mode .minimap-wrap { display: none; }
+    html.is-touch .game-frame.touch-mode .tc-utils { top: 4.4rem; }
+}
+
+/* Portrait phones: the arena is short and wide, so the sticks would
+   cover most of it. Hide the minimap and keep the pads slim. */
+@media (max-width: 620px) and (orientation: portrait) {
+    html.is-touch .game-frame.touch-mode .minimap-wrap { display: none; }
+}
+
+/* The frame goes edge-to-edge while playing on a phone. */
+@media (max-width: 620px) {
+    html.is-touch .game-frame.touch-mode {
+        border-radius: 8px;
+    }
 }

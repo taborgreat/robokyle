@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RoboKyle &mdash; Game</title>
     <meta name="description" content="RoboKyle &mdash; a top-down wave-survival shooter. Play in the browser.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="game.css">
 </head>
 <body class="game-body">
 
-    <a class="skip-link" href="#game-main" style="position:absolute;top:-100px;left:12px;background:#fff;color:#000;padding:.5rem .8rem;z-index:100;">Skip to game</a>
+    <a class="skip-link" href="#game-main">Skip to game</a>
 
     <div class="game-shell" id="game-main">
         <div class="game-frame" role="application" aria-label="RoboKyle game">
@@ -123,16 +123,27 @@
             <section class="screen" id="screen-howTo" aria-labelledby="ht-title">
                 <button class="menu-back" data-goto="title">Back</button>
                 <h2 class="screen-title" id="ht-title">How to <span class="accent">Play</span></h2>
-                <p class="screen-sub">The basics. You can rebind nothing yet, but every button below is a real key on your keyboard.</p>
+                <p class="screen-sub">The basics. Controls switch automatically depending on whether you’re on a keyboard or a touchscreen.</p>
+
+                <h3 class="controls-head" id="ht-desktop">Keyboard &amp; mouse</h3>
                 <div class="controls-grid">
-                    <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
+                    <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move (arrow keys work too)</div>
                     <div><kbd>Mouse</kbd> Aim</div>
-                    <div><kbd>Click</kbd> Shoot / hold for autos</div>
+                    <div><kbd>Click</kbd> Shoot &mdash; hold for autos</div>
                     <div><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> Swap weapon</div>
-                    <div><kbd>R</kbd> Reload</div>
-                    <div><kbd>P</kbd> or <kbd>Esc</kbd> Pause</div>
-                    <div><kbd>Q</kbd> Drop a mine (later waves)</div>
                     <div><kbd>Shift</kbd> Sprint (short burst)</div>
+                    <div><kbd>Scroll</kbd> Zoom in / out</div>
+                    <div><kbd>P</kbd> or <kbd>Esc</kbd> Pause</div>
+                </div>
+
+                <h3 class="controls-head" id="ht-mobile">Touchscreen</h3>
+                <div class="controls-grid">
+                    <div><kbd>Left stick</kbd> Move</div>
+                    <div><kbd>Right stick</kbd> Aim &mdash; fires while held</div>
+                    <div><kbd>RUN</kbd> Sprint (short burst)</div>
+                    <div><kbd>1&ndash;4</kbd> Swap weapon</div>
+                    <div><kbd>+</kbd> <kbd>&minus;</kbd> Zoom in / out</div>
+                    <div><kbd>II</kbd> Pause</div>
                 </div>
                 <p style="margin-top:1.5rem;color:var(--gm-ink-soft);">
                     Enemies drop ammo. Rockets are rare. Waves get faster and meaner &mdash;
@@ -220,13 +231,48 @@
                     <canvas id="minimap" width="180" height="120"></canvas>
                 </div>
 
-                <div class="hint" aria-hidden="true">
+                <div class="hint" id="playHint" aria-hidden="true">
                     Scroll to zoom &middot; Shift to sprint &middot; Esc to pause
                 </div>
 
                 <div class="wave-banner" id="waveBanner" aria-hidden="true">
                     <span id="waveBannerText">Wave 1</span>
                     <span class="sub" id="waveBannerSub">Incoming</span>
+                </div>
+
+
+                <!-- ============ TOUCH CONTROLS (mobile only) ============ -->
+                <div class="touch-ui" id="touchUI" aria-hidden="true">
+
+                    <!-- Left thumb: movement stick -->
+                    <div class="tc-stick tc-move" id="tcMove">
+                        <div class="tc-stick-base"><span class="tc-stick-label">Move</span></div>
+                        <div class="tc-stick-knob" id="tcMoveKnob"></div>
+                    </div>
+
+                    <!-- Right thumb: aim stick (drag to aim, it fires while held) -->
+                    <div class="tc-stick tc-aim" id="tcAim">
+                        <div class="tc-stick-base"><span class="tc-stick-label">Aim / Fire</span></div>
+                        <div class="tc-stick-knob" id="tcAimKnob"></div>
+                    </div>
+
+                    <!-- Weapon slots -->
+                    <div class="tc-weapons" id="tcWeapons">
+                        <button class="tc-wpn is-active" data-weapon="pistol"  type="button">1<span>Pistol</span></button>
+                        <button class="tc-wpn" data-weapon="uzi"     type="button">2<span>Uzi</span></button>
+                        <button class="tc-wpn" data-weapon="shotgun" type="button">3<span>Shot</span></button>
+                        <button class="tc-wpn" data-weapon="rocket"  type="button">4<span>RPG</span></button>
+                    </div>
+
+                    <!-- Utility column -->
+                    <div class="tc-utils">
+                        <button class="tc-btn tc-pause" data-touch="pause"  type="button" aria-label="Pause">II</button>
+                        <button class="tc-btn tc-zoom"  data-touch="zoomin" type="button" aria-label="Zoom in">+</button>
+                        <button class="tc-btn tc-zoom"  data-touch="zoomout" type="button" aria-label="Zoom out">&minus;</button>
+                    </div>
+
+                    <!-- Sprint sits above the move stick, under the left thumb's reach -->
+                    <button class="tc-btn tc-sprint" data-touch="sprint" type="button" aria-label="Sprint">RUN</button>
                 </div>
 
                 <div class="overlay" id="overlay-pause" role="dialog" aria-label="Paused">
@@ -257,6 +303,10 @@
 
         </div>
 
+        <p class="rotate-note" id="rotateNote">
+            Turn your phone sideways for a wider view of the arena.
+        </p>
+
         <nav class="back-strip" aria-label="Site">
             <a href="index.html">&larr; Home</a>
             <a href="about.html">About</a>
@@ -267,6 +317,7 @@
         </nav>
     </div>
 
+    <script src="site.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
