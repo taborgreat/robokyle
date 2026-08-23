@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[PLACEHOLDER: Guide title] &mdash; Robo Kyle</title>
-    <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="../index.css">
 </head>
 <body class="page-body">
 
@@ -30,23 +30,29 @@
     over generic phrases ("click here").
     -->
 
-    <!-- BEGIN: site nav (keep identical across all pages) -->
     <a class="skip-link" href="#main">Skip to main content</a>
+
+    <!-- BEGIN: site nav (keep identical across all pages) -->
     <header class="site-header">
         <nav class="site-nav" aria-label="Main">
-            <a class="site-logo" href="/">Robo Kyle</a>
+            <a class="site-logo" href="../index.html" aria-label="Robo Kyle home">
+                <span class="logo-mark" aria-hidden="true">RK</span>
+                <span>Robo Kyle</span>
+            </a>
             <ul>
-                <li><a href="/about.html">About</a></li>
-                <li><a href="/tools.html">Tools</a></li>
-                <li><a href="/docs.html">Docs</a></li>
-                <li><a href="/contact.html">Contact</a></li>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../about.html">About</a></li>
+                <li><a href="../tools.html">Tools</a></li>
+                <li><a href="../designs.html">Designs</a></li>
+                <li><a href="../docs.html" aria-current="page">Docs</a></li>
+                <li><a href="../contact.html">Contact</a></li>
             </ul>
         </nav>
     </header>
     <!-- END: site nav -->
 
     <main id="main" class="page">
-        <p><a href="/docs.html">&larr; Back to docs</a></p>
+        <p><a href="../docs.html">&larr; Back to docs</a></p>
         <h1>[PLACEHOLDER: Guide title]</h1>
 
         <p>[PLACEHOLDER: One-paragraph summary &mdash; what the reader will learn, who the guide is for, and what they need before starting.]</p>
@@ -74,9 +80,45 @@ code sample if needed]</code></pre>
 
     <!-- BEGIN: site footer (keep identical across all pages) -->
     <footer class="site-footer">
-        <p>Robo Kyle &mdash; <a href="/contact.html">Contact</a></p>
+        <div class="wrap">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a class="site-logo" href="../index.html" aria-label="Robo Kyle home">
+                        <span class="logo-mark" aria-hidden="true">RK</span>
+                        <span>Robo Kyle</span>
+                    </a>
+                    <p>A nonprofit ability-solutions studio building accessible tools with the people who use them.</p>
+                </div>
+                <div>
+                    <h4>Site</h4>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../about.html">About</a></li>
+                        <li><a href="../tools.html">Tools</a></li>
+                        <li><a href="../designs.html">Designs</a></li>
+                        <li><a href="../docs.html">Docs</a></li>
+                        <li><a href="../contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Get in touch</h4>
+                    <ul>
+                        <li><a href="mailto:hello@robokyle.org">hello@robokyle.org</a></li>
+                        <li><a href="https://github.com/Mcdrizzy/robokyle">GitHub</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; <span id="year">2026</span> Robo Kyle. Built to be borrowed.</span>
+                <span>Made with care in the open.</span>
+            </div>
+        </div>
     </footer>
     <!-- END: site footer -->
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
 
 </body>
 </html>
