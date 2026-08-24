@@ -8,10 +8,10 @@
     <link rel="icon" type="image/png" href="/public/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="grand-heist.css">
 </head>
-<body class="game-body">
+<body class="gh-body">
 
     <a class="skip-link" href="#game-main">Skip to game</a>
 
@@ -19,11 +19,61 @@
         <div class="game-frame" role="application" aria-label="RoboKyle: Grand Heist">
 
             <!-- ============ TITLE ============ -->
-            <section class="screen centered active" id="screen-title">
-                <div>
-                    <h1 class="rk-logo"><span class="robo">Robo</span><span class="kyle">Kyle</span></h1>
-                    <p class="rk-subtitle">Grand Heist</p>
-                    <p class="rk-tagline">Rob &middot; Gear &middot; Repeat</p>
+            <section class="screen is-title active" id="screen-title">
+                <div class="title-art" aria-hidden="true">
+                    <!-- vault door: the identity of this game, vs the hell-glow of Undead Nightmare -->
+                    <svg class="vault-door" viewBox="0 0 400 400">
+                        <defs>
+                            <radialGradient id="vd-steel" cx="38%" cy="32%" r="75%">
+                                <stop offset="0" stop-color="#4C5A66"/>
+                                <stop offset=".55" stop-color="#2B353F"/>
+                                <stop offset="1" stop-color="#161C23"/>
+                            </radialGradient>
+                            <linearGradient id="vd-gold" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0" stop-color="#F0CE7A"/>
+                                <stop offset=".5" stop-color="#C79A3C"/>
+                                <stop offset="1" stop-color="#8A6520"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="200" cy="200" r="186" fill="#10151B"/>
+                        <circle cx="200" cy="200" r="172" fill="url(#vd-steel)"/>
+                        <circle cx="200" cy="200" r="172" fill="none" stroke="url(#vd-gold)" stroke-width="3" opacity=".7"/>
+                        <circle cx="200" cy="200" r="146" fill="none" stroke="#0D1116" stroke-width="10" opacity=".6"/>
+                        <g class="vd-ring">
+                            <circle cx="200" cy="200" r="128" fill="none" stroke="#39454F" stroke-width="16"/>
+                            <g fill="#1B2229">
+                                <circle cx="200" cy="86"  r="7"/><circle cx="314" cy="200" r="7"/>
+                                <circle cx="200" cy="314" r="7"/><circle cx="86"  cy="200" r="7"/>
+                                <circle cx="280" cy="120" r="5"/><circle cx="280" cy="280" r="5"/>
+                                <circle cx="120" cy="280" r="5"/><circle cx="120" cy="120" r="5"/>
+                            </g>
+                        </g>
+                        <circle cx="200" cy="200" r="96" fill="#1E262E" stroke="#0C1015" stroke-width="6"/>
+                        <g class="vd-dial">
+                            <circle cx="200" cy="200" r="66" fill="none" stroke="url(#vd-gold)" stroke-width="7"/>
+                            <g stroke="url(#vd-gold)" stroke-width="9" stroke-linecap="round">
+                                <path d="M200 148v-34"/><path d="M200 252v34"/>
+                                <path d="M148 200h-34"/><path d="M252 200h34"/>
+                            </g>
+                            <circle cx="200" cy="200" r="20" fill="url(#vd-gold)"/>
+                            <circle cx="200" cy="200" r="8" fill="#12171D"/>
+                        </g>
+                        <g class="vd-bolts" fill="none" stroke="#5A6874" stroke-width="4" opacity=".55">
+                            <path d="M200 28v34"/><path d="M200 338v34"/>
+                            <path d="M28 200h34"/><path d="M338 200h34"/>
+                        </g>
+                    </svg>
+                    <span class="searchlight"></span>
+                </div>
+
+                <div class="title-panel">
+                    <p class="title-kicker">A RoboKyle Job</p>
+                    <h1 class="gh-logo">
+                        <span class="l1">GRAND</span>
+                        <span class="l2">HEIST</span>
+                    </h1>
+                    <p class="title-strap">Twenty banks. One crew. Everything you can carry.</p>
+
                     <ul class="menu-list">
                         <li><button class="menu-btn is-primary" id="btn-continue">Continue Run</button></li>
                         <li><button class="menu-btn" id="btn-new">New Run</button></li>
@@ -35,77 +85,64 @@
 
             <!-- ============ CAMPAIGN MAP ============ -->
             <section class="screen" id="screen-map">
-                <div class="bar">
+                <div class="topbar">
                     <button class="menu-back" data-goto="title">Menu</button>
-                    <h2 class="screen-title">Pick your <span class="accent">next job</span></h2>
-                    <span class="cash-pill">Bank: <b id="map-cash">$0</b></span>
+                    <div class="topbar-mid">
+                        <h2 class="screen-title">The <span class="accent">Jobs</span></h2>
+                        <p class="topbar-note" id="map-progress"></p>
+                    </div>
+                    <span class="cash-pill">Bank <b id="map-cash">$0</b></span>
                 </div>
-                <p class="screen-sub">Intel is on every card. Bigger vaults come with faster response times and better-armed police.</p>
                 <div class="bank-grid" id="map-list"></div>
+                <button class="ghost-btn" id="map-toggle"></button>
             </section>
 
-            <!-- ============ CREW SELECT ============ -->
+            <!-- ============ CREW + LOADOUT ============ -->
             <section class="screen" id="screen-crew">
-                <div class="bar">
-                    <button class="menu-back" data-goto="map">Map</button>
-                    <h2 class="screen-title">Who&rsquo;s <span class="accent">coming</span>?</h2>
-                    <span class="cash-pill">Bank: <b id="crew-cash">$0</b></span>
+                <div class="topbar">
+                    <button class="menu-back" data-goto="map">Jobs</button>
+                    <div class="topbar-mid">
+                        <h2 class="screen-title" id="crew-bank">The Job</h2>
+                        <p class="topbar-note intel-line" id="crew-bank-intel"></p>
+                    </div>
+                    <div class="topbar-right">
+                        <span class="cash-pill">Bank <b id="crew-cash">$0</b></span>
+                        <button class="menu-btn is-go" id="btn-begin">Begin Mission</button>
+                    </div>
                 </div>
-                <p class="screen-sub">
-                    Job: <b id="crew-bank"></b> &mdash; pick <b id="crew-count">0 / 3</b>.
-                    Benched crew are safe. Only the ones you bring can die.
-                </p>
-                <p class="warn-note" id="crew-recruit-note">You are short of a full crew. Recruit before you roll out.</p>
-                <div class="crew-grid" id="crew-list"></div>
-                <div class="row-actions">
-                    <button class="menu-btn" id="btn-hire">Recruit</button>
-                    <button class="menu-btn is-primary" id="btn-to-armory">Armory &rarr;</button>
+
+                <p class="warn-note" id="crew-warn">You are short of a full crew. Recruiting is free while you are down a body.</p>
+
+                <div class="squad-row" id="squad-row"></div>
+
+                <div class="bench" id="bench-wrap">
+                    <span class="bench-label">Bench</span>
+                    <div class="bench-strip" id="bench-strip"></div>
+                    <button class="ghost-btn small" id="btn-hire">Recruit</button>
+                </div>
+
+                <div class="loadout">
+                    <div class="loadout-head">
+                        <span class="loadout-who" id="loadout-who"></span>
+                        <dl class="loadout-readout" id="loadout-readout"></dl>
+                    </div>
+                    <div class="loadout-tabs" id="loadout-tabs"></div>
+                    <div class="loadout-list" id="loadout-list"></div>
+                    <p class="loadout-future" id="loadout-future"></p>
                 </div>
             </section>
 
             <!-- ============ RECRUIT ============ -->
             <section class="screen" id="screen-recruit">
-                <div class="bar">
-                    <button class="menu-back" data-goto="crew">Back</button>
-                    <h2 class="screen-title">Three people <span class="accent">need work</span></h2>
-                    <span class="cash-pill">Bank: <b id="recruit-cash">$0</b></span>
-                </div>
-                <p class="screen-sub">Hiring costs <b id="recruit-cost">Free</b>. Stats are rolled; traits are permanent.</p>
-                <div class="crew-grid" id="recruit-list"></div>
-            </section>
-
-            <!-- ============ ARMORY ============ -->
-            <section class="screen" id="screen-armory">
-                <div class="bar">
+                <div class="topbar">
                     <button class="menu-back" data-goto="crew">Crew</button>
-                    <h2 class="screen-title">The <span class="accent">Armory</span></h2>
-                    <span class="cash-pill">Bank: <b id="armory-cash">$0</b></span>
-                </div>
-                <p class="screen-sub">Kitting out for <b id="armory-bank"></b>. Gear is owned permanently &mdash; buy once, re-equip forever.</p>
-
-                <div class="armory-tabs" id="armory-tabs"></div>
-                <dl class="armory-readout" id="armory-readout"></dl>
-
-                <div class="shop-cols">
-                    <div class="shop-col">
-                        <h3 class="shop-head-title">Weapons</h3>
-                        <div class="shop-list" id="shop-weapons"></div>
+                    <div class="topbar-mid">
+                        <h2 class="screen-title">Three people <span class="accent">need work</span></h2>
+                        <p class="topbar-note">Hiring costs <b id="recruit-cost">Free</b> — stats are rolled, traits are permanent.</p>
                     </div>
-                    <div class="shop-col">
-                        <h3 class="shop-head-title">Bags</h3>
-                        <div class="shop-list" id="shop-bags"></div>
-                        <h3 class="shop-head-title">Armour</h3>
-                        <div class="shop-list" id="shop-armor"></div>
-                    </div>
-                    <div class="shop-col">
-                        <h3 class="shop-head-title">Masks</h3>
-                        <div class="shop-list" id="shop-masks"></div>
-                    </div>
+                    <span class="cash-pill">Bank <b id="recruit-cash">$0</b></span>
                 </div>
-
-                <div class="row-actions">
-                    <button class="menu-btn is-primary" id="btn-launch">Start the job &rarr;</button>
-                </div>
+                <div class="squad-row" id="recruit-list"></div>
             </section>
 
             <!-- ============ HEIST ============ -->
@@ -121,7 +158,7 @@
                                 <span class="v" id="hud-hp-val">120</span>
                             </div>
                             <div class="hud-block">
-                                <span class="k">Carrying</span>
+                                <span class="k">Bag</span>
                                 <span class="hud-bar"><i id="hud-carry-fill" class="cash"></i></span>
                                 <span class="v" id="hud-carry-val">$0</span>
                             </div>
@@ -146,9 +183,8 @@
                         </div>
                     </div>
 
-                    <p class="heist-hint">WASD move &middot; Mouse aim &middot; Click shoot &middot; E interact &middot; R reload &middot; Q melee &middot; F stance &middot; G ping &middot; Tab map &middot; Esc pause</p>
+                    <p class="heist-hint">WASD move · Mouse aim · Click shoot · E interact · R reload · Q melee · F stance · G ping · Tab map · Esc pause</p>
 
-                    <!-- touch buttons, shown only on touch devices -->
                     <div class="touch-ui" id="heist-touch">
                         <button id="t-interact">E</button>
                         <button id="t-reload">R</button>
@@ -162,7 +198,7 @@
                             <h2>Paused</h2>
                             <div class="buttons">
                                 <button class="menu-btn is-primary" id="btn-resume">Resume</button>
-                                <button class="menu-btn" id="btn-abandon">Abandon Job</button>
+                                <button class="menu-btn is-danger" id="btn-abandon">Abandon Job</button>
                             </div>
                         </div>
                     </div>
@@ -173,39 +209,35 @@
             <section class="screen" id="screen-debrief">
                 <h2 class="screen-title" id="debrief-title">Debrief</h2>
                 <div class="debrief-body" id="debrief-body"></div>
-
                 <div id="debrief-levels-wrap">
-                    <h3 class="shop-head-title">Level ups &mdash; spend your points</h3>
+                    <h3 class="sec-title">Level ups — spend your points</h3>
                     <div id="debrief-levels"></div>
-                    <button class="menu-btn small" id="btn-auto-assign">Auto-assign</button>
+                    <button class="ghost-btn small" id="btn-auto-assign">Auto-assign</button>
                 </div>
-
                 <div class="row-actions">
-                    <button class="menu-btn is-primary" id="btn-debrief-done">Back to the map</button>
+                    <button class="menu-btn is-primary" id="btn-debrief-done">Back to the jobs</button>
                 </div>
             </section>
 
             <!-- ============ HOW TO ============ -->
             <section class="screen" id="screen-howto">
-                <div class="bar">
+                <div class="topbar">
                     <button class="menu-back" data-goto="title">Menu</button>
-                    <h2 class="screen-title">How to <span class="accent">play</span></h2>
+                    <div class="topbar-mid"><h2 class="screen-title">How to <span class="accent">play</span></h2></div>
                     <span></span>
                 </div>
-
-                <h3 class="shop-head-title">The loop</h3>
-                <p class="screen-sub">
-                    Pick a bank, pick three crew, spend your cash in the Armory, then pull the job.
+                <h3 class="sec-title">The loop</h3>
+                <p class="body-text">
+                    Pick a bank, pick three crew, spend your cash on their loadout, then pull the job.
                     Money you carry out is both your score and your budget for the next one.
                 </p>
-
-                <h3 class="shop-head-title">Controls</h3>
+                <h3 class="sec-title">Controls</h3>
                 <div class="controls-grid">
                     <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
                     <div><kbd>Mouse</kbd> Aim</div>
                     <div><kbd>Click</kbd> Shoot or swing</div>
                     <div><kbd>R</kbd> Reload</div>
-                    <div><kbd>E</kbd> Interact: drill, grab, revive</div>
+                    <div><kbd>E</kbd> Drill, grab, revive, break a register</div>
                     <div><kbd>Q</kbd> Swap to melee</div>
                     <div><kbd>Space</kbd> Dodge roll</div>
                     <div><kbd>F</kbd> Crew: follow / hold</div>
@@ -213,39 +245,65 @@
                     <div><kbd>Tab</kbd> Full map</div>
                     <div><kbd>Esc</kbd> Pause</div>
                 </div>
-
-                <h3 class="shop-head-title">Things worth knowing</h3>
+                <h3 class="sec-title">Things worth knowing</h3>
                 <ul class="tips">
-                    <li><b>Melee is silent.</b> Guns are not. You can knife an isolated guard before anyone hits the alarm.</li>
+                    <li><b>Melee is silent.</b> Guns are not. Knife an isolated guard before anyone hits the alarm.</li>
+                    <li><b>Cash registers are optional money.</b> Break them open for a fast, quiet grab before you touch the vault.</li>
                     <li><b>The alarm starts the clock.</b> Police arrive when it runs out, set up outside, then breach if you linger.</li>
-                    <li><b>Carry capacity is the cap on greed.</b> Bigger bags and the Carry stat decide how much you can actually take.</li>
-                    <li><b>Crew death is permanent.</b> They drop their cash where they fall &mdash; grab it before you leave, or it is gone.</li>
-                    <li><b>Their gear is not lost.</b> Equipment returns to the Armory as long as you extract.</li>
-                    <li><b>RoboKyle cannot permanently die.</b> He gets one self-revive per job; after that a crew member has to reach him.</li>
+                    <li><b>Carry capacity caps your greed.</b> Bigger bags and the Carry stat decide how much you can take.</li>
+                    <li><b>Crew death is permanent.</b> They drop their bag where they fall — grab it before you leave.</li>
+                    <li><b>Their gear is not lost.</b> Equipment returns to your armory as long as you extract.</li>
+                    <li><b>RoboKyle cannot permanently die.</b> One self-revive per job; after that a crew member must reach him.</li>
                 </ul>
             </section>
 
             <!-- ============ SETTINGS ============ -->
             <section class="screen" id="screen-settings">
-                <div class="bar">
+                <div class="topbar">
                     <button class="menu-back" data-goto="title">Menu</button>
-                    <h2 class="screen-title"><span class="accent">Settings</span></h2>
+                    <div class="topbar-mid"><h2 class="screen-title"><span class="accent">Settings</span></h2></div>
                     <span></span>
                 </div>
                 <div class="settings-grid">
                     <div class="setting">
-                        <label for="set-sfx">Sound effects: <span id="set-sfx-val">50%</span></label>
-                        <input type="range" id="set-sfx" min="0" max="100" value="50">
+                        <label for="set-sfx">Sound effects: <span id="set-sfx-val">60%</span></label>
+                        <input type="range" id="set-sfx" min="0" max="100" value="60">
                     </div>
                     <div class="setting">
-                        <label for="set-music">Sirens &amp; ambience: <span id="set-music-val">30%</span></label>
-                        <input type="range" id="set-music" min="0" max="100" value="30">
+                        <label for="set-music">Music: <span id="set-music-val">40%</span></label>
+                        <input type="range" id="set-music" min="0" max="100" value="40">
                     </div>
                     <div class="setting">
                         <label for="set-shake"><input type="checkbox" id="set-shake" checked> Screen shake</label>
                     </div>
                 </div>
+                <p class="body-text muted">
+                    Music and sound effects are CC0 (public domain). Sources are listed in
+                    <code>audio/CREDITS.txt</code>.
+                </p>
             </section>
+
+            <!-- ============ IN-GAME MODAL (never a browser dialog) ============ -->
+            <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+                <div class="modal-card">
+                    <h3 id="modal-title"></h3>
+                    <p id="modal-body"></p>
+                    <div class="modal-actions">
+                        <button class="menu-btn" id="modal-no">Cancel</button>
+                        <button class="menu-btn is-primary" id="modal-yes">Confirm</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ TRANSITION CURTAIN ============ -->
+            <div class="transition" id="transition" aria-hidden="true">
+                <div class="curtain c-top"></div>
+                <div class="curtain c-bottom"></div>
+                <div class="transition-card">
+                    <p class="t-title" id="transition-title"></p>
+                    <p class="t-sub" id="transition-sub"></p>
+                </div>
+            </div>
 
         </div>
 
@@ -260,6 +318,8 @@
     <script src="/public/site.js"></script>
     <script src="data.js"></script>
     <script src="meta.js"></script>
+    <script src="icons.js"></script>
+    <script src="audio.js"></script>
     <script src="heist.js"></script>
 </body>
 </html>

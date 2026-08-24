@@ -49,75 +49,34 @@
   }
 
   // ==================== AUDIO ====================
-  let actx = null, sfxGain = null, musGain = null, sirenOsc = null, sirenGain = null;
-  function ensureAudio() {
-    if (actx) return;
-    try {
-      actx = new (window.AudioContext || window.webkitAudioContext)();
-      sfxGain = actx.createGain(); sfxGain.gain.value = GH.settings.sfx; sfxGain.connect(actx.destination);
-      musGain = actx.createGain(); musGain.gain.value = GH.settings.music; musGain.connect(actx.destination);
-    } catch (e) { actx = null; }
-  }
-  GH.onVolume = () => {
-    if (sfxGain) sfxGain.gain.value = GH.settings.sfx;
-    if (musGain) musGain.gain.value = GH.settings.music;
-  };
-  function tone(f, dur, type, vol, dest) {
-    if (!actx) return;
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = type || 'square'; o.frequency.value = f;
-    g.gain.setValueAtTime(vol, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-    o.connect(g); g.connect(dest || sfxGain); o.start(); o.stop(actx.currentTime + dur);
-  }
-  function noise(dur, vol, freq, q) {
-    if (!actx) return;
-    const n = Math.floor(actx.sampleRate * dur);
-    const buf = actx.createBuffer(1, n, actx.sampleRate);
-    const dat = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) dat[i] = (Math.random() * 2 - 1) * (1 - i / n);
-    const src = actx.createBufferSource(); src.buffer = buf;
-    const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 1200; f.Q.value = q || 0.8;
-    const g = actx.createGain(); g.gain.value = vol;
-    src.connect(f); f.connect(g); g.connect(sfxGain); src.start();
-  }
+  // Real recorded samples live in audio.js; this is just the mission's
+  // vocabulary on top of it. No synthesised beeps.
+  const A = () => GH.audio;
   const sfx = {
     shot(w) {
-      const k = w.kind;
-      if (k === 'shotgun') { noise(0.20, 0.32, 700, 0.7); tone(90, 0.14, 'square', 0.16); }
-      else if (k === 'explosive') { noise(0.5, 0.4, 220, 0.5); tone(60, 0.4, 'sine', 0.3); }
-      else if (k === 'energy' || k === 'exotic') { tone(880, 0.10, 'sawtooth', 0.10); tone(1500, 0.07, 'sine', 0.06); }
-      else if (k === 'lmg') { noise(0.07, 0.20, 1100, 0.9); tone(150, 0.05, 'square', 0.09); }
-      else { noise(0.08, 0.22, 1500, 0.9); tone(210, 0.05, 'square', 0.10); }
+      const s = GH.audio && GH.audio.weaponSound(w);
+      if (s) GH.audio.play(s.name, { rate: s.rate * (0.94 + Math.random() * 0.12), vol: s.vol });
     },
-    melee() { noise(0.12, 0.20, 500, 1.2); },
-    hit()   { noise(0.06, 0.14, 2200, 1.4); },
-    hurt()  { tone(160, 0.16, 'sawtooth', 0.16); },
-    pickup(){ tone(880, 0.07, 'triangle', 0.11); tone(1320, 0.07, 'triangle', 0.08); },
-    reload(){ noise(0.05, 0.10, 900, 1.5); setTimeout(() => noise(0.05, 0.10, 600, 1.5), 110); },
-    drill() { noise(0.09, 0.05, 380, 2.2); },
-    alarm() { tone(760, 0.5, 'square', 0.14); setTimeout(() => tone(560, 0.5, 'square', 0.14), 260); },
-    boom()  { noise(0.55, 0.42, 180, 0.5); tone(52, 0.5, 'sine', 0.32); },
-    down()  { tone(120, 0.5, 'sawtooth', 0.2); },
-    revive(){ tone(520, 0.12, 'triangle', 0.14); setTimeout(() => tone(780, 0.14, 'triangle', 0.14), 120); },
-    cash()  { tone(1040, 0.09, 'square', 0.09); },
+    melee()  { A() && GH.audio.playVaried('meleeSwing', 0.7); },
+    meleeHit(){ A() && GH.audio.playVaried('meleeHit', 0.9); },
+    hit(armoured) { A() && GH.audio.playVaried(armoured ? 'hitArmor' : 'hitFlesh', 0.75); },
+    ricochet(){ A() && GH.audio.playVaried('metal', 0.4); },
+    hurt()   { A() && GH.audio.playVaried('hitFlesh', 0.9, 0.05); },
+    pickup() { A() && GH.audio.playVaried('cash', 0.8); },
+    cash()   { A() && GH.audio.playVaried('cash', 0.7); },
+    register(){ A() && GH.audio.playVaried('register', 0.9); },
+    glass()  { A() && GH.audio.playVaried('glass', 0.8); },
+    drill()  { A() && GH.audio.play('drill', { rate: 1.6 + Math.random() * 0.3, vol: 0.28 }); },
+    alarm()  { A() && GH.audio.play('alarm', { vol: 1 }); },
+    boom()   { A() && GH.audio.play('gunHeavy', { rate: 0.45, vol: 1 }); },
+    down()   { A() && GH.audio.play('down', { vol: 0.9 }); },
+    revive() { A() && GH.audio.play('revive', { vol: 0.9 }); },
+    vault()  { A() && GH.audio.play('vault', { vol: 1 }); },
+    step()   { A() && GH.audio.play('step', { rate: 0.9 + Math.random() * 0.25, vol: 0.18 }); },
   };
-  function startSiren() {
-    if (!actx || sirenOsc) return;
-    sirenOsc = actx.createOscillator();
-    sirenGain = actx.createGain();
-    sirenOsc.type = 'sine';
-    sirenGain.gain.value = 0.05;
-    const lfo = actx.createOscillator(), lg = actx.createGain();
-    lfo.frequency.value = 0.6; lg.gain.value = 150;
-    lfo.connect(lg); lg.connect(sirenOsc.frequency);
-    sirenOsc.frequency.value = 620;
-    sirenOsc.connect(sirenGain); sirenGain.connect(musGain);
-    sirenOsc.start(); lfo.start();
-  }
-  function stopSiren() {
-    if (sirenOsc) { try { sirenOsc.stop(); } catch (e) {} sirenOsc = null; }
-  }
+  // Siren is a looping bed rather than a one-shot; the music engine owns it.
+  function startSiren() { if (A()) GH.audio.music('heist'); }
+  function stopSiren() {}
 
   // ==================== STATE ====================
   let H = null;
@@ -133,6 +92,16 @@
   };
   const STREET = 230;
   const WALL = 18;
+
+  // Split `total` into n randomised-but-exact parts. Piles vary in size
+  // for looks, but the sum still matches the haul advertised on the intel
+  // card — otherwise the number the player planned around is a lie.
+  function splitCash(total, n, spread) {
+    const w = [];
+    let sum = 0;
+    for (let i = 0; i < n; i++) { const v = 1 + rand(-spread, spread); w.push(v); sum += v; }
+    return w.map(v => total * v / sum);
+  }
 
   function generateWorld(bank) {
     const S = SIZES[bank.size];
@@ -178,11 +147,19 @@
     const boxShare    = boxCount > 0 ? 0.16 : 0;
     const vaultShare  = 1 - drawerShare - boxShare;
 
-    const drawers = Math.max(4, Math.round(bw / 210));
-    const drawerCash = bank.haul * drawerShare / drawers;
-    for (let i = 0; i < drawers; i++) {
-      const x = bx + WALL + 60 + (bw - 2 * WALL - 120) * (i / Math.max(1, drawers - 1));
-      loot.push({ x, y: counterY - 26, r: 15, amount: drawerCash * rand(0.8, 1.2), kind: 'drawer', locked: false, taken: false });
+    // Cash registers sit on the teller counter. They are props you have to
+    // actually break into rather than money lying on the floor: optional,
+    // quick, and quiet if you pry them by hand.
+    const tills = Math.max(4, Math.round(bw / 210));
+    world.registers = [];
+    const tillAmounts = splitCash(bank.haul * drawerShare, tills, 0.2);
+    for (let i = 0; i < tills; i++) {
+      const x = bx + WALL + 60 + (bw - 2 * WALL - 120) * (i / Math.max(1, tills - 1));
+      world.registers.push({
+        x, y: counterY - 22, r: 20,
+        amount: tillAmounts[i],
+        open: false, hp: 45, prying: 0, shake: 0,
+      });
     }
 
     // ---- vault rooms across the back ----
@@ -232,7 +209,7 @@
         { x: bx + WALL + 10, y: by + bh * 0.62 },
         { x: bx + bw - WALL - officeW - 10, y: by + bh * 0.62 },
       ];
-      const boxCash = bank.haul * boxShare / boxes;
+      const boxAmounts = splitCash(bank.haul * boxShare, boxes, 0.25);
       let placed = 0;
       spots.forEach((sp, si) => {
         if (placed >= boxes) return;
@@ -243,7 +220,7 @@
         for (let i = 0; i < perRoom; i++) {
           loot.push({
             x: sp.x + 40 + i * 55, y: sp.y + officeH * 0.5,
-            r: 15, amount: boxCash * rand(0.75, 1.25), kind: 'box', locked: false, taken: false,
+            r: 15, amount: boxAmounts[placed], kind: 'box', locked: false, taken: false,
           });
           placed++;
         }
@@ -271,6 +248,7 @@
       obstacles.push({ x: cx - 46, y: Hh - STREET * 0.75, w: 92, h: 44, low: true, kind: 'car' });
     }
 
+    buildNav(world);
     return world;
   }
 
@@ -330,13 +308,13 @@
     a.target = null;
     a.lastSeen = null;
     a.repathe = 0;
+    a.seed = Math.random() * 10000;
     return a;
   }
 
   // ==================== HEIST START ====================
   GH.startHeist = (bankId) => {
-    ensureAudio();
-    if (actx && actx.state === 'suspended') actx.resume();
+    if (GH.audio) { GH.audio.resume(); GH.audio.music('heist'); }
 
     const bank = GH.bankById(bankId);
     const world = generateWorld(bank);
@@ -369,8 +347,14 @@
     // interior guards
     for (let i = 0; i < bank.guards; i++) {
       const b = world.building;
-      const gx = b.x + 60 + Math.random() * (b.w - 120);
-      const gy = b.y + 60 + Math.random() * (b.h - 140);
+      let gx = 0, gy = 0, ok = false;
+      for (let tries = 0; tries < 40 && !ok; tries++) {
+        gx = b.x + 60 + Math.random() * (b.w - 120);
+        gy = b.y + 60 + Math.random() * (b.h - 140);
+        const cx = Math.floor(gx / NAV_CELL), cy = Math.floor(gy / NAV_CELL);
+        ok = navFree(world.nav, cx, cy);
+      }
+      if (!ok) { gx = b.x + b.w / 2; gy = world.counterY + 80; }   // lobby fallback
       H.enemies.push(makeEnemy(bank.guardWpn, gx, gy));
     }
     // a couple of them patrol outside on bigger jobs
@@ -499,8 +483,35 @@
         return;
       }
     }
+    // pry open a cash register (quiet — no alarm)
+    for (const t of H.world.registers) {
+      if (t.open) continue;
+      if (Math.hypot(p.x - t.x, p.y - t.y) > 52) continue;
+      openRegister(t, false);
+      return;
+    }
     // grab loot
     grabNearbyLoot(p, true);
+  }
+
+  // loud = smashed with a weapon rather than levered open by hand
+  function openRegister(t, loud) {
+    if (t.open) return;
+    t.open = true;
+    t.shake = 12;
+    sfx.register();
+    if (loud) { sfx.glass(); if (!H.alarm) trip('teller'); }
+    H.world.loot.push({
+      x: t.x + rand(-6, 6), y: t.y + 20, r: 13,
+      amount: t.amount, kind: 'till', locked: false, taken: false,
+    });
+    for (let i = 0; i < 9; i++) {
+      H.particles.push({
+        x: t.x, y: t.y, vx: rand(-2.4, 2.4), vy: rand(-3, -0.6),
+        life: rand(14, 26), r: rand(1.4, 3),
+        color: i % 2 ? 'rgba(150,200,150,0.85)' : 'rgba(200,200,190,0.7)',
+      });
+    }
   }
 
   function grabNearbyLoot(a, manual) {
@@ -517,8 +528,7 @@
       if (l.amount <= 1) l.taken = true;
       sfx.cash();
       floatText(l.x, l.y - 20, '+' + money(take), '#7BC59A');
-      // Grabbing from a teller drawer is what tips off the staff.
-      if (l.kind === 'drawer' && !H.alarm) trip('teller');
+
     }
     // loose bags dropped by the fallen
     for (const d of H.drops) {
@@ -560,6 +570,16 @@
       a.swing = 160;
       sfx.melee();
       const ang = Math.atan2(targetY - a.y, targetX - a.x);
+      // Only the player smashes tills with melee. Crew swinging at a guard
+      // next to the counter should not quietly empty the registers for you.
+      for (const t of (a.isRobo ? H.world.registers : [])) {
+        if (t.open) continue;
+        if (Math.hypot(a.x - t.x, a.y - t.y) > w.reach + t.r) continue;
+        const da = Math.abs(normAngle(Math.atan2(t.y - a.y, t.x - a.x) - ang));
+        if (da > w.arc / 2) continue;
+        t.hp -= w.dmg * a.dmgMul; t.shake = 8;
+        if (t.hp <= 0) openRegister(t, false);   // melee stays quiet
+      }
       for (const e of H.enemies) {
         if (e.dead) continue;
         if (dist(a, e) > w.reach + e.r) continue;
@@ -639,7 +659,7 @@
     e.hp -= d;
     e.hitFlash = 10;
     e.alerted = true;
-    sfx.hit();
+    sfx.hit((e.dr || 0) > 0.15);
     spark(e.x, e.y, 4);
     if (e.hp <= 0) {
       e.dead = true;
@@ -715,6 +735,7 @@
         const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
         if (Math.hypot(cx - x, cy - y) > radius * 0.9) return true;
         openVaultNear(cx, cy);
+        H.world.navDirty = true;
         return false;
       });
     }
@@ -734,6 +755,7 @@
     v.drilling = false;
     v.door.solid = false;
     v.door.open = true;
+    H.world.navDirty = true;      // the vault is a doorway now
     H.world.loot.forEach(l => { if (l.kind === 'vault' && l.vaultId === v.id) l.locked = false; });
     banner('VAULT OPEN', money(v.cash) + ' inside. Fill your bags.');
     sfx.revive();
@@ -759,9 +781,16 @@
       } else {
         // perimeter: they set up around the getaway car
         const side = Math.floor(Math.random() * 3);
-        if (side === 0) { x = rand(40, w.w - 40); y = w.h - 40; }
-        else if (side === 1) { x = 40; y = rand(w.h - STREET, w.h - 50); }
-        else { x = w.w - 40; y = rand(w.h - STREET, w.h - 50); }
+        // spread them along the edge instead of stacking on one point
+        if (side === 0) { x = rand(60, w.w - 60); y = w.h - rand(40, 90); }
+        else if (side === 1) { x = rand(40, 130); y = rand(w.h - STREET + 20, w.h - 60); }
+        else { x = w.w - rand(40, 130); y = rand(w.h - STREET + 20, w.h - 60); }
+      }
+      // never drop a cop inside a wall
+      const nav = w.nav;
+      if (!navFree(nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL))) {
+        const free = nearestFree(nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL));
+        if (free) { x = cellCentre(free[0]); y = cellCentre(free[1]); }
       }
       const e = makeEnemy(pickCop(H.bank), x, y);
       e.alerted = true;
@@ -771,9 +800,16 @@
 
   // ==================== AI ====================
   function hasLOS(a, b) {
-    for (const o of H.world.obstacles) {
+    // Bounding-box reject first: segRect is the expensive part and most
+    // obstacles are nowhere near the sight line.
+    const minX = a.x < b.x ? a.x : b.x, maxX = a.x < b.x ? b.x : a.x;
+    const minY = a.y < b.y ? a.y : b.y, maxY = a.y < b.y ? b.y : a.y;
+    const obs = H.world.obstacles;
+    for (let i = 0; i < obs.length; i++) {
+      const o = obs[i];
       if (o.low) continue;
       if (o.kind === 'vaultdoor' && !o.solid) continue;
+      if (o.x > maxX || o.x + o.w < minX || o.y > maxY || o.y + o.h < minY) continue;
       if (segRect(a.x, a.y, b.x, b.y, o)) return false;
     }
     return true;
@@ -792,7 +828,9 @@
 
   function stepEnemy(e, dt) {
     if (e.dead) return;
+    if (!e.def.static && unembed(e, dt)) return;   // free them first
     if (e.hitFlash > 0) e.hitFlash -= dt * 0.06;
+    if (e.muzzle > 0) e.muzzle -= dt;
 
     const tgt = nearestTarget(e);
     if (!tgt) return;
@@ -821,16 +859,33 @@
     const wantRange = wpn.melee ? wpn.reach - 6 : Math.min(wpn.range * 0.62, 330);
 
     if (!e.def.static && !(e.def.vehicle && d < 200)) {
-      const goal = los ? tgt : (e.lastSeen || tgt);
-      const ang = Math.atan2(goal.y - e.y, goal.x - e.x);
-      const closing = (d > wantRange) || !los;
-      const backing = d < wantRange * 0.55 && los && !wpn.melee;
-      let mv = 0;
-      if (closing) mv = 1; else if (backing) mv = -0.6;
-      if (mv !== 0) {
-        const sp = e.speed * (H.breached ? 1.08 : 1) * mv;
-        moveActor(e, Math.cos(ang) * sp, Math.sin(ang) * sp, dt);
+      let goal = los ? tgt : (e.lastSeen || tgt);
+      const sp = e.speed * (H.breached ? 1.08 : 1);
+
+      // Police arriving from the street have to come in through the front
+      // door. Aim them at the entrance first: it is how a real response
+      // works, and it turns one long cross-boundary route into two short
+      // ones that never fail.
+      const B = H.world.building, dr = H.world.door;
+      const outside = e.y > B.y + B.h - 4;
+      const targetInside = goal.y < B.y + B.h - 4;
+      if (outside && targetInside) {
+        goal = { x: dr.x + dr.w / 2, y: dr.y - 26 };
       }
+      if (d > wantRange || !los) {
+        // route around walls instead of pressing into them
+        navigateTo(e, goal.x, goal.y, sp, dt);
+      } else if (d < wantRange * 0.55 && los && !wpn.melee) {
+        // back off to a comfortable firing distance
+        const ang = Math.atan2(goal.y - e.y, goal.x - e.x);
+        moveActor(e, -Math.cos(ang) * sp * 0.6, -Math.sin(ang) * sp * 0.6, dt);
+      } else if (los) {
+        // in position: strafe a little so a firing line is not a queue
+        const ang = Math.atan2(goal.y - e.y, goal.x - e.x) + Math.PI / 2;
+        const drift = Math.sin((H.t + (e.seed || 0)) / 900) * 0.55;
+        moveActor(e, Math.cos(ang) * sp * drift, Math.sin(ang) * sp * drift, dt);
+      }
+      separate(e, H.enemies, e.r * 2.0, 0.32, dt);
     }
 
     // shooting
@@ -857,6 +912,7 @@
             splash: wpn.splash || 0,
           });
         }
+        e.muzzle = 70;
         sfx.shot({ kind: e.key === 'nest' ? 'lmg' : 'pistol' });
       }
     }
@@ -871,78 +927,508 @@
     }
     const ang = Math.atan2(e.patrolTo.y - e.y, e.patrolTo.x - e.x);
     e.angle = lerp(e.angle, ang, 0.06);
-    moveActor(e, Math.cos(ang) * e.speed * 0.42, Math.sin(ang) * e.speed * 0.42, dt);
+    navigateTo(e, e.patrolTo.x, e.patrolTo.y, e.speed * 0.42, dt);
+    // reached it (or gave up) — pick somewhere new next tick
+    if (Math.hypot(e.patrolTo.x - e.x, e.patrolTo.y - e.y) < 30) e.repathe = 0;
   }
 
-  // ---- crew AI: follow, engage, loot, extract ----
+  // ---- crew AI ----
+  // They are not a conga line. Left alone they will pick up cash they can
+  // see, go pick a downed teammate up, and fight without being told. The
+  // player's stance toggle only decides whether they stay near him.
   function stepCrew(c, dt) {
     if (c.dead) return;
+    if (!c.downed && unembed(c, dt)) return;
+
     if (c.downed) {
       c.downTimer -= dt;
-      if (c.downTimer <= 0) { c.dead = true; H.killedIds.push(c.char.id); banner(c.name + ' BLED OUT', 'Gone for good.'); }
+      if (c.downTimer <= 0) {
+        c.dead = true;
+        H.killedIds.push(c.char.id);
+        banner(c.name + ' BLED OUT', 'Gone for good.');
+      }
       return;
     }
 
     const p = H.robo;
+    const w = D.WEAPONS[c.weapon];
+    const speed = 2.1 * c.moveMul;
+
+    if (c.reloading > 0) c.reloading -= dt;
+    if (c.heat > 0) c.heat = Math.max(0, c.heat - (w.cool || 2) * dt / 1000);
+    c.cd -= dt;
+
+    // ---------- 1. pick a threat ----------
     let foe = null, fd = 1e9;
     for (const e of H.enemies) {
       if (e.dead) continue;
       const d = dist(c, e);
-      if (d < fd && d < 460 && hasLOS(c, e)) { fd = d; foe = e; }
+      if (d < fd && d < 480 && hasLOS(c, e)) { fd = d; foe = e; }
     }
-    // A ping overrides target choice.
+    // a ping overrides target choice
     if (H.ping && H.pingT > 0) {
       let pf = null, pd = 1e9;
       for (const e of H.enemies) {
         if (e.dead) continue;
         const d = Math.hypot(e.x - H.ping.x, e.y - H.ping.y);
-        if (d < 150 && d < pd && hasLOS(c, e)) { pd = d; pf = e; }
+        if (d < 170 && d < pd && hasLOS(c, e)) { pd = d; pf = e; }
       }
       if (pf) { foe = pf; fd = dist(c, pf); }
     }
 
-    const w = D.WEAPONS[c.weapon];
+    // ---------- 2. a mate on the floor outranks everything but survival ----------
+    let rescue = null;
+    if (!foe || fd > 240) {
+      let bd = 420;
+      for (const m of H.all) {
+        if (m === c || m.dead || !m.downed) continue;
+        const d = dist(c, m);
+        if (d < bd) { bd = d; rescue = m; }
+      }
+    }
+
+    // ---------- 3. act ----------
     if (foe) {
       c.state = 'engage';
       c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
-      const want = w.kind === 'melee' ? w.reach - 8 : Math.min((w.range || 400) * 0.55, 300);
+      const want = w.kind === 'melee' ? w.reach - 8 : Math.min((w.range || 420) * 0.55, 320);
       if (fd > want) {
+        navigateTo(c, foe.x, foe.y, speed, dt);
+      } else if (fd < want * 0.5 && w.kind !== 'melee') {
         const ang = Math.atan2(foe.y - c.y, foe.x - c.x);
-        moveActor(c, Math.cos(ang) * 1.6 * c.moveMul, Math.sin(ang) * 1.6 * c.moveMul, dt);
+        moveActor(c, -Math.cos(ang) * speed * 0.7, -Math.sin(ang) * speed * 0.7, dt);
       }
-      c.cd -= dt;
-      if (c.reloading > 0) c.reloading -= dt;
-      else if (w.mag && c.mag <= 0) tryReload(c);
+      if (w.mag && c.mag <= 0) tryReload(c);
       else if (fd < (w.range || w.reach + 20)) fire(c, foe.x, foe.y);
+
+    } else if (rescue) {
+      c.state = 'revive';
+      navigateTo(c, rescue.x, rescue.y, speed * 1.1, dt);
+      c.angle = lerp(c.angle, Math.atan2(rescue.y - c.y, rescue.x - c.x), 0.15);
+      if (dist(c, rescue) < 44 && !rescue.isRobo) {
+        c.reviveProg = (c.reviveProg || 0) + dt;
+        if (c.reviveProg > T.reviveTime) {
+          rescue.downed = false;
+          rescue.hp = rescue.maxHp * 0.5;
+          c.reviveProg = 0;
+          sfx.revive();
+          banner(rescue.name + ' IS UP', c.name + ' got them.');
+        }
+      } else c.reviveProg = 0;
+
+    } else if (H.extractPhase) {
+      c.state = 'extract';
+      const car = H.world.car;
+      if (dist(c, car) > 44) navigateTo(c, car.x, car.y, speed * 1.15, dt);
+      c.angle = lerp(c.angle, Math.atan2(car.y - c.y, car.x - c.x), 0.15);
+
     } else {
-      // no target: loot what is underfoot, then keep formation
-      grabNearbyLoot(c, false);
-      if (H.extractPhase) {
-        const car = H.world.car;
-        c.state = 'extract';
-        const ang = Math.atan2(car.y - c.y, car.x - c.x);
-        if (dist(c, car) > 46) moveActor(c, Math.cos(ang) * 2.1 * c.moveMul, Math.sin(ang) * 2.1 * c.moveMul, dt);
-        c.angle = lerp(c.angle, ang, 0.15);
+      // ---------- idle: go earn your cut ----------
+      const room = c.carryCap - c.carried > 200;
+      let target = null, td = c.stance === 'hold' ? 220 : 460;
+
+      if (room) {
+        for (const l of H.world.loot) {
+          if (l.taken || l.locked) continue;
+          const d = dist(c, l);
+          if (d < td) { td = d; target = l; }
+        }
+        for (const d2 of H.drops) {
+          if (d2.taken) continue;
+          const d = dist(c, d2);
+          if (d < td) { td = d; target = d2; }
+        }
+      }
+
+      if (target) {
+        c.state = 'loot';
+        navigateTo(c, target.x, target.y, speed, dt);
+        c.angle = lerp(c.angle, Math.atan2(target.y - c.y, target.x - c.x), 0.14);
       } else if (c.stance === 'follow') {
         c.state = 'follow';
-        const off = [[-46, 40], [46, 40], [0, 62]][c.slot - 1] || [0, 50];
+        // loose formation, offset behind RoboKyle rather than on top of him
+        const off = [[-52, 44], [52, 44], [0, 70]][c.slot - 1] || [0, 56];
         const tx = p.x + off[0], ty = p.y + off[1];
         const d = Math.hypot(tx - c.x, ty - c.y);
-        if (d > 34) {
-          const ang = Math.atan2(ty - c.y, tx - c.x);
-          const sp = clamp(d / 60, 0.6, 2.3) * c.moveMul;
-          moveActor(c, Math.cos(ang) * sp, Math.sin(ang) * sp, dt);
-          c.angle = lerp(c.angle, ang, 0.14);
+        if (d > 38) {
+          navigateTo(c, tx, ty, clamp(d / 55, 0.7, 1) * speed, dt);
+          c.angle = lerp(c.angle, Math.atan2(ty - c.y, tx - c.x), 0.14);
         } else {
           c.angle = lerp(c.angle, p.angle, 0.1);
         }
       } else {
         c.state = 'hold';
+        c.angle = lerp(c.angle, p.angle, 0.06);
       }
-      if (c.reloading > 0) c.reloading -= dt;
-      else if (w.mag && c.mag < (w.mag || 0)) tryReload(c);
-      if (c.heat > 0) c.heat = Math.max(0, c.heat - (w.cool || 2) * dt / 1000);
+
+      if (w.mag && c.mag < w.mag) tryReload(c);
     }
+
+    // never bunch up on each other or on RoboKyle
+    separate(c, H.all, c.r * 2.2, 0.34, dt);
+
+    // whatever they are doing, they hoover up cash they walk over
+    grabNearbyLoot(c, false);
+  }
+
+  // ==================== NAVIGATION ====================
+  // Straight-line steering walks agents into walls and parks them in
+  // corners. Everything that moves now paths on a coarse grid instead:
+  // A* to get around geometry, string-pulling to keep the result looking
+  // like a person walking rather than a chess piece.
+  //
+  // The hot paths are written for cost, not elegance: line-of-walk tests
+  // read the grid instead of scanning every obstacle, A* reuses one set
+  // of scratch buffers, and string-pulling only looks a short way ahead.
+
+  const NAV_CELL = 26;
+
+  function buildNav(world) {
+    const cols = Math.ceil(world.w / NAV_CELL);
+    const rows = Math.ceil(world.h / NAV_CELL);
+    const blockedCells = new Uint8Array(cols * rows);
+
+    // Inflate obstacles by roughly one body radius so agents route with
+    // clearance instead of scraping (and catching on) every corner.
+    // Anything that stops a body has to stop a path. Walls get a full
+    // body-radius of clearance; low furniture gets less, so the gaps
+    // between counters stay wide enough to walk through.
+    const PAD_WALL = 15, PAD_LOW = 8;
+    for (const o of world.obstacles) {
+      if (o.kind === 'vaultdoor' && !o.solid) continue;
+      const PAD = o.low ? PAD_LOW : PAD_WALL;
+      const x0 = Math.max(0, Math.floor((o.x - PAD) / NAV_CELL));
+      const y0 = Math.max(0, Math.floor((o.y - PAD) / NAV_CELL));
+      const x1 = Math.min(cols - 1, Math.floor((o.x + o.w + PAD) / NAV_CELL));
+      const y1 = Math.min(rows - 1, Math.floor((o.y + o.h + PAD) / NAV_CELL));
+      for (let cy = y0; cy <= y1; cy++)
+        for (let cx = x0; cx <= x1; cx++) blockedCells[cy * cols + cx] = 1;
+    }
+
+    // Cells next to something solid cost a little more, so agents drift
+    // toward the middle of a doorway instead of scraping the frame.
+    const cost = new Float32Array(cols * rows).fill(1);
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const i = cy * cols + cx;
+        if (blockedCells[i]) continue;
+        let near = 0;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) { near++; continue; }
+            if (blockedCells[ny * cols + nx]) near++;
+          }
+        if (near) cost[i] = 1 + near * 0.25;
+      }
+    }
+
+    world.nav = { cols, rows, blocked: blockedCells, cost };
+    world.navDirty = false;
+    navScratch = null;              // grid changed: drop the A* buffers
+  }
+
+  const cellOf = (v) => Math.floor(v / NAV_CELL);
+  const cellCentre = (c) => c * NAV_CELL + NAV_CELL / 2;
+
+  function navFree(nav, cx, cy) {
+    if (cx < 0 || cy < 0 || cx >= nav.cols || cy >= nav.rows) return false;
+    return !nav.blocked[cy * nav.cols + cx];
+  }
+
+  // O(1) walkability test at a world position — used instead of scanning
+  // the obstacle list, which was the single most expensive thing here.
+  function navBlockedAt(nav, x, y) {
+    const cx = (x / NAV_CELL) | 0, cy = (y / NAV_CELL) | 0;
+    if (cx < 0 || cy < 0 || cx >= nav.cols || cy >= nav.rows) return true;
+    return !!nav.blocked[cy * nav.cols + cx];
+  }
+
+  function nearestFree(nav, cx, cy) {
+    if (navFree(nav, cx, cy)) return [cx, cy];
+    for (let r = 1; r <= 6; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          if (navFree(nav, cx + dx, cy + dy)) return [cx + dx, cy + dy];
+        }
+      }
+    }
+    return null;
+  }
+
+  // Minimal binary heap — the open set gets hot with a dozen agents.
+  function Heap() { this.a = []; }
+  Heap.prototype.push = function (node) {
+    const a = this.a; a.push(node);
+    let i = a.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (a[p].f <= a[i].f) break;
+      const t = a[p]; a[p] = a[i]; a[i] = t; i = p;
+    }
+  };
+  Heap.prototype.pop = function () {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1, r = l + 1;
+        let m = i;
+        if (l < a.length && a[l].f < a[m].f) m = l;
+        if (r < a.length && a[r].f < a[m].f) m = r;
+        if (m === i) break;
+        const t = a[m]; a[m] = a[i]; a[i] = t; i = m;
+      }
+    }
+    return top;
+  };
+
+  const DIRS = [
+    [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+    [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414],
+  ];
+
+  // One set of scratch buffers for every A* call. A generation stamp
+  // replaces clearing them, so a search costs no allocation at all.
+  let navScratch = null;
+  function scratchFor(n) {
+    if (!navScratch || navScratch.n !== n) {
+      navScratch = {
+        n, gen: 0,
+        came: new Int32Array(n),
+        g: new Float32Array(n),
+        seen: new Int32Array(n),
+        closed: new Int32Array(n),
+      };
+    }
+    navScratch.gen++;
+    return navScratch;
+  }
+
+  function aStar(nav, sx, sy, tx, ty) {
+    const start = nearestFree(nav, cellOf(sx), cellOf(sy));
+    const goal  = nearestFree(nav, cellOf(tx), cellOf(ty));
+    if (!start || !goal) return null;
+    const s0 = start[0], s1 = start[1], g0 = goal[0], g1 = goal[1];
+    if (s0 === g0 && s1 === g1) return [];
+
+    const cols = nav.cols;
+    const B = scratchFor(cols * nav.rows);
+    const gen = B.gen;
+    const startI = s1 * cols + s0, goalI = g1 * cols + g0;
+
+    B.g[startI] = 0;
+    B.seen[startI] = gen;
+    B.came[startI] = -1;
+
+    const open = new Heap();
+    open.push({ i: startI, cx: s0, cy: s1, f: 0 });
+
+    let expanded = 0;
+    // Long cross-map routes on the biggest banks legitimately expand a
+    // few thousand cells. Too low a cap made those searches fail outright
+    // and the agent fell back to walking into a wall.
+    const LIMIT = 7000;
+    let reached = false;
+    // Track the closest node reached, so a search that runs out of budget
+    // still returns a partial route in roughly the right direction.
+    let bestI = startI, bestH = Infinity;
+
+    while (open.a.length) {
+      const cur = open.pop();
+      if (B.closed[cur.i] === gen) continue;
+      B.closed[cur.i] = gen;
+      if (cur.i === goalI) { reached = true; break; }
+      const chx = Math.abs(cur.cx - g0), chy = Math.abs(cur.cy - g1);
+      const ch = (chx + chy) - 0.586 * Math.min(chx, chy);
+      if (ch < bestH) { bestH = ch; bestI = cur.i; }
+      if (++expanded > LIMIT) break;
+
+      for (let k = 0; k < 8; k++) {
+        const dx = DIRS[k][0], dy = DIRS[k][1], w = DIRS[k][2];
+        const nx = cur.cx + dx, ny = cur.cy + dy;
+        if (!navFree(nav, nx, ny)) continue;
+        if (dx && dy && (!navFree(nav, cur.cx + dx, cur.cy) || !navFree(nav, cur.cx, cur.cy + dy))) continue;
+        const ni = ny * cols + nx;
+        if (B.closed[ni] === gen) continue;
+        const g = B.g[cur.i] + w * nav.cost[ni];
+        if (B.seen[ni] === gen && g >= B.g[ni]) continue;
+        B.seen[ni] = gen;
+        B.g[ni] = g;
+        B.came[ni] = cur.i;
+        const hx = Math.abs(nx - g0), hy = Math.abs(ny - g1);
+        open.push({ i: ni, cx: nx, cy: ny, f: g + (hx + hy) - 0.586 * Math.min(hx, hy) });
+      }
+    }
+
+    // Prefer the real goal; otherwise hand back the best partial route.
+    let endI = goalI;
+    if (!reached && B.seen[goalI] !== gen) {
+      if (bestI === startI) return null;
+      endI = bestI;
+    }
+
+    const out = [];
+    let i = endI;
+    let guard = 0;
+    while (i !== -1 && i !== startI && guard++ < 4000) {
+      out.push({ x: cellCentre(i % cols), y: cellCentre((i / cols) | 0) });
+      i = B.came[i];
+    }
+    out.reverse();
+    return out;
+  }
+
+  // Can an agent walk straight from A to B? Grid lookups only.
+  function clearLine(x1, y1, x2, y2) {
+    const nav = H.world.nav;
+    const dx = x2 - x1, dy = y2 - y1;
+    const d = Math.hypot(dx, dy);
+    const steps = Math.max(1, Math.ceil(d / (NAV_CELL * 0.75)));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      if (navBlockedAt(nav, x1 + dx * t, y1 + dy * t)) return false;
+    }
+    return true;
+  }
+
+  // String-pulling with a bounded lookahead: enough to turn a staircase
+  // into a diagonal, cheap enough to run for a whole crowd.
+  const SMOOTH_LOOKAHEAD = 8;
+  function smoothPath(a, path) {
+    if (!path || path.length < 2) return path || [];
+    const out = [];
+    let fx = a.x, fy = a.y;
+    let i = 0;
+    while (i < path.length) {
+      let best = i;
+      const last = Math.min(path.length - 1, i + SMOOTH_LOOKAHEAD);
+      for (let j = last; j > i; j--) {
+        if (clearLine(fx, fy, path[j].x, path[j].y)) { best = j; break; }
+      }
+      out.push(path[best]);
+      fx = path[best].x; fy = path[best].y;
+      i = best + 1;
+    }
+    return out;
+  }
+
+  // Repathing is capped per frame so a crowd cannot spike the frame time.
+  let pathBudget = 0;
+
+  function requestPath(a, tx, ty, force) {
+    const moved = a.pathGoal ? Math.hypot(a.pathGoal.x - tx, a.pathGoal.y - ty) : 1e9;
+    const stale = H.t - (a.pathAt || -1e9) > 1100;
+    if (!force && !stale && moved < 80 && a.path && a.pathIdx < a.path.length) return;
+    if (pathBudget <= 0) return;
+    pathBudget--;
+    a.pathAt = H.t;
+    a.pathGoal = { x: tx, y: ty };
+    const raw = aStar(H.world.nav, a.x, a.y, tx, ty);
+    a.path = raw ? smoothPath(a, raw) : null;
+    a.pathIdx = 0;
+    // if we found nothing at all, try again soon rather than idling
+    if (!a.path || !a.path.length) a.pathAt = H.t - 800;
+  }
+
+  function followPath(a, speed, dt) {
+    if (!a.path || a.pathIdx >= a.path.length) return false;
+    let wp = a.path[a.pathIdx];
+    while (wp && Math.hypot(wp.x - a.x, wp.y - a.y) < 16) {
+      a.pathIdx++;
+      wp = a.path[a.pathIdx];
+    }
+    if (!wp) return false;
+    const ang = Math.atan2(wp.y - a.y, wp.x - a.x);
+    moveActor(a, Math.cos(ang) * speed, Math.sin(ang) * speed, dt);
+    return true;
+  }
+
+  // Move toward a point: straight line when the way is clear, path when
+  // it is not. Includes a stuck-detector that forces a fresh path and a
+  // sidestep, so nobody stands grinding against a desk forever.
+  function navigateTo(a, tx, ty, speed, dt) {
+    const dx = tx - a.x, dy = ty - a.y;
+    const far = Math.hypot(dx, dy);
+    if (far < 4) return;
+
+    const bx = a.x, by = a.y;
+    // the straight-line test is cheap now, but still only worth it close in
+    const direct = far < 300 && clearLine(a.x, a.y, tx, ty);
+
+    if (direct) {
+      a.path = null;
+      const ang = Math.atan2(dy, dx);
+      moveActor(a, Math.cos(ang) * speed, Math.sin(ang) * speed, dt);
+    } else {
+      requestPath(a, tx, ty, false);
+      if (!followPath(a, speed, dt)) {
+        const ang = Math.atan2(dy, dx);
+        moveActor(a, Math.cos(ang) * speed, Math.sin(ang) * speed, dt);
+      }
+    }
+
+    // ---- stuck detection ----
+    // Per-frame movement is a bad signal: an agent vibrating against a
+    // desk moves a pixel every frame and looks busy. Track NET progress
+    // over a window instead.
+    a.stuckT = (a.stuckT || 0) + dt;
+    if (!a.stuckFrom) a.stuckFrom = { x: bx, y: by };
+    if (a.stuckT > 420) {
+      const net = Math.hypot(a.x - a.stuckFrom.x, a.y - a.stuckFrom.y);
+      if (net < 12) {
+        // genuinely pinned: force a new route and shove sideways past it
+        requestPath(a, tx, ty, true);
+        const side = (a.stuckSide = -(a.stuckSide || 1));
+        const ang = Math.atan2(dy, dx) + side * 1.5;
+        moveActor(a, Math.cos(ang) * speed * 1.4, Math.sin(ang) * speed * 1.4, dt);
+      }
+      a.stuckT = 0;
+      a.stuckFrom = { x: a.x, y: a.y };
+    }
+  }
+
+  // If an agent ends up inside geometry — spawned there, shoved there by
+  // separation, or left behind when a wall was rebuilt — normal movement
+  // can never free them, because every candidate step is blocked too.
+  // Slide them out toward open floor, ignoring collision for that nudge.
+  function unembed(a, dt) {
+    const nav = H.world.nav;
+    // Two ways to be trapped: physically inside a prop, or standing in a
+    // cell the grid considers unwalkable (the clearance padding around a
+    // wall). The second looks fine to collision but makes every path and
+    // every line-of-walk test fail, which reads as an agent frozen solid.
+    if (!blocked(a.x, a.y, a.r) && !navBlockedAt(nav, a.x, a.y)) return false;
+    const cell = nearestFree(nav, cellOf(a.x), cellOf(a.y));
+    if (!cell) return false;
+    const tx = cellCentre(cell[0]), ty = cellCentre(cell[1]);
+    const d = Math.hypot(tx - a.x, ty - a.y) || 1;
+    const push = 3.2 * (dt / 16.67);
+    a.x += (tx - a.x) / d * push;
+    a.y += (ty - a.y) / d * push;
+    a.path = null;
+    return true;
+  }
+
+  // Keep agents from stacking on the exact same pixel.
+  function separate(a, others, radius, push, dt) {
+    let sx = 0, sy = 0, n = 0;
+    const r2 = radius * radius;
+    for (let i = 0; i < others.length; i++) {
+      const o = others[i];
+      if (o === a || o.dead || o.downed) continue;
+      const dx = a.x - o.x, dy = a.y - o.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > r2 || d2 < 0.0001) continue;
+      const d = Math.sqrt(d2);
+      sx += dx / d * (1 - d / radius);
+      sy += dy / d * (1 - d / radius);
+      n++;
+    }
+    if (!n) return;
+    moveActor(a, sx * push, sy * push, dt);
   }
 
   // ==================== MOVEMENT ====================
@@ -1086,6 +1572,18 @@
           } else if (b.splash) {
             explode(b.x, b.y, b.splash, b.dmg, b.owner);
           } else spark(b.x, b.y, 3);
+          hit = true; break;
+        }
+      }
+
+      // registers are breakable props
+      if (!hit) {
+        for (const t of H.world.registers) {
+          if (t.open) continue;
+          if (Math.hypot(b.x - t.x, b.y - t.y) > t.r) continue;
+          t.hp -= b.dmg; t.shake = 8;
+          sfx.ricochet();
+          if (t.hp <= 0) openRegister(t, true);
           hit = true; break;
         }
       }
@@ -1245,6 +1743,9 @@
     H.last = now;
     H.t += dt;
 
+    if (H.world.navDirty) buildNav(H.world);
+    pathBudget = 8;               // cap A* calls per frame (perf headroom measured at ~4x)
+
     stepRobo(dt);
     if (!H) return;
     H.crew.forEach(c => stepCrew(c, dt));
@@ -1264,6 +1765,7 @@
       f.y -= dt * 0.03; f.life -= dt;
       if (f.life <= 0) H.floats.splice(i, 1);
     }
+    H.world.registers.forEach(t => { if (t.shake > 0) t.shake -= dt * 0.05; });
     if (H.msgT > 0) H.msgT -= dt;
     if (H.pingT > 0) H.pingT -= dt;
     if (H.shake > 0) H.shake *= 0.88;
@@ -1325,47 +1827,181 @@
     ctx.translate(ox, oy);
 
     // ---- ground ----
-    ctx.fillStyle = '#15171B';
+    ctx.fillStyle = '#0E1218';
     ctx.fillRect(0, 0, w.w, w.h);
-    // street
-    ctx.fillStyle = '#1B1D22';
+
+    // street asphalt with kerb, lane markings and a wet sheen
+    ctx.fillStyle = '#15191F';
     ctx.fillRect(w.street.x, w.street.y, w.street.w, w.street.h);
-    ctx.strokeStyle = '#2A2D34'; ctx.lineWidth = 3; ctx.setLineDash([26, 22]);
-    ctx.beginPath(); ctx.moveTo(0, w.street.y + w.street.h * 0.55); ctx.lineTo(w.w, w.street.y + w.street.h * 0.55); ctx.stroke();
+    ctx.fillStyle = '#232A33';
+    ctx.fillRect(w.street.x, w.street.y, w.street.w, 7);          // kerb
+    ctx.fillStyle = '#1A2027';
+    ctx.fillRect(w.street.x, w.street.y + 7, w.street.w, 3);
+    ctx.strokeStyle = '#3A424C'; ctx.lineWidth = 3;
+    ctx.setLineDash([30, 26]);
+    ctx.beginPath();
+    ctx.moveTo(0, w.street.y + w.street.h * 0.56);
+    ctx.lineTo(w.w, w.street.y + w.street.h * 0.56);
+    ctx.stroke();
     ctx.setLineDash([]);
-
-    // building floor
-    ctx.fillStyle = '#20222A';
-    ctx.fillRect(w.building.x, w.building.y, w.building.w, w.building.h);
-    // floor tiling
-    ctx.strokeStyle = 'rgba(255,255,255,0.026)'; ctx.lineWidth = 1;
-    for (let x = w.building.x; x < w.building.x + w.building.w; x += 64) {
-      ctx.beginPath(); ctx.moveTo(x, w.building.y); ctx.lineTo(x, w.building.y + w.building.h); ctx.stroke();
-    }
-    for (let y = w.building.y; y < w.building.y + w.building.h; y += 64) {
-      ctx.beginPath(); ctx.moveTo(w.building.x, y); ctx.lineTo(w.building.x + w.building.w, y); ctx.stroke();
+    // drain covers + puddles
+    ctx.fillStyle = 'rgba(120,150,180,0.05)';
+    for (let i = 0; i < 5; i++) {
+      const px = (i * 421 % w.w);
+      ctx.beginPath();
+      ctx.ellipse(px, w.street.y + w.street.h * 0.8, 60, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // vault room floors
+    // ---- building floor: marble slabs with veining ----
+    const B = w.building;
+    ctx.fillStyle = '#232A33';
+    ctx.fillRect(B.x, B.y, B.w, B.h);
+    // slab grid
+    const TILE = 72;
+    ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 1;
+    for (let x = B.x; x <= B.x + B.w; x += TILE) {
+      ctx.beginPath(); ctx.moveTo(x, B.y); ctx.lineTo(x, B.y + B.h); ctx.stroke();
+    }
+    for (let y = B.y; y <= B.y + B.h; y += TILE) {
+      ctx.beginPath(); ctx.moveTo(B.x, y); ctx.lineTo(B.x + B.w, y); ctx.stroke();
+    }
+    // alternating slab tint so the floor is not one flat colour
+    ctx.fillStyle = 'rgba(255,255,255,0.018)';
+    for (let iy = 0, y = B.y; y < B.y + B.h; y += TILE, iy++) {
+      for (let ix = 0, x = B.x; x < B.x + B.w; x += TILE, ix++) {
+        if ((ix + iy) % 2) continue;
+        ctx.fillRect(x, y, Math.min(TILE, B.x + B.w - x), Math.min(TILE, B.y + B.h - y));
+      }
+    }
+    // marble veins (deterministic, so they do not crawl between frames)
+    ctx.strokeStyle = 'rgba(190,210,230,0.05)'; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 26; i++) {
+      const vx = B.x + ((i * 977) % B.w);
+      const vy = B.y + ((i * 613) % B.h);
+      ctx.beginPath();
+      ctx.moveTo(vx, vy);
+      ctx.quadraticCurveTo(vx + 40, vy + 26, vx + 92, vy + 8);
+      ctx.stroke();
+    }
+    // lobby runner carpet in front of the counter
+    ctx.fillStyle = 'rgba(122,32,28,0.16)';
+    ctx.fillRect(B.x + B.w * 0.22, w.counterY + 34, B.w * 0.56, 96);
+    ctx.strokeStyle = 'rgba(224,180,76,0.14)'; ctx.lineWidth = 2;
+    ctx.strokeRect(B.x + B.w * 0.22, w.counterY + 34, B.w * 0.56, 96);
+
+    // pools of ceiling light
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let lx = B.x + 120; lx < B.x + B.w; lx += 260) {
+      for (let ly = B.y + 110; ly < B.y + B.h; ly += 240) {
+        const g = ctx.createRadialGradient(lx, ly, 6, lx, ly, 150);
+        g.addColorStop(0, 'rgba(190,215,240,0.055)');
+        g.addColorStop(1, 'rgba(190,215,240,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(lx, ly, 150, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // ---- vault rooms ----
     w.vaults.forEach(v => {
-      ctx.fillStyle = v.open ? 'rgba(227,85,43,0.10)' : 'rgba(120,110,90,0.07)';
-      ctx.fillRect(v.x, v.y, v.w, v.h);
+      if (v.open) {
+        // opened: warm gold light spilling out of the strongroom
+        ctx.fillStyle = '#2A2415';
+        ctx.fillRect(v.x, v.y, v.w, v.h);
+        const g = ctx.createRadialGradient(v.x + v.w / 2, v.y + v.h / 2, 8,
+                                           v.x + v.w / 2, v.y + v.h / 2, v.w * 0.7);
+        g.addColorStop(0, 'rgba(224,180,76,0.22)');
+        g.addColorStop(1, 'rgba(224,180,76,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(v.x, v.y, v.w, v.h);
+      } else {
+        // sealed: you can SEE there is a room, but not what is in it.
+        // Frosted, not blacked out — the mystery is the point.
+        ctx.fillStyle = '#1A2028';
+        ctx.fillRect(v.x, v.y, v.w, v.h);
+        // suggestion of shelving behind the frost
+        ctx.save();
+        ctx.beginPath(); ctx.rect(v.x, v.y, v.w, v.h); ctx.clip();
+        ctx.globalAlpha = 0.30;
+        ctx.fillStyle = '#3E4A57';
+        for (let sx = v.x + 22; sx < v.x + v.w - 16; sx += 40) {
+          ctx.fillRect(sx, v.y + 30, 24, v.h - 62);
+        }
+        ctx.fillStyle = '#5A6A34';
+        for (let sx = v.x + 26; sx < v.x + v.w - 16; sx += 40) {
+          for (let sy = v.y + 40; sy < v.y + v.h - 34; sy += 26) {
+            ctx.fillRect(sx, sy, 16, 14);
+          }
+        }
+        ctx.globalAlpha = 1;
+        // frosted glass pass
+        ctx.fillStyle = 'rgba(150,175,200,0.42)';
+        ctx.fillRect(v.x, v.y, v.w, v.h);
+        ctx.fillStyle = 'rgba(20,26,33,0.42)';
+        ctx.fillRect(v.x, v.y, v.w, v.h);
+        // frost streaks
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 6;
+        for (let i = 0; i < 7; i++) {
+          const fy = v.y + (i * 37) % v.h;
+          ctx.beginPath(); ctx.moveTo(v.x, fy); ctx.lineTo(v.x + v.w, fy + 12); ctx.stroke();
+        }
+        ctx.restore();
+        // hatched "sealed" border
+        ctx.strokeStyle = 'rgba(224,180,76,0.30)'; ctx.lineWidth = 2;
+        ctx.setLineDash([9, 7]);
+        ctx.strokeRect(v.x + 2, v.y + 2, v.w - 4, v.h - 4);
+        ctx.setLineDash([]);
+        // label
+        ctx.font = '700 12px Oswald, Impact, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(224,180,76,0.55)';
+        ctx.fillText('VAULT — SEALED', v.x + v.w / 2, v.y + v.h / 2 + 4);
+        ctx.textAlign = 'left';
+      }
     });
 
     // ---- obstacles ----
     for (const o of w.obstacles) {
       if (o.kind === 'vaultdoor' && !o.solid) continue;
-      let fill = '#31353F', top = '#3D424E';
-      if (o.kind === 'counter') { fill = '#4A3A2A'; top = '#5C4835'; }
-      else if (o.kind === 'desk') { fill = '#3A3026'; top = '#4A3D30'; }
-      else if (o.kind === 'car') { fill = '#2A3038'; top = '#39414B'; }
-      else if (o.kind === 'vaultwall') { fill = '#4A4436'; top = '#5C5544'; }
-      else if (o.kind === 'vaultdoor') { fill = '#6B5A2E'; top = '#8A7540'; }
+      let fill = '#2C333C', top = '#3A434E', edge = '#191E25';
+      if (o.kind === 'counter')        { fill = '#4A3521'; top = '#5E442B'; edge = '#2A1D12'; }
+      else if (o.kind === 'desk')      { fill = '#3A2E20'; top = '#4B3B29'; edge = '#221A12'; }
+      else if (o.kind === 'car')       { fill = '#242B34'; top = '#333C47'; edge = '#141920'; }
+      else if (o.kind === 'vaultwall') { fill = '#464F59'; top = '#5A6570'; edge = '#252B32'; }
+      else if (o.kind === 'vaultdoor') { fill = '#8A6520'; top = '#C79A3C'; edge = '#4A360F'; }
+
+      // drop shadow so props sit on the floor
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.fillRect(o.x + 3, o.y + 4, o.w, o.h);
       ctx.fillStyle = fill;
       ctx.fillRect(o.x, o.y, o.w, o.h);
       ctx.fillStyle = top;
       ctx.fillRect(o.x, o.y, o.w, Math.min(5, o.h));
+      ctx.strokeStyle = edge; ctx.lineWidth = 1;
+      ctx.strokeRect(o.x + .5, o.y + .5, o.w - 1, o.h - 1);
+
+      // counters get a wood grain + brass rail
+      if (o.kind === 'counter') {
+        ctx.strokeStyle = 'rgba(255,220,170,0.07)'; ctx.lineWidth = 1;
+        for (let gx2 = o.x + 6; gx2 < o.x + o.w; gx2 += 14) {
+          ctx.beginPath(); ctx.moveTo(gx2, o.y + 2); ctx.lineTo(gx2 + 4, o.y + o.h - 2); ctx.stroke();
+        }
+        ctx.fillStyle = '#C79A3C';
+        ctx.fillRect(o.x, o.y - 2, o.w, 2);
+      }
+      // the vault door reads as a slab of gold-steel with rivets
+      if (o.kind === 'vaultdoor') {
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        for (let rx = o.x + 8; rx < o.x + o.w - 4; rx += 16) {
+          ctx.beginPath(); ctx.arc(rx, o.y + o.h / 2, 1.8, 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
+
+    // ---- cash registers on the counter ----
+    for (const t of w.registers) drawRegister(t);
 
     // ---- getaway car ----
     drawCar(w.car);
@@ -1373,7 +2009,7 @@
     // ---- loot ----
     for (const l of w.loot) {
       if (l.taken || l.locked) continue;
-      drawCash(l.x, l.y, l.kind === 'vault' ? 15 : 10);
+      drawCash(l.x, l.y, l.kind === 'vault' ? 16 : 11);
     }
     for (const d of H.drops) {
       if (d.taken) continue;
@@ -1475,36 +2111,133 @@
     ctx.restore();
   }
 
+  // A cash register you can actually break into: closed it is a solid
+  // till with a screen and keys; open it is a sprung drawer with notes
+  // spilling out. Far more legible than a green square on the floor.
+  function drawRegister(t) {
+    const shake = t.shake > 0 ? (Math.random() - 0.5) * t.shake * 0.5 : 0;
+    ctx.save();
+    ctx.translate(t.x + shake, t.y);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.ellipse(1, 12, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // body
+    ctx.fillStyle = t.open ? '#3A4149' : '#454E58';
+    ctx.beginPath(); ctx.roundRect(-14, -4, 28, 17, 3); ctx.fill();
+    ctx.strokeStyle = '#1C2128'; ctx.lineWidth = 1.2; ctx.stroke();
+    // upper housing / screen
+    ctx.fillStyle = '#2E353D';
+    ctx.beginPath(); ctx.roundRect(-11, -15, 22, 12, 3); ctx.fill();
+    ctx.strokeStyle = '#171C22'; ctx.stroke();
+    ctx.fillStyle = t.open ? '#243027' : '#1B2A34';
+    ctx.beginPath(); ctx.roundRect(-8, -13, 16, 7, 1.5); ctx.fill();
+    if (!t.open) {
+      ctx.fillStyle = 'rgba(120,200,220,0.55)';
+      ctx.fillRect(-6.5, -11.5, 9, 1.4);
+      ctx.fillRect(-6.5, -9, 6, 1.4);
+    }
+    // keys
+    ctx.fillStyle = '#5C666F';
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 4; c++) {
+        ctx.beginPath(); ctx.roundRect(-10 + c * 5.2, -1 + r * 4.4, 3.6, 3, 1); ctx.fill();
+      }
+    }
+
+    if (t.open) {
+      // sprung drawer
+      ctx.fillStyle = '#2A3038';
+      ctx.beginPath(); ctx.roundRect(-13, 11, 26, 11, 2); ctx.fill();
+      ctx.fillStyle = '#1A1F25';
+      ctx.beginPath(); ctx.roundRect(-11, 13, 22, 7, 1.5); ctx.fill();
+      // note compartments, emptied
+      ctx.fillStyle = '#3E4750';
+      for (let i = 0; i < 4; i++) ctx.fillRect(-10 + i * 5.4, 14, 4.2, 5);
+      ctx.fillStyle = 'rgba(224,180,76,0.5)';
+      ctx.font = '700 8px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('EMPTY', 0, -17);
+      ctx.textAlign = 'left';
+    } else {
+      // drawer front, still shut
+      ctx.fillStyle = '#39424B';
+      ctx.beginPath(); ctx.roundRect(-13, 8, 26, 5, 1.5); ctx.fill();
+      ctx.fillStyle = '#C79A3C';
+      ctx.beginPath(); ctx.roundRect(-4, 9.4, 8, 2.2, 1); ctx.fill();
+      // damage cracks as it takes hits
+      if (t.hp < 45) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1;
+        const n = t.hp < 20 ? 4 : 2;
+        for (let i = 0; i < n; i++) {
+          ctx.beginPath();
+          ctx.moveTo(-9 + i * 5, -3);
+          ctx.lineTo(-6 + i * 5, 7);
+          ctx.stroke();
+        }
+      }
+      // prompt when you are close enough to pry it
+      if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 52) {
+        ctx.fillStyle = 'rgba(224,180,76,0.95)';
+        ctx.font = '700 9px Oswald, Impact, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('E  PRY OPEN', 0, -19);
+        ctx.textAlign = 'left';
+      }
+    }
+    ctx.restore();
+  }
+
   function drawCash(x, y, r) {
     ctx.save();
     ctx.translate(x, y);
-    const bob = Math.sin(H.t / 300 + x) * 1.5;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.ellipse(0, r * 0.6, r * 0.9, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    const bob = Math.sin(H.t / 320 + x * 0.05) * 1.4;
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.beginPath(); ctx.ellipse(0, r * 0.55, r * 0.95, r * 0.38, 0, 0, Math.PI * 2); ctx.fill();
     ctx.translate(0, bob);
-    ctx.fillStyle = '#6FA46B';
-    ctx.beginPath(); ctx.roundRect(-r, -r * 0.6, r * 2, r * 1.2, 2); ctx.fill();
-    ctx.fillStyle = '#8FC98A';
-    ctx.beginPath(); ctx.roundRect(-r, -r * 0.6, r * 2, r * 0.35, 2); ctx.fill();
-    ctx.strokeStyle = '#3E5C3A'; ctx.lineWidth = 1;
-    ctx.strokeRect(-r, -r * 0.6, r * 2, r * 1.2);
+
+    // a stack of banded bundles rather than one flat rectangle
+    for (let i = 2; i >= 0; i--) {
+      const off = i * 2.2;
+      ctx.fillStyle = i === 0 ? '#7FB07A' : '#5E8A5C';
+      ctx.beginPath(); ctx.roundRect(-r + i * 0.8, -r * 0.5 - off, r * 2 - i * 1.6, r * 0.9, 2); ctx.fill();
+      ctx.strokeStyle = '#33512F'; ctx.lineWidth = .8;
+      ctx.strokeRect(-r + i * 0.8, -r * 0.5 - off, r * 2 - i * 1.6, r * 0.9);
+      // paper band
+      ctx.fillStyle = '#D9C98B';
+      ctx.fillRect(-r * 0.28, -r * 0.5 - off, r * 0.56, r * 0.9);
+    }
+    // faint sparkle so it reads as pickup-able
+    const tw = (Math.sin(H.t / 240 + x) + 1) * 0.5;
+    ctx.globalAlpha = 0.25 + tw * 0.35;
+    ctx.fillStyle = '#FFF3C4';
+    ctx.beginPath(); ctx.arc(r * 0.55, -r * 0.75, 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
   function drawBag(x, y) {
     ctx.save();
     ctx.translate(x, y);
-    const bob = Math.sin(H.t / 240 + x) * 2;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.beginPath(); ctx.ellipse(0, 12, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+    const bob = Math.sin(H.t / 260 + x * 0.04) * 1.8;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(0, 13, 17, 6, 0, 0, Math.PI * 2); ctx.fill();
     ctx.translate(0, bob);
-    ctx.fillStyle = '#4A4038';
-    ctx.beginPath(); ctx.roundRect(-15, -10, 30, 22, 5); ctx.fill();
-    ctx.strokeStyle = '#F5E5A0'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(0, -10, 7, Math.PI, 0); ctx.stroke();
-    ctx.fillStyle = '#7BC59A';
-    ctx.font = '700 10px Inter, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('$', 0, 5);
+    ctx.fillStyle = '#3E362E';
+    ctx.beginPath(); ctx.roundRect(-16, -10, 32, 23, 6); ctx.fill();
+    ctx.strokeStyle = '#241F1A'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = '#4C433A';
+    ctx.beginPath(); ctx.roundRect(-16, -10, 32, 7, 4); ctx.fill();
+    ctx.strokeStyle = '#C79A3C'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, -10, 8, Math.PI, 0); ctx.stroke();
+    // notes poking out of the top
+    ctx.fillStyle = '#7FB07A';
+    ctx.beginPath(); ctx.roundRect(-7, -13, 5, 5, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(2, -12, 5, 4, 1); ctx.fill();
+    ctx.fillStyle = '#5FBF87';
+    ctx.font = '700 11px Oswald, Impact, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('$', 0, 7);
     ctx.textAlign = 'left';
     ctx.restore();
   }
@@ -1670,44 +2403,135 @@
     if (!w) return;
     const kick = c.flash > 0 ? 2 : 0;
     if (c.flash > 0) c.flash -= 6;
-    ctx.save();
-    ctx.translate(gx - kick, gy);
 
     if (w.kind === 'melee') {
-      const sw = c.swing > 0 ? (c.swing / 160) : 0;
-      if (c.swing > 0) c.swing -= 8;
-      ctx.rotate(-sw * 1.1);
-      ctx.fillStyle = c.weapon === 'bat' ? '#B07C43' : '#C9CFDA';
-      const L = c.weapon === 'bat' ? 30 : 16;
-      ctx.beginPath(); ctx.roundRect(0, -2, L, 4, 2); ctx.fill();
-      if (c.weapon === 'bat') { ctx.fillStyle = '#8A5F32'; ctx.beginPath(); ctx.roundRect(L - 12, -3.5, 12, 7, 3); ctx.fill(); }
-    } else {
-      const kind = w.kind;
-      const L = kind === 'pistol' ? 14 : kind === 'shotgun' ? 26 : kind === 'smg' ? 20
-              : kind === 'rifle' ? 28 : kind === 'lmg' ? 34 : kind === 'explosive' ? 38 : 26;
-      ctx.fillStyle = '#23262E';
-      ctx.beginPath(); ctx.roundRect(0, -3, L, 6, 2); ctx.fill();
-      ctx.fillStyle = '#3A3F4A';
-      ctx.beginPath(); ctx.roundRect(0, -3, L * 0.4, 3, 1.5); ctx.fill();
-      if (kind === 'lmg') { ctx.fillStyle = '#2E333C'; ctx.beginPath(); ctx.roundRect(L * 0.3, 2, 12, 8, 2); ctx.fill(); }
-      if (kind === 'explosive') { ctx.fillStyle = '#5A2A22'; ctx.beginPath(); ctx.arc(L, 0, 5, 0, Math.PI * 2); ctx.fill(); }
-      if (kind === 'energy' || kind === 'exotic') {
-        ctx.fillStyle = w.color;
-        ctx.globalAlpha = 0.7;
-        ctx.beginPath(); ctx.roundRect(L * 0.45, -1.6, L * 0.5, 3.2, 1.6); ctx.fill();
+      // Melee thrusts STRAIGHT FORWARD and pulls back — a stab, not a
+      // pinwheel. t runs 1 -> 0 across the swing; sin gives out-and-back.
+      const t = c.swing > 0 ? c.swing / 160 : 0;
+      if (c.swing > 0) c.swing -= 9;
+      const reach = c.weapon === 'bat' ? 17 : 14;
+      const lunge = Math.sin((1 - t) * Math.PI) * reach;
+      // a slight rise as it drives in reads as weight behind the thrust
+      const rise = Math.sin((1 - t) * Math.PI) * (c.weapon === 'bat' ? -2.2 : -1.1);
+
+      ctx.save();
+      ctx.translate(gx + lunge, gy + rise);
+
+      if (c.weapon === 'bat') {
+        // grip
+        ctx.fillStyle = '#2A2018';
+        ctx.beginPath(); ctx.roundRect(-2, -2, 11, 4, 2); ctx.fill();
+        // taper into the barrel
+        ctx.fillStyle = '#B07C43';
+        ctx.beginPath();
+        ctx.moveTo(9, -2.1); ctx.lineTo(24, -4.4);
+        ctx.quadraticCurveTo(31, -4.6, 31, 0);
+        ctx.quadraticCurveTo(31, 4.6, 24, 4.4);
+        ctx.lineTo(9, 2.1); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,235,200,0.28)';
+        ctx.beginPath(); ctx.roundRect(12, -2.6, 16, 1.5, .8); ctx.fill();
+        ctx.strokeStyle = '#6E4A24'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(9, -2.1); ctx.lineTo(24, -4.4); ctx.stroke();
+      } else {
+        // ---- knife: pommel, grip, guard, tapered blade with a fuller ----
+        ctx.fillStyle = '#1D2026';
+        ctx.beginPath(); ctx.arc(-1.5, 0, 2.2, 0, Math.PI * 2); ctx.fill();   // pommel
+        ctx.fillStyle = '#2E333B';
+        ctx.beginPath(); ctx.roundRect(-1, -1.9, 8, 3.8, 1.6); ctx.fill();    // grip
+        ctx.strokeStyle = '#151920'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(1.5, -1.9); ctx.lineTo(1.5, 1.9);
+        ctx.moveTo(3.5, -1.9); ctx.lineTo(3.5, 1.9); ctx.stroke();
+        ctx.fillStyle = '#8E96A3';                                            // guard
+        ctx.beginPath(); ctx.roundRect(6.6, -4, 2.2, 8, 1); ctx.fill();
+        // blade
+        ctx.fillStyle = '#D6DCE6';
+        ctx.beginPath();
+        ctx.moveTo(8.8, -2.9);
+        ctx.lineTo(19, -2.2);
+        ctx.lineTo(24, 0);          // point
+        ctx.lineTo(19, 2.4);
+        ctx.lineTo(8.8, 2.9);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#FAFCFF';                                            // edge highlight
+        ctx.beginPath();
+        ctx.moveTo(9, -2.5); ctx.lineTo(19, -1.8); ctx.lineTo(23.4, 0);
+        ctx.lineTo(19, -0.5); ctx.lineTo(9, -1.1); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#8C96A6'; ctx.lineWidth = 0.7;                     // fuller
+        ctx.beginPath(); ctx.moveTo(10.5, 0.5); ctx.lineTo(19, 0.7); ctx.stroke();
+      }
+
+      // a short arc of motion behind the tip while thrusting
+      if (t > 0) {
+        ctx.globalAlpha = t * 0.35;
+        ctx.strokeStyle = '#DCE6F2'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(6, -3.5); ctx.lineTo(-4 - reach * 0.5, -3.5);
+        ctx.moveTo(6, 3.5); ctx.lineTo(-4 - reach * 0.5, 3.5);
+        ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      // muzzle flash
-      if (c.flash > 0) {
-        ctx.fillStyle = 'rgba(255,200,110,0.95)';
-        ctx.beginPath();
-        ctx.moveTo(L, 0); ctx.lineTo(L + 13, -5); ctx.lineTo(L + 9, 0); ctx.lineTo(L + 13, 5);
-        ctx.closePath(); ctx.fill();
-      }
+      ctx.restore();
+      return;
+    }
+
+    // ---------- firearms ----------
+    ctx.save();
+    ctx.translate(gx - kick, gy);
+    const kind = w.kind;
+    const L = kind === 'pistol' ? 15 : kind === 'shotgun' ? 27 : kind === 'smg' ? 21
+            : kind === 'rifle' ? 29 : kind === 'lmg' ? 35 : kind === 'explosive' ? 39 : 27;
+
+    // body
+    ctx.fillStyle = '#1B1F26';
+    ctx.beginPath(); ctx.roundRect(-3, -3.2, L + 3, 6.4, 2); ctx.fill();
+    // top rail highlight
+    ctx.fillStyle = '#39414D';
+    ctx.beginPath(); ctx.roundRect(-2, -3.2, L * 0.55, 2.2, 1); ctx.fill();
+    // grip under the receiver
+    ctx.fillStyle = '#22272F';
+    ctx.beginPath(); ctx.roundRect(-1, 2.4, 5, 6, 1.6); ctx.fill();
+    // magazine
+    if (kind !== 'pistol' && kind !== 'explosive') {
+      ctx.fillStyle = '#2A303A';
+      ctx.beginPath(); ctx.roundRect(L * 0.34, 2.6, 4.6, kind === 'lmg' ? 4 : 7, 1.4); ctx.fill();
+    }
+    if (kind === 'lmg') { ctx.fillStyle = '#2E333C'; ctx.beginPath(); ctx.roundRect(L * 0.28, 2.6, 13, 8, 2); ctx.fill(); }
+    if (kind === 'shotgun') { ctx.fillStyle = '#4A3524'; ctx.beginPath(); ctx.roundRect(-3, -2.6, 7, 5.2, 1.6); ctx.fill(); }
+    if (kind === 'explosive') {
+      ctx.fillStyle = '#4A2A20';
+      ctx.beginPath(); ctx.ellipse(L + 2, 0, 6.5, 4.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6B3A2A';
+      ctx.beginPath(); ctx.moveTo(L - 3, -4); ctx.lineTo(L - 7, -6.5); ctx.lineTo(L - 7, 6.5); ctx.lineTo(L - 3, 4); ctx.fill();
+    }
+    if (kind === 'energy' || kind === 'exotic') {
+      ctx.fillStyle = w.color;
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath(); ctx.roundRect(L * 0.42, -1.7, L * 0.5, 3.4, 1.7); ctx.fill();
+      ctx.globalAlpha = 0.25;
+      ctx.beginPath(); ctx.arc(L, 0, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // muzzle
+    ctx.fillStyle = '#12151A';
+    ctx.beginPath(); ctx.roundRect(L - 2, -1.6, 4, 3.2, 1); ctx.fill();
+
+    if (c.flash > 0) {
+      const f = Math.min(1, c.flash / 60);
+      ctx.globalAlpha = f;
+      ctx.fillStyle = 'rgba(255,214,138,0.95)';
+      ctx.beginPath();
+      ctx.moveTo(L, 0); ctx.lineTo(L + 15, -6); ctx.lineTo(L + 10, 0); ctx.lineTo(L + 15, 6);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,235,0.9)';
+      ctx.beginPath(); ctx.arc(L + 2, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
     }
     ctx.restore();
   }
 
+  // Enemies get the same anatomical treatment as the crew: shoulders,
+  // legs that walk, a head with headgear, a held weapon. A guard should
+  // read as a person, not a coloured dot.
   function drawEnemy(e) {
     const alpha = e.dead ? Math.max(0, (e.fade || 0) / 40) : 1;
     ctx.save();
@@ -1715,60 +2539,231 @@
     ctx.translate(e.x, e.y);
     ctx.rotate(e.angle);
 
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.beginPath(); ctx.ellipse(1, 3, e.r * 0.9, e.r * 0.8, 0, 0, Math.PI * 2); ctx.fill();
-
-    if (e.def.vehicle) {
-      ctx.fillStyle = e.body;
-      ctx.beginPath(); ctx.roundRect(-e.r, -e.r * 0.72, e.r * 2, e.r * 1.44, 6); ctx.fill();
-      ctx.fillStyle = e.accent;
-      ctx.beginPath(); ctx.roundRect(e.r * 0.2, -6, e.r * 0.9, 12, 3); ctx.fill();
-    } else if (e.def.static) {
-      ctx.fillStyle = '#2A2E24';
-      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = e.accent;
-      ctx.beginPath(); ctx.roundRect(0, -4, e.r + 14, 8, 3); ctx.fill();
-    } else {
-      // body
-      ctx.fillStyle = e.body;
-      ctx.strokeStyle = '#0A0709'; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.ellipse(-1, 0, e.r * 0.78, e.r * 1.05, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      // vest / accent
-      ctx.fillStyle = e.accent;
-      ctx.beginPath(); ctx.roundRect(-e.r * 0.35, -e.r * 0.55, e.r * 0.8, e.r * 1.1, 3); ctx.fill();
-      // head
-      ctx.fillStyle = '#1A1D22';
-      ctx.beginPath(); ctx.arc(e.r * 0.45, 0, e.r * 0.44, 0, Math.PI * 2); ctx.fill();
-      // gun
-      ctx.fillStyle = '#15171B';
-      ctx.beginPath(); ctx.roundRect(e.r * 0.5, -2.5, e.wpn.melee ? 12 : 20, 5, 2); ctx.fill();
-      // riot shield
-      if (e.def.shield) {
-        ctx.fillStyle = 'rgba(130,160,180,0.5)';
-        ctx.strokeStyle = '#9AB4C4'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.roundRect(e.r * 0.7, -e.r, 7, e.r * 2, 3); ctx.fill(); ctx.stroke();
-      }
-    }
+    if (e.def.vehicle)      drawAPC(e);
+    else if (e.def.static)  drawNest(e);
+    else                    drawFoot(e);
 
     if (e.hitFlash > 0) {
-      ctx.fillStyle = 'rgba(255,90,70,0.5)';
-      ctx.beginPath(); ctx.arc(0, 0, e.r + 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,110,80,' + Math.min(0.5, e.hitFlash / 22) + ')';
+      ctx.beginPath(); ctx.ellipse(0, 0, e.r + 3, e.r + 2, 0, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
 
-    // boss health bar
     if (e.isBoss && !e.dead) {
-      const bw = 90;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(e.x - bw / 2, e.y - e.r - 20, bw, 7);
-      ctx.fillStyle = '#B4231C';
-      ctx.fillRect(e.x - bw / 2, e.y - e.r - 20, bw * clamp(e.hp / e.maxHp, 0, 1), 7);
-      ctx.font = '700 10px Inter, sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = '#F1E4D2';
-      ctx.fillText(e.name, e.x, e.y - e.r - 26);
+      const bw = 110;
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(e.x - bw / 2 - 1, e.y - e.r - 23, bw + 2, 9);
+      ctx.fillStyle = '#7E2019';
+      ctx.fillRect(e.x - bw / 2, e.y - e.r - 22, bw, 7);
+      ctx.fillStyle = '#C4453A';
+      ctx.fillRect(e.x - bw / 2, e.y - e.r - 22, bw * clamp(e.hp / e.maxHp, 0, 1), 7);
+      ctx.font = '700 10px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#E8EDF2';
+      ctx.fillText(e.name.toUpperCase(), e.x, e.y - e.r - 28);
       ctx.textAlign = 'left';
     }
     ctx.globalAlpha = 1;
+  }
+
+  function drawFoot(e) {
+    const r = e.r;
+    const SH = r * 1.08, CH = r * 0.74;
+    const walk = Math.sin(e.walkPhase || 0);
+    const heavy = e.key === 'heavy' || e.key === 'captain' || e.key === 'warden';
+    const swat  = e.key === 'swat' || heavy;
+    const cop   = e.key === 'cop' || e.key === 'riot';
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(1, 3, CH + 5, SH + 2, 0, 0, Math.PI * 2); ctx.fill();
+
+    // legs
+    [[-SH * 0.54, walk], [SH * 0.54, -walk]].forEach(function (pair) {
+      const oy = pair[0], sw = pair[1];
+      ctx.save();
+      ctx.translate(-2 + sw * 2.2, oy);
+      ctx.fillStyle = shade(e.body, -0.10);
+      ctx.beginPath(); ctx.roundRect(-5, -3.6, 12, 7.2, 3); ctx.fill();
+      ctx.fillStyle = '#0E1116';
+      ctx.beginPath(); ctx.roundRect(4, -3.2, 4, 6.4, 2); ctx.fill();
+      ctx.restore();
+    });
+
+    // torso
+    ctx.fillStyle = e.body;
+    ctx.strokeStyle = '#080A0D'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.ellipse(-1, 0, CH + 1, SH, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // vest / plate carrier
+    ctx.fillStyle = e.accent;
+    ctx.beginPath(); ctx.roundRect(-CH * 0.6, -SH * 0.66, CH * 1.25, SH * 1.32, 3); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1; ctx.stroke();
+
+    if (swat) {
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.beginPath(); ctx.roundRect(-CH * 0.35, -SH * 0.5, CH * 0.7, 3.4, 1.2); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-CH * 0.35, SH * 0.16, CH * 0.7, 3.4, 1.2); ctx.fill();
+    }
+    if (cop) {
+      ctx.fillStyle = '#E0B44C';
+      ctx.beginPath(); ctx.arc(CH * 0.1, -SH * 0.38, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    if (heavy) {
+      ctx.fillStyle = shade(e.body, 0.10);
+      ctx.beginPath(); ctx.roundRect(-CH * 0.2, -SH - 1.5, CH * 0.9, 5, 2); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-CH * 0.2, SH - 3.5, CH * 0.9, 5, 2); ctx.fill();
+    }
+
+    // arms converging on the weapon
+    const gx = CH + 9;
+    ctx.strokeStyle = shade(e.body, 0.06);
+    ctx.lineWidth = heavy ? 6 : 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-1, SH * 0.74); ctx.quadraticCurveTo(CH * 0.7, SH * 0.55, gx - 3, 3.4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-1, -SH * 0.74); ctx.quadraticCurveTo(CH * 0.7, -SH * 0.55, gx - 1, -3); ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    drawEnemyGun(e, gx);
+
+    // head + headgear
+    ctx.save();
+    ctx.translate(CH * 0.5, 0);
+    const HR = r * 0.44;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(-1.2, 0, HR * 0.95, HR * 0.9, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (swat) {
+      ctx.fillStyle = '#14171D';
+      ctx.beginPath(); ctx.arc(0, 0, HR * 1.12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3B4550';
+      ctx.beginPath(); ctx.arc(0, 0, HR * 1.12, -0.7, 0.7); ctx.lineTo(0, 0); ctx.fill();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#8FD8E8';
+      ctx.beginPath(); ctx.roundRect(HR * 0.25, -HR * 0.6, HR * 0.7, HR * 1.2, 1.4); ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (e.key === 'riot') {
+      ctx.fillStyle = '#1A2436';
+      ctx.beginPath(); ctx.arc(0, 0, HR * 1.12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(180,215,235,0.5)';
+      ctx.beginPath(); ctx.roundRect(HR * 0.2, -HR * 0.95, HR * 0.9, HR * 1.9, 2); ctx.fill();
+    } else {
+      ctx.fillStyle = '#C79A6E';
+      ctx.beginPath(); ctx.arc(0, 0, HR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = shade(e.body, 0.04);
+      ctx.beginPath(); ctx.arc(-0.6, 0, HR * 1.02, Math.PI * 0.42, Math.PI * 1.58); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#12161C';
+      ctx.beginPath(); ctx.roundRect(HR * 0.35, -HR * 0.75, HR * 0.6, HR * 1.5, 1.2); ctx.fill();
+      ctx.fillStyle = '#0B0D11';
+      ctx.beginPath(); ctx.arc(HR * 0.28, -HR * 0.32, 0.9, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(HR * 0.28, HR * 0.32, 0.9, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    if (e.def.shield) {
+      ctx.fillStyle = 'rgba(140,175,200,0.42)';
+      ctx.strokeStyle = '#9BB6C8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(CH + 3, -r * 1.05, 7, r * 2.1, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(CH + 5, -r * 0.7); ctx.lineTo(CH + 5, r * 0.7); ctx.stroke();
+    }
+
+    // alerted marker, drawn upright regardless of facing
+    if (e.alerted && !e.dead) {
+      ctx.save();
+      ctx.rotate(-e.angle);
+      ctx.fillStyle = 'rgba(224,180,76,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(0, -r - 12); ctx.lineTo(-3.4, -r - 6); ctx.lineTo(3.4, -r - 6);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawEnemyGun(e, gx) {
+    ctx.save();
+    ctx.translate(gx, 0);
+    if (e.wpn.melee) {
+      ctx.fillStyle = '#2A2E36';
+      ctx.beginPath(); ctx.roundRect(0, -1.6, 13, 3.2, 1.6); ctx.fill();
+      ctx.fillStyle = '#4A515C';
+      ctx.beginPath(); ctx.roundRect(9, -2, 5, 4, 2); ctx.fill();
+    } else {
+      const L = (e.key === 'heavy' || e.key === 'guard_rifle') ? 22 : 17;
+      ctx.fillStyle = '#171A20';
+      ctx.beginPath(); ctx.roundRect(-2, -2.6, L + 2, 5.2, 1.8); ctx.fill();
+      ctx.fillStyle = '#333A45';
+      ctx.beginPath(); ctx.roundRect(-1, -2.6, L * 0.5, 1.8, 0.9); ctx.fill();
+      ctx.fillStyle = '#252B34';
+      ctx.beginPath(); ctx.roundRect(L * 0.35, 2, 3.8, 5, 1.2); ctx.fill();
+      if (e.muzzle > 0) {
+        ctx.globalAlpha = Math.min(1, e.muzzle / 70);
+        ctx.fillStyle = 'rgba(255,206,130,0.95)';
+        ctx.beginPath();
+        ctx.moveTo(L, 0); ctx.lineTo(L + 11, -4.5); ctx.lineTo(L + 7, 0); ctx.lineTo(L + 11, 4.5);
+        ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawNest(e) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(2, 4, e.r + 6, e.r * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4A4636';
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      ctx.save();
+      ctx.translate(Math.cos(a) * e.r, Math.sin(a) * e.r);
+      ctx.rotate(a);
+      ctx.beginPath(); ctx.roundRect(-7, -5, 14, 10, 4); ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#20252C';
+    ctx.beginPath(); ctx.arc(0, 0, e.r * 0.62, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#12161B';
+    ctx.beginPath(); ctx.roundRect(0, -5, e.r + 18, 10, 3); ctx.fill();
+    ctx.fillStyle = e.accent;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.roundRect(e.r * 0.5, i * 3 - 0.8, 18, 1.6, 0.8); ctx.fill();
+    }
+    if (e.muzzle > 0) {
+      ctx.globalAlpha = Math.min(1, e.muzzle / 70);
+      ctx.fillStyle = 'rgba(255,190,110,0.9)';
+      ctx.beginPath(); ctx.arc(e.r + 20, 0, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawAPC(e) {
+    const r = e.r;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath(); ctx.roundRect(-r + 3, -r * 0.72 + 5, r * 2, r * 1.44, 8); ctx.fill();
+    ctx.fillStyle = e.body;
+    ctx.beginPath(); ctx.roundRect(-r, -r * 0.72, r * 2, r * 1.44, 7); ctx.fill();
+    ctx.strokeStyle = '#0A0D12'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = shade(e.body, 0.08);
+    ctx.beginPath();
+    ctx.moveTo(r * 0.3, -r * 0.72); ctx.lineTo(r, -r * 0.35);
+    ctx.lineTo(r, r * 0.35); ctx.lineTo(r * 0.3, r * 0.72); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#0D1015';
+    [-0.55, 0, 0.55].forEach(function (o) {
+      ctx.beginPath(); ctx.roundRect(o * r - 6, -r * 0.86, 12, 6, 3); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(o * r - 6,  r * 0.5,  12, 6, 3); ctx.fill();
+    });
+    ctx.fillStyle = shade(e.body, -0.08);
+    ctx.beginPath(); ctx.arc(-r * 0.1, 0, r * 0.42, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#12161B';
+    ctx.beginPath(); ctx.roundRect(0, -3, r * 0.95, 6, 2); ctx.fill();
+    ctx.fillStyle = '#3E7ACC';
+    ctx.beginPath(); ctx.roundRect(-r * 0.7, -r * 0.5, 7, 4, 1.5); ctx.fill();
+    ctx.fillStyle = '#C4453A';
+    ctx.beginPath(); ctx.roundRect(-r * 0.7, r * 0.3, 7, 4, 1.5); ctx.fill();
+    if (e.muzzle > 0) {
+      ctx.globalAlpha = Math.min(1, e.muzzle / 90);
+      ctx.fillStyle = 'rgba(255,200,120,0.95)';
+      ctx.beginPath(); ctx.arc(r, 0, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
 
   function shade(hex, amt) {
@@ -1806,9 +2801,14 @@
       ctx.fillStyle = e.isBoss ? '#FF7AF0' : '#B4231C';
       ctx.fillRect(x0 + e.x * sc - 1.5, y0 + e.y * sc - 1.5, 3, 3);
     });
+    w.registers.forEach(t => {
+      if (t.open) return;
+      ctx.fillStyle = '#5FBF87';
+      ctx.fillRect(x0 + t.x * sc - 1, y0 + t.y * sc - 1, 2, 2);
+    });
     H.crew.forEach(c => {
       if (c.dead) return;
-      ctx.fillStyle = c.downed ? '#7C6459' : '#6FBFCB';
+      ctx.fillStyle = c.downed ? '#E0B44C' : '#4FB3C4';
       ctx.fillRect(x0 + c.x * sc - 1.5, y0 + c.y * sc - 1.5, 3, 3);
     });
     ctx.fillStyle = '#F1E4D2';
@@ -1934,8 +2934,12 @@
     // objective line
     const obj = hudEl('hud-objective');
     const openVaults = H.world.vaults.filter(v => v.open).length;
+    const tills = H.world.registers.filter(t => !t.open).length;
     if (H.canExtract) obj.textContent = 'Press E to drive off';
-    else if (openVaults < H.world.vaults.length) obj.textContent = 'Drill the vault (E at the drill point)';
+    else if (openVaults < H.world.vaults.length)
+      obj.textContent = tills
+        ? 'Drill the vault — or pry the ' + tills + ' register' + (tills > 1 ? 's' : '') + ' on the way'
+        : 'Drill the vault (E at the drill point)';
     else obj.textContent = 'Grab the cash, then get back to the car';
   }
 
@@ -2011,7 +3015,14 @@
     const r = document.getElementById('btn-resume');
     if (r) r.addEventListener('click', GH.resumeHeist);
     const a = document.getElementById('btn-abandon');
-    if (a) a.addEventListener('click', () => { if (confirm('Abandon the job? You lose everything in your bags.')) GH.abandonHeist(); });
+    if (a) a.addEventListener('click', async () => {
+      const ok = await GH.confirm({
+        title: 'Abandon the job?',
+        body: 'You walk away with nothing. Everything in your bags stays on the floor, and anyone already down is left behind.',
+        yes: 'Walk away', no: 'Keep going', danger: true,
+      });
+      if (ok) GH.abandonHeist();
+    });
     bindTouch();
     GH.boot();
   });
