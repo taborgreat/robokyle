@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, fileUrl, avatarUrl } from '../lib/api.js';
+import { api, fileUrl, avatarUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import ErrorBar from '../ErrorBar.jsx';
+import { useHashTarget } from '../rs.jsx';
 
 /* One Talk thread. Drift mechanics live here: replies at depth ≥ 2 collapse
    behind a click, siblings sort by usefulness with the accepted answer
@@ -72,7 +73,13 @@ export default function TalkPostView() {
   const [whyOpen, setWhyOpen] = useState(false);  // post-level downvote
   const [whyFor, setWhyFor] = useState(null);     // comment id awaiting a reason
 
+  /* Boards are category ids under the hood; people see the display name. */
+  const [config, setConfig] = useState(null);
+  useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
+  const catName = (cid) => (config?.xp?.categories || []).find(c => c.id === cid)?.name || cid;
+
   const load = () => api(`/talk/${id}`).then(setP).catch(e => setError(e.message));
+  useHashTarget(!!p);
   useEffect(() => { load(); }, [id]);
 
   /* Flat list → tree. Siblings sort by usefulness; the accepted answer pins
@@ -158,7 +165,7 @@ export default function TalkPostView() {
       <div className="talk-replies">{kids.map(k => <CommentNode key={k._id} c={k} depth={depth + 1} />)}</div>
     );
     return (
-      <div className={'comment talk-comment' + (c.accepted ? ' is-accepted' : '')}>
+      <div className={'comment talk-comment' + (c.accepted ? ' is-accepted' : '')} id={`c-${c._id}`}>
         {c.forkedTo ? (
           <p className="stat">↪ This tangent continued as <Link to={`/talk/${c.forkedTo}`}>its own post</Link>.</p>
         ) : c.deleted ? (
@@ -173,7 +180,7 @@ export default function TalkPostView() {
                   </>
                 : 'deleted'}
               {c.accepted && <span className="tag endorsed-tag">✓ accepted answer</span>}
-              <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
+              <a className="when" href={`#c-${c._id}`} title={fmtExact(c.createdAt) + ' — link to this comment'}>{fmtWhen(c.createdAt)}</a>
             </span>
             <p>{c.body}</p>
             <span className="toolbar talk-comment-tools">
@@ -258,7 +265,7 @@ export default function TalkPostView() {
               </span>
             : <span>deleted</span>}
           <span>· {p.type === 'question' ? 'Question' : p.type === 'plan' ? 'Plan' : 'Thread'} in</span>
-          <Link className="tag" to={`/talk?board=${p.board}`}>{p.board}</Link>
+          <Link className="tag" to={`/talk?board=${p.board}`}>{catName(p.board)}</Link>
           <span className="when" title={fmtExact(p.createdAt)}>{fmtWhen(p.createdAt)}</span>
           {p.forkedFrom && <span>· forked from <Link to={`/talk/${p.forkedFrom.post}`}>another thread</Link></span>}
         </div>
@@ -269,7 +276,7 @@ export default function TalkPostView() {
           <div className="talk-plan-strip">
             <span className={`tag talk-type talk-type-plan`}>{statusLabel[plan.status] || plan.status}</span>
             {plan.needed.length > 0 && <span className="stat">needs: {plan.needed.map(n =>
-              <Link key={n} className="tag" to={`/talk?needed=${n}`} style={{ marginRight: '.3rem' }}>{n}</Link>)}</span>}
+              <Link key={n} className="tag" to={`/talk?needed=${n}`} style={{ marginRight: '.3rem' }}>{catName(n)}</Link>)}</span>}
             {plan.needTags.length > 0 && <span className="stat">for: {plan.needTags.join(', ')}</span>}
             {plan.goal && <span className="stat">Goal: {plan.goal}</span>}
             <span className="stat">{plan.participants.length} in: {plan.participants.map(x => x.username).join(', ')}</span>

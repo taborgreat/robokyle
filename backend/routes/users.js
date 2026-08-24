@@ -113,17 +113,17 @@ router.get('/me/notifications', requireAuth, async (req, res, next) => {
     for (const c of workComments) events.push({
       at: c.createdAt, kind: 'comment', who: c.author && c.author.username,
       verb: 'commented on', about: dTitle.get(String(c.target)) || 'your work',
-      link: `/works/${c.target}`, snippet: (c.body || '').slice(0, 90),
+      link: `/works/${c.target}#c-${c._id}`, snippet: (c.body || '').slice(0, 90),
     });
     for (const c of talkComments) events.push({
       at: c.createdAt, kind: 'comment', who: c.author && c.author.username,
       verb: 'replied on', about: tTitle.get(String(c.target)) || 'your post',
-      link: `/talk/${c.target}`, snippet: (c.body || '').slice(0, 90),
+      link: `/talk/${c.target}#c-${c._id}`, snippet: (c.body || '').slice(0, 90),
     });
     for (const c of replies) events.push({
       at: c.createdAt, kind: 'reply', who: c.author && c.author.username,
       verb: 'replied to you on', about: tTitle.get(String(c.target)) || 'a thread',
-      link: `/talk/${c.target}`, snippet: (c.body || '').slice(0, 90),
+      link: `/talk/${c.target}#c-${c._id}`, snippet: (c.body || '').slice(0, 90),
     });
     for (const e of produced) events.push({
       at: e.createdAt, kind: 'produced', who: e.poster && e.poster.username,
@@ -137,7 +137,7 @@ router.get('/me/notifications', requireAuth, async (req, res, next) => {
     });
     for (const w of forks) events.push({
       at: w.createdAt, kind: 'fork', who: w.author && w.author.username,
-      verb: 'built on', about: dTitle.get(String(w.parent)) || 'your work',
+      verb: 'remixed', about: dTitle.get(String(w.parent)) || 'your work',
       link: `/works/${w._id}`,
     });
 

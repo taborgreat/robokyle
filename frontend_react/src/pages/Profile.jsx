@@ -355,7 +355,9 @@ function NotifList({ items }) {
           {n.verb}{' '}
           {n.link ? <Link to={n.link}>{n.about}</Link> : n.about}
           <span className="when">{fmtWhen(n.at)}</span>
-          {n.snippet && <span className="notif-snippet">{n.snippet}</span>}
+          {n.snippet && (n.link
+            ? <Link className="notif-snippet" to={n.link}>{n.snippet}</Link>
+            : <span className="notif-snippet">{n.snippet}</span>)}
         </li>
       ))}
     </ul>
@@ -608,17 +610,24 @@ export default function Profile() {
               {p.comments.map(c => (
                 <li key={c.id}>
                   <span className="cf-meta">
-                    <span className="tag">{c.post ? 'talk' : c.kind === 'produced' ? 'result' : 'work'}</span>
+                    {(() => {
+                      const src = c.post ? 'talk' : c.kind === 'produced' ? 'result' : 'work';
+                      return <span className={`tag src-${src}`}>{src}</span>;
+                    })()}
                     {c.work
-                      ? <Link to={`/works/${c.work.id}`}>{c.work.title}</Link>
+                      ? <Link to={`/works/${c.work.id}#c-${c.id}`}>{c.work.title}</Link>
                       : c.post
-                        ? <Link to={`/talk/${c.post.id}`}>{c.post.title}</Link>
+                        ? <Link to={`/talk/${c.post.id}#c-${c.id}`}>{c.post.title}</Link>
                         : <em>removed</em>}
                     {c.accepted && <span className="tag endorsed-tag">✓ accepted answer</span>}
                     {c.upvoteCount > 0 && <span className="stat">▲ <span className="rs-num">{c.upvoteCount}</span></span>}
                     <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
                   </span>
-                  <p className="cf-quote">{c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body}</p>
+                  {(() => {
+                    const to = c.work ? `/works/${c.work.id}#c-${c.id}` : c.post ? `/talk/${c.post.id}#c-${c.id}` : null;
+                    const text = c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body;
+                    return to ? <Link className="cf-quote" to={to}>{text}</Link> : <p className="cf-quote">{text}</p>;
+                  })()}
                 </li>
               ))}
             </ul>

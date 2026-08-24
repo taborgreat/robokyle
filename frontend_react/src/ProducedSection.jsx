@@ -205,9 +205,9 @@ function EntryComments({ entry, user, onPost }) {
   return (
     <div className="produced-comments">
       {entry.comments.map(c => (
-        <div className="comment" key={c._id}>
+        <div className="comment" key={c._id} id={`c-${c._id}`}>
           <span className="who">{c.author ? <Link to={`/user/${c.author.username}`}>{c.author.username}</Link> : 'deleted'}</span>
-          <span className="when">{fmtWhen(c.createdAt)}</span>
+          <a className="when" href={`#c-${c._id}`}>{fmtWhen(c.createdAt)}</a>
           <p>{c.body}</p>
         </div>
       ))}

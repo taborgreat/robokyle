@@ -600,11 +600,28 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .remix-banner { margin: 0 0 1rem; }
 
 /* --- profile comment feed: each line a small spoken thing, not a bare row --- */
-.cf-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
-.cf-quote {
-  background: var(--rs-well); box-shadow: var(--rs-step-in); border-radius: 2px;
-  padding: .5rem .7rem; margin: .4rem 0 0; color: var(--ink-soft);
+.cf-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: .55rem; }
+/* Source labels color-code where a comment lives — teal for works, coral for
+   Talk, green for build results — as quiet micro-caps, not boxes: the color
+   is the information, the box was noise. */
+.tag.src-work, .tag.src-talk, .tag.src-result {
+  background: none; border: 0; padding: 0;
+  font-size: .68rem; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase;
 }
+.tag.src-work { color: var(--brand); }
+.tag.src-talk { color: var(--accent); }
+.tag.src-result { color: var(--ok); }
+/* The clock keeps to the right edge so every row shares one shape. */
+.cf-meta .when { margin-left: auto; }
+
+/* Quoted comment text reads as a quote, not a chromed well: chrome frames
+   content, it never sits under paragraphs. */
+.cf-quote {
+  margin: .35rem 0 0; padding: 0 0 0 .75rem; color: var(--ink-soft);
+  border-left: 2px solid var(--line); font-style: italic;
+}
+.comment-feed li { padding: .85rem 0; }
 
 /* --- notifications (own profile) --- */
 .notif-dot {
@@ -879,6 +896,17 @@ a.rs-slot { text-decoration: none; }
   box-shadow: var(--rs-step-in), inset 0 0 0 1px color-mix(in oklab, #C9A648 40%, transparent);
 }
 .rs-innov-strip.on { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
+
+/* Quoted comment text is itself the way in: same quiet color as before,
+   underline only on hover, block display preserved. */
+a.notif-snippet, a.cf-quote { display: block; color: var(--ink-mute); text-decoration: none; }
+a.notif-snippet:hover, a.cf-quote:hover { color: var(--ink); text-decoration: underline; }
+
+/* A deep-linked comment announces itself: the gold outline, standing, no
+   animation. The timestamp is the permalink. */
+.comment:target { outline: 1px solid var(--rs-gold); outline-offset: 2px; }
+.comment a.when { color: var(--ink-mute); font-size: .85rem; text-decoration: none; margin-left: .5rem; }
+.comment a.when:hover { color: var(--rs-gold); }
 
 /* The bio at the skills panel's foot: flavor text in the examine-text
    voice — italic and muted, so it can never be mistaken for a stat. */

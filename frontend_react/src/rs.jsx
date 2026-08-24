@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /* ============================================================
    RS chrome shared pieces (RuneScape Profile Spec).
@@ -66,4 +66,16 @@ export function LevelFraction({ level }) {
       <span className="rs-frac-cur">{level}</span><span className="rs-frac-div" aria-hidden="true">&#8725;</span><span className="rs-frac-cap">99</span>
     </span>
   );
+}
+
+/* Deep links into comments: the page renders after navigation, so the
+   browser's native #fragment jump fires into nothing. Call with a truthy
+   flag once the content is on the page; finds the anchor and centers it.
+   CSS :target does the highlight for free. */
+export function useHashTarget(ready) {
+  useEffect(() => {
+    if (!ready || !window.location.hash) return;
+    const el = document.getElementById(window.location.hash.slice(1));
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+  }, [ready]);
 }

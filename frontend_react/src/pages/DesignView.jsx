@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import ProducedSection from '../ProducedSection.jsx';
 import DocRevisions from '../DocRevisions.jsx';
 import ErrorBar from '../ErrorBar.jsx';
-import { SkillIcon } from '../rs.jsx';
+import { SkillIcon, useHashTarget } from '../rs.jsx';
 
 const fmtSize = (n) => n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -53,6 +53,7 @@ export default function DesignView() {
   const [builtSignal, setBuiltSignal] = useState(0);   // Actions' "I built one" opens the Produced form
 
   const load = () => api(`/designs/${id}`).then(setD).catch(e => setError(e.message));
+  useHashTarget(!!d);
   useEffect(() => { load(); }, [id]);
   useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
 
@@ -68,7 +69,7 @@ export default function DesignView() {
       note: h.editNote,
       snapshot: { version: h.version, files: h.files || [] },
     }));
-    return [...entries, { version: 1, at: d.createdAt, by: d.author.username, changes: ['Published'], note: '' }];
+    return [...entries, { version: 1, at: d.createdAt, by: d.author.username, changes: [], note: '' }];
   }, [d]);
 
   // Only a failed LOAD takes the page; a failed action must never blank a
@@ -466,7 +467,7 @@ export default function DesignView() {
               </div>
             ))}
             {d.comments.map(c => (
-              <div className="comment" key={c._id}>
+              <div className="comment" key={c._id} id={`c-${c._id}`}>
                 <span className="who">{c.author?.username
                   ? <>
                       <img className="avatar-sm" src={avatarUrl(c.author.username, 22)} alt="" width="22" height="22" loading="lazy" />
@@ -477,7 +478,7 @@ export default function DesignView() {
                             {c.author.chip.title} · {c.author.chip.name} {c.author.chip.level}
                           </span>)}
                     </>
-                  : 'deleted'}</span><span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
+                  : 'deleted'}</span><a className="when" href={`#c-${c._id}`} title={fmtExact(c.createdAt) + ' — link to this comment'}>{fmtWhen(c.createdAt)}</a>
                 {user && (user.id === c.author?._id || canModerate) &&
                   <button className="btn btn-ghost btn-sm" style={{ float: 'right' }} onClick={() => delComment(c._id)}>Delete</button>}
                 <p>{c.body}</p>
@@ -537,23 +538,23 @@ export default function DesignView() {
             <div className="rs-actions-row">
               <button className={'btn btn-ghost btn-sm vote' + (d.upvoted ? ' on' : '')} onClick={() => vote('upvote')} aria-pressed={d.upvoted}>▲ <span className="rs-num">{d.upvoteCount}</span></button>
               <button className={'btn btn-ghost btn-sm vote vote-down' + (d.downvoted ? ' on' : '')} onClick={() => vote('downvote')} aria-pressed={d.downvoted}>▼ <span className="rs-num">{d.downvoteCount || 0}</span></button>
-              {/* §1.5: the version/remix line is whether the old one should
-                  still be recommended afterward. Owners choose; everyone
-                  else's change is a remix by definition. */}
-              {!mine && <button className="btn btn-sm btn-build" onClick={buildOnThis}
-                      title="Start a remix: your own copy to change, linked to the original">Build on this</button>}
+              {/* One name for the remix action, whoever you are (§1.5): Build
+                  on this starts a coexisting copy. Owners additionally get
+                  Edit this page, which versions this page in place. */}
+              <button className="btn btn-sm btn-build" onClick={buildOnThis}
+                      title={mine
+                        ? 'A variant with its own page beside this one. Should the old one still be recommended? Yes: build on it.'
+                        : 'Start a remix: your own copy to change, linked to the original'}>Build on this</button>
               <button className="btn btn-primary btn-sm" onClick={() => user ? setBuiltSignal(n => n + 1) : nav('/login', { state: { from: `/works/${id}` } })}>I built one</button>
               <Link className="btn btn-ghost btn-sm" to={`/talk?work=${id}`}>Talk</Link>
               <Link className="btn btn-build btn-sm" to={`/talk/new?work=${id}`}>+ Thread</Link>
               <Link className="btn btn-ghost btn-sm" to={`/works/${id}/tree`}
                     title="Back to the original and out to every remix; branches sort by verified builds">
                 Remixes{lin.familyCount > 1 && <> <span className="rs-num">{lin.familyCount}</span></>}</Link>
-              {/* Distinct colors carry the distinction: teal replaces (update),
-                  green coexists (remix, same color as Build on this). */}
+              {/* Distinct colors carry the distinction: teal edits in place,
+                  green coexists (Build on this, above). */}
               {mine && <Link className="btn btn-sm btn-update" to={`/works/${id}/edit`}
-                      title="A new version of this page; the old one drops into history. Should the old one still be recommended? No: update.">Update this page</Link>}
-              {mine && <button className="btn btn-sm btn-build" onClick={buildOnThis}
-                      title="A variant with its own page beside this one. Should the old one still be recommended? Yes: remix.">Remix this work</button>}
+                      title="A new version of this page; the old one drops into history. Should the old one still be recommended? No: edit.">Edit this page</Link>}
               {canModerate && <button className="btn btn-danger btn-sm" onClick={delDesign}>Delete</button>}
               {/* One flag for everything wrong: red while armed. Categories
                   route to the community-judged dispute beside the chips; the
@@ -782,34 +783,8 @@ export default function DesignView() {
             </ol>
           </div>
 
-          {/* §3: the branch scoreboard. Versions above replace each other;
-              this panel is what coexists beside this work. */}
-          {(lin.familyCount > 1 || lin.children.length > 0) && (
-            <div className="panel">
-              <h2>Remixes</h2>
-              <p className="stat">
-                {lin.isOriginal
-                  ? 'This is the root.'
-                  : <>Remix of {lin.parent
-                      ? <Link to={`/works/${lin.parent.id}`}>{lin.parent.title}</Link>
-                      : <em>a removed work</em>}
-                      {lin.rootTitle && <> · root: <Link to={`/works/${lin.root}`}>{lin.rootTitle}</Link></>}</>}
-                {' '}<span className="rs-num">{lin.familyCount}</span> in the family, counting the original.
-              </p>
-              {lin.children.length > 0 && (
-                <ul className="family-list">
-                  {[...lin.children].sort((a, b) => (b.producedCount || 0) - (a.producedCount || 0)).map(c => (
-                    <li key={c.id}>
-                      <Link to={`/works/${c.id}`}>{c.title}</Link>
-                      <span className="stat"> by {c.author}{c.producedCount > 0 && <> · produced <span className="rs-num">{c.producedCount}</span>×</>}</span>
-                      {c.remixNote && <em className="remix-note">{c.remixNote}</em>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="stat" style={{ marginBottom: 0 }}><Link to={`/works/${id}/tree`}>Whole family tree</Link></p>
-            </div>
-          )}
+          {/* The remix scoreboard lives on the family tree page; the Actions
+              panel's Remixes link is the one door to it. */}
         </aside>
         </div>
     </>
