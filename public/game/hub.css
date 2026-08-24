@@ -179,9 +179,19 @@ a.game-card:focus-visible {
         radial-gradient(50% 40% at 15% -10%, rgba(227,85,43,.22) 0%, transparent 60%),
         #07060A;
 }
+.card-thumb.thumb-heist {
+    background:
+        radial-gradient(65% 50% at 50% 110%, rgba(227,178,60,.30) 0%, transparent 66%),
+        radial-gradient(55% 45% at 78% -8%, rgba(180,35,28,.28) 0%, transparent 62%),
+        #07060A;
+}
 .card-thumb.thumb-tba {
     background:
         repeating-linear-gradient(45deg, #100B10 0 10px, #0C080C 10px 20px);
+}
+.thumb-sub.gold {
+    color: #E3B23C;
+    text-shadow: 0 1px 0 #000, 0 0 14px rgba(227,178,60,.65);
 }
 
 .thumb-inner { padding: .5rem; }

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>RoboKyle: Grand Heist</title>
+    <meta name="description" content="RoboKyle: Grand Heist — a top-down arcade heist shooter. Build a crew, rob 20 banks, and spend the haul on an escalating weapon tree.">
+    <link rel="icon" type="image/png" href="/public/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="grand-heist.css">
+</head>
+<body class="game-body">
+
+    <a class="skip-link" href="#game-main">Skip to game</a>
+
+    <div class="game-shell" id="game-main">
+        <div class="game-frame" role="application" aria-label="RoboKyle: Grand Heist">
+
+            <!-- ============ TITLE ============ -->
+            <section class="screen centered active" id="screen-title">
+                <div>
+                    <h1 class="rk-logo"><span class="robo">Robo</span><span class="kyle">Kyle</span></h1>
+                    <p class="rk-subtitle">Grand Heist</p>
+                    <p class="rk-tagline">Rob &middot; Gear &middot; Repeat</p>
+                    <ul class="menu-list">
+                        <li><button class="menu-btn is-primary" id="btn-continue">Continue Run</button></li>
+                        <li><button class="menu-btn" id="btn-new">New Run</button></li>
+                        <li><button class="menu-btn" id="btn-howto">How to Play</button></li>
+                        <li><button class="menu-btn" id="btn-settings">Settings</button></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ============ CAMPAIGN MAP ============ -->
+            <section class="screen" id="screen-map">
+                <div class="bar">
+                    <button class="menu-back" data-goto="title">Menu</button>
+                    <h2 class="screen-title">Pick your <span class="accent">next job</span></h2>
+                    <span class="cash-pill">Bank: <b id="map-cash">$0</b></span>
+                </div>
+                <p class="screen-sub">Intel is on every card. Bigger vaults come with faster response times and better-armed police.</p>
+                <div class="bank-grid" id="map-list"></div>
+            </section>
+
+            <!-- ============ CREW SELECT ============ -->
+            <section class="screen" id="screen-crew">
+                <div class="bar">
+                    <button class="menu-back" data-goto="map">Map</button>
+                    <h2 class="screen-title">Who&rsquo;s <span class="accent">coming</span>?</h2>
+                    <span class="cash-pill">Bank: <b id="crew-cash">$0</b></span>
+                </div>
+                <p class="screen-sub">
+                    Job: <b id="crew-bank"></b> &mdash; pick <b id="crew-count">0 / 3</b>.
+                    Benched crew are safe. Only the ones you bring can die.
+                </p>
+                <p class="warn-note" id="crew-recruit-note">You are short of a full crew. Recruit before you roll out.</p>
+                <div class="crew-grid" id="crew-list"></div>
+                <div class="row-actions">
+                    <button class="menu-btn" id="btn-hire">Recruit</button>
+                    <button class="menu-btn is-primary" id="btn-to-armory">Armory &rarr;</button>
+                </div>
+            </section>
+
+            <!-- ============ RECRUIT ============ -->
+            <section class="screen" id="screen-recruit">
+                <div class="bar">
+                    <button class="menu-back" data-goto="crew">Back</button>
+                    <h2 class="screen-title">Three people <span class="accent">need work</span></h2>
+                    <span class="cash-pill">Bank: <b id="recruit-cash">$0</b></span>
+                </div>
+                <p class="screen-sub">Hiring costs <b id="recruit-cost">Free</b>. Stats are rolled; traits are permanent.</p>
+                <div class="crew-grid" id="recruit-list"></div>
+            </section>
+
+            <!-- ============ ARMORY ============ -->
+            <section class="screen" id="screen-armory">
+                <div class="bar">
+                    <button class="menu-back" data-goto="crew">Crew</button>
+                    <h2 class="screen-title">The <span class="accent">Armory</span></h2>
+                    <span class="cash-pill">Bank: <b id="armory-cash">$0</b></span>
+                </div>
+                <p class="screen-sub">Kitting out for <b id="armory-bank"></b>. Gear is owned permanently &mdash; buy once, re-equip forever.</p>
+
+                <div class="armory-tabs" id="armory-tabs"></div>
+                <dl class="armory-readout" id="armory-readout"></dl>
+
+                <div class="shop-cols">
+                    <div class="shop-col">
+                        <h3 class="shop-head-title">Weapons</h3>
+                        <div class="shop-list" id="shop-weapons"></div>
+                    </div>
+                    <div class="shop-col">
+                        <h3 class="shop-head-title">Bags</h3>
+                        <div class="shop-list" id="shop-bags"></div>
+                        <h3 class="shop-head-title">Armour</h3>
+                        <div class="shop-list" id="shop-armor"></div>
+                    </div>
+                    <div class="shop-col">
+                        <h3 class="shop-head-title">Masks</h3>
+                        <div class="shop-list" id="shop-masks"></div>
+                    </div>
+                </div>
+
+                <div class="row-actions">
+                    <button class="menu-btn is-primary" id="btn-launch">Start the job &rarr;</button>
+                </div>
+            </section>
+
+            <!-- ============ HEIST ============ -->
+            <section class="screen is-heist" id="screen-heist">
+                <div class="heist-wrap">
+                    <canvas id="heist-canvas"></canvas>
+
+                    <div class="hud">
+                        <div class="hud-left">
+                            <div class="hud-block">
+                                <span class="k">RoboKyle</span>
+                                <span class="hud-bar big"><i id="hud-hp-fill"></i></span>
+                                <span class="v" id="hud-hp-val">120</span>
+                            </div>
+                            <div class="hud-block">
+                                <span class="k">Carrying</span>
+                                <span class="hud-bar"><i id="hud-carry-fill" class="cash"></i></span>
+                                <span class="v" id="hud-carry-val">$0</span>
+                            </div>
+                            <div class="hud-crew" id="hud-crew"></div>
+                        </div>
+
+                        <div class="hud-mid">
+                            <div class="hud-alarm quiet" id="hud-alarm"><span class="k">Status</span><span class="v">Quiet</span></div>
+                            <p class="hud-objective" id="hud-objective"></p>
+                        </div>
+
+                        <div class="hud-right">
+                            <div class="hud-block col">
+                                <span class="k">Weapon</span>
+                                <span class="v big" id="hud-weapon">Knife</span>
+                                <span class="v" id="hud-ammo">—</span>
+                            </div>
+                            <div class="hud-block col">
+                                <span class="k">Squad total</span>
+                                <span class="v big" id="hud-total">$0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="heist-hint">WASD move &middot; Mouse aim &middot; Click shoot &middot; E interact &middot; R reload &middot; Q melee &middot; F stance &middot; G ping &middot; Tab map &middot; Esc pause</p>
+
+                    <!-- touch buttons, shown only on touch devices -->
+                    <div class="touch-ui" id="heist-touch">
+                        <button id="t-interact">E</button>
+                        <button id="t-reload">R</button>
+                        <button id="t-stance">F</button>
+                        <button id="t-map">MAP</button>
+                        <button id="t-pause">II</button>
+                    </div>
+
+                    <div class="overlay" id="heist-pause">
+                        <div>
+                            <h2>Paused</h2>
+                            <div class="buttons">
+                                <button class="menu-btn is-primary" id="btn-resume">Resume</button>
+                                <button class="menu-btn" id="btn-abandon">Abandon Job</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ DEBRIEF ============ -->
+            <section class="screen" id="screen-debrief">
+                <h2 class="screen-title" id="debrief-title">Debrief</h2>
+                <div class="debrief-body" id="debrief-body"></div>
+
+                <div id="debrief-levels-wrap">
+                    <h3 class="shop-head-title">Level ups &mdash; spend your points</h3>
+                    <div id="debrief-levels"></div>
+                    <button class="menu-btn small" id="btn-auto-assign">Auto-assign</button>
+                </div>
+
+                <div class="row-actions">
+                    <button class="menu-btn is-primary" id="btn-debrief-done">Back to the map</button>
+                </div>
+            </section>
+
+            <!-- ============ HOW TO ============ -->
+            <section class="screen" id="screen-howto">
+                <div class="bar">
+                    <button class="menu-back" data-goto="title">Menu</button>
+                    <h2 class="screen-title">How to <span class="accent">play</span></h2>
+                    <span></span>
+                </div>
+
+                <h3 class="shop-head-title">The loop</h3>
+                <p class="screen-sub">
+                    Pick a bank, pick three crew, spend your cash in the Armory, then pull the job.
+                    Money you carry out is both your score and your budget for the next one.
+                </p>
+
+                <h3 class="shop-head-title">Controls</h3>
+                <div class="controls-grid">
+                    <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
+                    <div><kbd>Mouse</kbd> Aim</div>
+                    <div><kbd>Click</kbd> Shoot or swing</div>
+                    <div><kbd>R</kbd> Reload</div>
+                    <div><kbd>E</kbd> Interact: drill, grab, revive</div>
+                    <div><kbd>Q</kbd> Swap to melee</div>
+                    <div><kbd>Space</kbd> Dodge roll</div>
+                    <div><kbd>F</kbd> Crew: follow / hold</div>
+                    <div><kbd>G</kbd> Ping a target</div>
+                    <div><kbd>Tab</kbd> Full map</div>
+                    <div><kbd>Esc</kbd> Pause</div>
+                </div>
+
+                <h3 class="shop-head-title">Things worth knowing</h3>
+                <ul class="tips">
+                    <li><b>Melee is silent.</b> Guns are not. You can knife an isolated guard before anyone hits the alarm.</li>
+                    <li><b>The alarm starts the clock.</b> Police arrive when it runs out, set up outside, then breach if you linger.</li>
+                    <li><b>Carry capacity is the cap on greed.</b> Bigger bags and the Carry stat decide how much you can actually take.</li>
+                    <li><b>Crew death is permanent.</b> They drop their cash where they fall &mdash; grab it before you leave, or it is gone.</li>
+                    <li><b>Their gear is not lost.</b> Equipment returns to the Armory as long as you extract.</li>
+                    <li><b>RoboKyle cannot permanently die.</b> He gets one self-revive per job; after that a crew member has to reach him.</li>
+                </ul>
+            </section>
+
+            <!-- ============ SETTINGS ============ -->
+            <section class="screen" id="screen-settings">
+                <div class="bar">
+                    <button class="menu-back" data-goto="title">Menu</button>
+                    <h2 class="screen-title"><span class="accent">Settings</span></h2>
+                    <span></span>
+                </div>
+                <div class="settings-grid">
+                    <div class="setting">
+                        <label for="set-sfx">Sound effects: <span id="set-sfx-val">50%</span></label>
+                        <input type="range" id="set-sfx" min="0" max="100" value="50">
+                    </div>
+                    <div class="setting">
+                        <label for="set-music">Sirens &amp; ambience: <span id="set-music-val">30%</span></label>
+                        <input type="range" id="set-music" min="0" max="100" value="30">
+                    </div>
+                    <div class="setting">
+                        <label for="set-shake"><input type="checkbox" id="set-shake" checked> Screen shake</label>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <nav class="back-strip" aria-label="Site">
+            <a href="/public/game/game.html">&larr; All Games</a>
+            <a href="/index.html">Robo Kyle</a>
+            <a href="/works">Works</a>
+            <a href="/about.html">About</a>
+        </nav>
+    </div>
+
+    <script src="/public/site.js"></script>
+    <script src="data.js"></script>
+    <script src="meta.js"></script>
+    <script src="heist.js"></script>
+</body>
+</html>
