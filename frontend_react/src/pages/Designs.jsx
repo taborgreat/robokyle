@@ -3,23 +3,41 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api, fileUrl } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 
+const SORTS = [
+  ['new', 'Most recent'],
+  ['downloads', 'Most downloaded'],
+  ['top', 'Most upvoted'],
+];
+
 export default function Designs() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') || '';
+  const tag = params.get('tag') || '';
   const sort = params.get('sort') || 'new';
   const page = Number(params.get('page') || 1);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState(q);
 
-  useEffect(() => {
-    setError('');
-    api(`/designs?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}`).then(setData).catch(e => setError(e.message));
-  }, [q, sort, page]);
+  useEffect(() => { setSearch(q); }, [q]);
 
-  const update = (patch) => setParams({ q, sort, page: 1, ...patch });
+  useEffect(() => {
+    setError(''); setData(null);
+    const query = new URLSearchParams({ sort, page });
+    if (q) query.set('q', q);
+    if (tag) query.set('tag', tag);
+    api(`/designs?${query}`).then(setData).catch(e => setError(e.message));
+  }, [q, tag, sort, page]);
+
+  // Every control rewrites the URL, so filters survive a refresh and can be shared.
+  const update = (patch) => {
+    const next = { sort, page: 1, ...(q ? { q } : {}), ...(tag ? { tag } : {}), ...patch };
+    for (const k of Object.keys(next)) if (!next[k]) delete next[k];
+    setParams(next);
+  };
   const pages = data ? Math.ceil(data.total / data.limit) : 0;
+  const filtered = !!(q || tag);
 
   return (
     <>
@@ -33,19 +51,52 @@ export default function Designs() {
         </Link>
       </div>
 
-      <form className="toolbar" onSubmit={e => { e.preventDefault(); update({ q: search }); }} role="search">
-        <input type="search" placeholder="Search works…" aria-label="Search works" value={search} onChange={e => setSearch(e.target.value)} />
-        <select aria-label="Sort" value={sort} onChange={e => update({ sort: e.target.value })}>
-          <option value="new">Newest</option>
-          <option value="top">Most upvoted</option>
-          <option value="downloads">Most downloaded</option>
-        </select>
-        <button className="btn btn-ghost" type="submit">Search</button>
-      </form>
+      <div className="filter-bar">
+        <form className="filter-group" role="search"
+              onSubmit={e => { e.preventDefault(); update({ q: search.trim() }); }}>
+          <label className="filter-label" htmlFor="works-search">Search</label>
+          <div className="search-row">
+            <input id="works-search" type="search" placeholder="Title, description or tag…"
+                   value={search} onChange={e => setSearch(e.target.value)} />
+            <button className="btn btn-ghost btn-sm" type="submit">Search</button>
+          </div>
+        </form>
+
+        <fieldset className="filter-group">
+          <legend>Sort</legend>
+          <div className="options">
+            {SORTS.map(([value, label]) => (
+              <label key={value}>
+                <input type="radio" name="sort" value={value}
+                       checked={sort === value} onChange={() => update({ sort: value })} />
+                <span className="filter-pill">{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </div>
+
+      {(filtered || data) && (
+        <div className="results-row">
+          <span className="stat">
+            {data
+              ? <>{data.total} {data.total === 1 ? 'work' : 'works'}{q && <> matching “{q}”</>}{tag && <> tagged “{tag}”</>}</>
+              : 'Loading…'}
+          </span>
+          {filtered && (
+            <button type="button" className="btn btn-ghost btn-sm"
+                    onClick={() => { setSearch(''); setParams({ sort }); }}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {error && <div className="form-error" role="alert">{error}</div>}
       {data && data.items.length === 0 && (
-        <p className="empty">Nothing here yet. Be the first to add one.</p>
+        <p className="empty">{filtered
+          ? 'Nothing matched that. Try a broader search.'
+          : 'Nothing here yet. Be the first to add one.'}</p>
       )}
       <div className="design-grid">
         {data?.items.map(d => (
@@ -80,9 +131,9 @@ export default function Designs() {
 
       {pages > 1 && (
         <div className="toolbar" style={{ justifyContent: 'center', marginTop: '2rem' }}>
-          <button className="btn btn-ghost" disabled={page <= 1} onClick={() => setParams({ q, sort, page: page - 1 })}>&larr; Prev</button>
+          <button className="btn btn-ghost" disabled={page <= 1} onClick={() => update({ page: page - 1 })}>&larr; Prev</button>
           <span className="stat" style={{ alignSelf: 'center' }}>Page {page} of {pages}</span>
-          <button className="btn btn-ghost" disabled={page >= pages} onClick={() => setParams({ q, sort, page: page + 1 })}>Next &rarr;</button>
+          <button className="btn btn-ghost" disabled={page >= pages} onClick={() => update({ page: page + 1 })}>Next &rarr;</button>
         </div>
       )}
     </>

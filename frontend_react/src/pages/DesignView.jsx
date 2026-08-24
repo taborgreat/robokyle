@@ -119,7 +119,7 @@ export default function DesignView() {
           <div className="panel">
             <p className="desc">{d.description}</p>
             {d.tags.length > 0 && <div className="meta" style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>
-              {d.tags.map(t => <Link key={t} className="tag" to={`/works?q=${encodeURIComponent(t)}`}>{t}</Link>)}</div>}
+              {d.tags.map(t => <Link key={t} className="tag" to={`/works?tag=${encodeURIComponent(t)}`}>{t}</Link>)}</div>}
           </div>
 
           {hasGuide && (

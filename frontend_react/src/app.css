@@ -121,14 +121,15 @@
 /* --- sign-in and email verification --- */
 .form-intro { color: var(--ink-mute); margin: -.25rem 0 1.25rem; font-size: .95rem; }
 .google-signin { display: flex; flex-direction: column; align-items: center; gap: .9rem; margin-bottom: 1.25rem; }
+/* Flex rules rather than calc() offsets, so the rules either side of the label
+   shrink with the screen instead of going negative and disappearing. */
 .google-signin .or {
-  position: relative; width: 100%; text-align: center; color: var(--ink-mute); font-size: .85rem;
+  display: flex; align-items: center; gap: .75rem; width: 100%;
+  color: var(--ink-mute); font-size: .85rem;
 }
 .google-signin .or::before, .google-signin .or::after {
-  content: ""; position: absolute; top: 50%; width: calc(50% - 9rem); height: 1px; background: var(--line);
+  content: ""; flex: 1 1 0; min-width: 1rem; height: 1px; background: var(--line);
 }
-.google-signin .or::before { left: 0; }
-.google-signin .or::after { right: 0; }
 
 .verify-banner {
   display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem;
@@ -157,3 +158,33 @@
 .comment-feed li:first-child { border-top: 0; }
 .comment-feed .when { color: var(--ink-mute); font-size: .82rem; margin-left: .5rem; }
 .comment-feed p { margin: .3rem 0 0; color: var(--ink-soft); white-space: pre-wrap; }
+
+/* --- works filter bar --- */
+.filter-label, .filter-group legend {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: .78rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: .55rem;
+}
+.search-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.search-row input {
+  flex: 1 1 10rem; min-width: 0; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 999px; padding: .5rem .9rem;
+}
+.search-row .btn { flex: none; }
+.results-row {
+  display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center;
+  justify-content: space-between; margin: -1rem 0 1.25rem;
+}
+
+/* --- small screens --- */
+@media (max-width: 560px) {
+  .form-card { padding: 1.25rem; }
+  .app-main { padding: 2rem 0 3rem; }
+  .profile-stats { gap: .75rem .5rem; }
+}
+/* A long unbroken title or username should wrap rather than widen the page. */
+.design-card h3, .app-head h1, .profile-name { overflow-wrap: break-word; }
