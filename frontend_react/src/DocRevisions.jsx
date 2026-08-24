@@ -66,7 +66,7 @@ export default function DocRevisions({ workId, steps, user, isAuthor, onApplied,
                       onClick={() => vote(r.id, 1)} title="These words are better">▲</button>
               <button className={'link-btn' + (r.myVote === -1 ? ' on' : '')} disabled={r.mine}
                       onClick={() => vote(r.id, -1)} title="Keep the original">▼</button>
-              <span className="stat">{r.netApproval} of {r.acceptBar} weighted approval for community acceptance</span>
+              <span className="stat"><span className="rs-num">{r.netApproval}</span> of {r.acceptBar} weighted approval for community acceptance</span>
               {r.canDecide && <>
                 <button className="link-btn" onClick={() => decide(r.id, 'accept')}>Accept</button>
                 <button className="link-btn" onClick={() => decide(r.id, 'veto')}>Veto</button>

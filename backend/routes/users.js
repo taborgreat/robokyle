@@ -10,7 +10,7 @@ const xp = require('../lib/xp');
 
 const router = express.Router();
 const RECENT_COMMENTS = 15;
-const WORKS_ON_PROFILE = 24;
+const WORKS_ON_PROFILE = 28;   // the RS inventory: 4 wide, 7 tall
 
 /* GET /api/users?sort=roboxp&category=mech&page=&limit=
    The Creators page: every account ranked by RoboXP — verified value produced,
@@ -50,6 +50,11 @@ router.patch('/me', requireAuth, async (req, res, next) => {
     if (Array.isArray(req.body.equipment)) {
       const ok = new Set(xp.config.equipmentItems);
       req.user.equipment = [...new Set(req.body.equipment.map(String).filter(i => ok.has(i)))];
+    }
+    if (typeof req.body.equipmentHidden === 'boolean') req.user.equipmentHidden = req.body.equipmentHidden;
+    if (Array.isArray(req.body.inventoryOrder)) {
+      req.user.inventoryOrder = [...new Set(req.body.inventoryOrder.map(String)
+        .filter(id => /^[a-f0-9]{24}$/i.test(id)))].slice(0, 200);
     }
     await req.user.save();
     /* The intro receipt (a real bio) is derived; AWAIT the recompute so the
@@ -126,7 +131,9 @@ router.get('/:username/avatar.svg', async (req, res, next) => {
       .select('username xp createdAt');
     if (!user) return res.status(404).json({ error: 'No such member' });
     const { avatarSvg } = require('../lib/avatar');
-    const svg = avatarSvg(xp.levelsOf(user).levels, user.username);
+    // ?s=22 — the display size in px; below 64 the wedge gaps are dropped.
+    const size = parseInt(req.query.s, 10);
+    const svg = avatarSvg(xp.levelsOf(user).levels, user.username, { gaps: !(size > 0 && size < 64) });
     const etag = `"${crypto.createHash('sha1').update(svg).digest('hex').slice(0, 16)}"`;
     res.set('Cache-Control', 'public, max-age=300');
     res.set('ETag', etag);
@@ -146,7 +153,11 @@ router.get('/:username', optionalAuth, async (req, res, next) => {
     const viewerId = viewer ? viewer._id : null;
     const isSelf = !!viewer && viewer._id.equals(user._id);
 
-    const [works, totals, commentTotal, comments] = await Promise.all([
+    /* The owner's curated front-of-bag: card docs for the ordered ids are
+       fetched alongside the newest works and merged order-first below. */
+    const orderIds = (user.inventoryOrder || []).slice(0, WORKS_ON_PROFILE);
+
+    const [works, totals, commentTotal, comments, talkPosts, acceptedCount, orderedCards, contributions] = await Promise.all([
       Design.aggregate(cardPipeline({
         match: { author: user._id }, sort: 'new', limit: WORKS_ON_PROFILE, viewerId,
       })),
@@ -190,7 +201,47 @@ router.get('/:username', optionalAuth, async (req, res, next) => {
             };
           });
         }),
+      /* Their Talk presence: threads they started, newest activity first, and
+         how many of their answers other people accepted. */
+      TalkPost.find({ author: user._id })
+        .select('type title board plan.status becameWork acceptedAnswer archivedAt lastActivityAt createdAt')
+        .sort({ lastActivityAt: -1 })
+        .limit(10),
+      Comment.find({ author: user._id, targetType: 'talk', deletedAt: null }).select('_id')
+        .then(cs => TalkPost.countDocuments({ acceptedAnswer: { $in: cs.map(c => c._id) } })),
+      orderIds.length
+        ? Design.aggregate(cardPipeline({
+            match: { author: user._id, _id: { $in: orderIds } },
+            sort: 'new', limit: WORKS_ON_PROFILE, viewerId,
+          }))
+        : [],
+      /* The Contributions line: works they improved but do not own — applied
+         doc revisions on other people's works. Not inventory; the bag stays
+         things you made. */
+      require('../models/DocRevision')
+        .find({ author: user._id, appliedAt: { $ne: null } })
+        .select('work').populate('work', 'title author')
+        .then(rs => {
+          const seen = new Map();
+          for (const r of rs) {
+            if (r.work && String(r.work.author) !== String(user._id)) {
+              seen.set(String(r.work._id), { id: r.work._id, title: r.work.title });
+            }
+          }
+          return [...seen.values()].slice(0, 12);
+        }),
     ]);
+
+    /* Inventory order: the works the owner pinned come first in their chosen
+       order; everything else follows newest-first. */
+    const cardById = new Map();
+    for (const c of shapeCards([...orderedCards, ...works])) cardById.set(String(c.id), c);
+    const front = [];
+    for (const id of orderIds) {
+      const c = cardById.get(String(id));
+      if (c && !front.includes(c)) front.push(c);
+    }
+    for (const c of cardById.values()) if (!front.includes(c)) front.push(c);
 
     const sum = totals[0] || {};
     res.json({
@@ -200,7 +251,12 @@ router.get('/:username', optionalAuth, async (req, res, next) => {
       role: user.role,
       joined: user.createdAt,
       isSelf,
-      equipment: isSelf ? (user.equipment || []) : undefined,
+      /* RS Profile Spec: the tools shelf is identity — public by default,
+         with a per-user hide toggle. */
+      equipment: (isSelf || !user.equipmentHidden) ? (user.equipment || []) : [],
+      equipmentHidden: isSelf ? !!user.equipmentHidden : undefined,
+      inventoryOrder: isSelf ? (user.inventoryOrder || []).map(String) : undefined,
+      contributions,
       // Admins can change anyone's role but their own, which keeps them from
       // locking themselves out by accident.
       canManageRole: !!viewer && viewer.role === 'admin' && !isSelf,
@@ -211,9 +267,21 @@ router.get('/:username', optionalAuth, async (req, res, next) => {
         files: sum.files || 0,
         guides: sum.guides || 0,
         comments: commentTotal,
+        accepted: acceptedCount,
       },
-      works: shapeCards(works),
+      works: front.slice(0, WORKS_ON_PROFILE),
       comments,
+      talk: {
+        accepted: acceptedCount,
+        posts: talkPosts.map(t => ({
+          id: t._id, type: t.type, title: t.title, board: t.board,
+          status: t.becameWork ? 'became a work'
+            : t.type === 'plan' ? ((t.plan && t.plan.status) || 'open')
+            : t.type === 'question' ? (t.acceptedAnswer ? 'answered' : 'open')
+            : t.archivedAt ? 'archived' : null,
+          at: t.lastActivityAt || t.createdAt,
+        })),
+      },
     });
   } catch (err) { next(err); }
 });

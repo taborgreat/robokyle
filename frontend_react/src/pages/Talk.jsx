@@ -159,7 +159,7 @@ export default function Talk() {
                 {boards.find(b => b.id === p.board)?.name} by{' '}
                 <Link to={`/user/${p.author.username}`}>{p.author.username}</Link>
                 {' · '}{p.commentCount} {p.commentCount === 1 ? 'comment' : 'comments'}
-                {p.score !== 0 && <> · usefulness {p.score}</>}
+                {p.score !== 0 && <> · usefulness <span className="rs-num">{p.score}</span></>}
                 {p.type === 'plan' && p.plan?.participants > 1 && <> · {p.plan.participants} in</>}
                 {' · '}{fmtWhen(p.lastActivityAt || p.createdAt)}
               </span>

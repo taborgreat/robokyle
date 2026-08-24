@@ -63,7 +63,7 @@ export default function TalkForm() {
   const needsWork = type === 'linked';
   return (
     <>
-      <p><Link to="/talk">&larr; Talk</Link></p>
+      <p className="back-link"><Link to="/talk">&larr; Talk</Link></p>
       <h1>New post</h1>
       <form className="panel wizard-panel" onSubmit={submit}>
         <div className="field">
@@ -82,9 +82,12 @@ export default function TalkForm() {
         <div className="field">
           <label htmlFor="tb">Board</label>
           <select id="tb" required value={board} onChange={e => setBoard(e.target.value)}>
-            <option value="" disabled>The skill this belongs to…</option>
+            <option value="" disabled>The main skill this exercises…</option>
             {boards.map(b => <option key={b.id} value={b.id}>{b.name}: {b.scope}</option>)}
           </select>
+          <small>Boards are skills, not topics. Something that spans several
+            (software for future hardware, say) lives where the core build
+            happens{type === 'plan' && <>, and lists the rest under skills needed below</>}.</small>
           {boardsError && <small className="form-error" role="alert">{boardsError}</small>}
         </div>
 

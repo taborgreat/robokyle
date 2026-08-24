@@ -442,6 +442,12 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const filter = {};
     if (q) filter.$text = { $search: String(q) };
     if (tag) filter.tags = String(tag);
+    // ?by=username: one member's works, for the profile's bank view.
+    if (req.query.by) {
+      const owner = await User.findOne({ usernameLower: String(req.query.by).toLowerCase() }).select('_id');
+      if (!owner) return res.json({ items: [], page, limit, total: 0 });
+      filter.author = owner._id;
+    }
     // The standard pickers (ports editor) browse standards only.
     if (req.query.type === 'standard' || req.query.type === 'design') filter.type = req.query.type;
     if (req.query.facet && xp.config.softwareFacets.includes(req.query.facet)) filter.facets = req.query.facet;

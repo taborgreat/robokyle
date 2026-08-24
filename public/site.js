@@ -154,66 +154,103 @@
     return node;
   }
 
-  function workCard(work) {
-    var card = el("a", "design-card");
-    card.href = "/works/" + work.id;
+  /* One work as one inventory slot: square image (or the placeholder mark),
+     Produced count as the gold stack number, examine text on the title. */
+  function workSlot(work) {
+    var slot = el("a", "ts-slot");
+    slot.href = "/works/" + work.id;
+    var examine = work.title;
+    if (work.description) examine += ". " + work.description.slice(0, 120);
+    slot.title = examine;
+    slot.setAttribute("aria-label", work.title);
 
-    var thumb = el("div", "thumb");
     if (work.thumbUrl) {
-      thumb.className = "thumb has-photo";
       var img = el("img");
       img.src = apiBase() + work.thumbUrl;
       img.alt = "";
       img.loading = "lazy";
-      thumb.appendChild(img);
+      slot.appendChild(img);
     } else {
-      thumb.setAttribute("aria-hidden", "true");
-      thumb.innerHTML = PLACEHOLDER_THUMB;
+      var ph = el("span");
+      ph.setAttribute("aria-hidden", "true");
+      ph.innerHTML = PLACEHOLDER_THUMB;
+      slot.appendChild(ph);
     }
-
-    var body = el("div", "body");
-    body.appendChild(el("h3", null, work.title));
-    var desc = work.description || "";
-    body.appendChild(
-      el("p", null, desc.length > 140 ? desc.slice(0, 140) + "\u2026" : desc),
-    );
-
-    var meta = el("div", "meta");
-    (work.tags || []).slice(0, 3).forEach(function (t) {
-      meta.appendChild(el("span", "tag", t));
-    });
-    var bits = [
-      work.downloadCount + " downloads",
-      "by " + (work.author && work.author.username),
-    ];
-    if (work.guideSteps) bits.splice(1, 0, "guide");
-    meta.appendChild(el("span", "stat", bits.join(" \u00b7 ")));
-    body.appendChild(meta);
-
-    card.appendChild(thumb);
-    card.appendChild(body);
-    return card;
+    if (work.producedCount > 0)
+      slot.appendChild(el("span", "rs-num ts-stack", String(work.producedCount)));
+    return slot;
   }
+
+  var HOME_SLOTS = 8;
 
   function initHomeWorks() {
     var grid = document.getElementById("homeWorks");
     if (!grid || !window.fetch) return;
     var note = document.getElementById("homeWorksNote");
 
-    function fallback(message) {
-      if (note) note.textContent = message;
-    }
-
-    apiGet("/api/designs?sort=new&limit=6")
+    apiGet("/api/designs?sort=new&limit=" + HOME_SLOTS)
       .then(function (data) {
         var items = (data && data.items) || [];
+        var slots = items.map(workSlot);
+        /* Empty slots stay visible as open wells: room to grow, not failure. */
+        while (slots.length < HOME_SLOTS) {
+          var empty = el("span", "ts-slot ts-empty");
+          empty.setAttribute("aria-hidden", "true");
+          slots.push(empty);
+        }
+        grid.replaceChildren.apply(grid, slots);
         if (!items.length)
-          return fallback("Nothing posted yet. Yours can be the first.");
-        grid.replaceChildren.apply(grid, items.map(workCard));
+          grid.appendChild(el("p", "stat", "Nothing posted yet. Yours can be the first."));
       })
       .catch(function () {
-        fallback("Could not load the latest works right now.");
+        if (note) note.textContent = "Could not load the latest works right now.";
       });
+  }
+
+  /* ---------- 5b. Title screen: live counters + activity ticker ----------
+     Every number is real and every line is a ledger line; the strip simply
+     stays hidden if the API is unreachable. */
+  function initTitleScreen() {
+    var counters = document.getElementById("tsCounters");
+    if (!counters || !window.fetch) return;
+
+    apiGet("/api/stats")
+      .then(function (s) {
+        counters.replaceChildren();
+        [
+          ["works", s.works],
+          ["produced", s.produced],
+          ["creators", s.creators],
+          ["open plans", s.openPlans],
+        ].forEach(function (pair) {
+          var span = el("span", "ts-counter");
+          span.appendChild(document.createTextNode(pair[0] + " "));
+          span.appendChild(el("span", "rs-num", Number(pair[1] || 0).toLocaleString()));
+          counters.appendChild(span);
+        });
+        counters.hidden = false;
+
+        var act = document.getElementById("tsActivity");
+        var ticker = document.getElementById("tsTicker");
+        if (!act || !ticker || !s.activity || !s.activity.length) return;
+        ticker.replaceChildren();
+        s.activity.forEach(function (ev) {
+          var li = el("li");
+          li.appendChild(el("span", "rs-num", "+" + ev.amount));
+          var text = el("span");
+          var who = el("a", null, ev.who);
+          who.href = "/user/" + encodeURIComponent(ev.who);
+          text.appendChild(who);
+          text.appendChild(document.createTextNode(" " + ev.what + " "));
+          var w = el("a", null, ev.title);
+          w.href = "/works/" + ev.workId;
+          text.appendChild(w);
+          li.appendChild(text);
+          ticker.appendChild(li);
+        });
+        act.hidden = false;
+      })
+      .catch(function () {});
   }
 
   /* ---------- Current page marker ----------
@@ -365,6 +402,7 @@
       initYear();
       initAuthNav();
       initHomeWorks();
+      initTitleScreen();
     });
   } else {
     initNav();
@@ -372,5 +410,6 @@
     initYear();
     initAuthNav();
     initHomeWorks();
+    initTitleScreen();
   }
 })();

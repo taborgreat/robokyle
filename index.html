@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Alegreya:wght@600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="icon" type="image/png" href="/public/logo.png" />
@@ -54,88 +54,49 @@
     </header>
     <!-- END: site nav -->
 
-    <main id="main">
-      <!-- ============ HERO ============ -->
-      <section class="hero home-hero">
-        <div class="wrap">
-          <h1>Adaptive gear you can build yourself.</h1>
-          <p class="lede">
-            Free designs shared by the people who made them. Every work keeps
-            its files, its photos and its build guide in one place. Take what
-            you need, build it, change it, post your version.
-          </p>
-          <div class="hero-cta">
-            <a class="btn btn-primary" href="/works">
-              Browse the works
-              <span class="arrow" aria-hidden="true">&rarr;</span>
-            </a>
-            <a class="btn btn-ghost" href="/works/new">Add a work</a>
-          </div>
-          <div class="hero-meta">
-            <span
-              ><span class="check" aria-hidden="true">&#10003;</span> Nothing to
-              buy</span
-            >
-            <span
-              ><span class="check" aria-hidden="true">&#10003;</span> Print or
-              build at home</span
-            >
-            <span
-              ><span class="check" aria-hidden="true">&#10003;</span> Change
-              anything you like</span
-            >
-          </div>
+    <main id="main" class="title-screen">
+      <!-- ============ TITLE SCREEN (RS Spec §9) ============
+           Centered column, dense with real state: logo, the menu panel,
+           live counters, latest works as slots, the activity ticker. -->
+      <div class="ts-col">
+        <div class="ts-logo">
+          <span class="ts-mark" aria-hidden="true"></span>
+          <h1 class="ts-name">Robo Kyle</h1>
+          <p class="ts-tagline">Adaptive gear you can build yourself</p>
         </div>
-      </section>
 
-      <!-- ============ LATEST WORKS (filled in by site.js) ============ -->
-      <section class="home-works">
-        <div class="wrap">
-          <div class="home-works-head">
+        <nav class="panel ts-menu" aria-label="Start here">
+          <a class="ts-menu-btn ts-primary" href="/works">Browse the works</a>
+          <a class="ts-menu-btn" href="/works/new">Start building</a>
+          <a class="ts-menu-btn" href="/talk">Talk</a>
+          <a class="ts-menu-btn" href="/creators"
+            >Creators <span class="ts-sub">Highscores</span></a
+          >
+        </nav>
+
+        <div class="panel ts-counters" id="tsCounters" hidden>
+          <!-- filled by site.js with live counts; stays hidden if the API is out -->
+        </div>
+
+        <section class="panel ts-latest">
+          <div class="ts-panel-head">
             <h2>Latest works</h2>
-            <a href="/works"
-              >See all <span class="arrow" aria-hidden="true">&rarr;</span></a
-            >
+            <a href="/works">See all <span class="arrow" aria-hidden="true">&rarr;</span></a>
           </div>
-          <div class="design-grid" id="homeWorks" aria-live="polite">
-            <p class="stat" id="homeWorksNote">
-              Loading the latest works&hellip;
-            </p>
+          <div class="ts-slots" id="homeWorks" aria-live="polite">
+            <p class="stat" id="homeWorksNote">Loading&hellip;</p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- ============ HOW IT WORKS ============ -->
-      <section class="home-how">
-        <div class="wrap prose">
-          <h2>How it works</h2>
-          <p>
-            Adaptive equipment costs a fortune and plenty of it is simple to
-            make. Anyone who builds something that helps can put the files up
-            here, so the next person starts from a working design instead of
-            from nothing.
-          </p>
-          <ul class="checks">
-            <li>
-              Photos, printable files and the build guide all live on the same
-              page.
-            </li>
-            <li>Download whatever you need. No account, no cost.</li>
-            <li>
-              Ask in the comments if a step is unclear. Whoever built it can
-              answer.
-            </li>
-            <li>
-              Improved it? Post your version. Every edit is kept, so nothing
-              gets lost.
-            </li>
-          </ul>
-          <p class="home-story">
-            This started with a friend, an accident, and the price of the
-            equipment he needed. <a href="about.html">Read the story</a>.
-          </p>
-        </div>
-      </section>
+        <section class="panel ts-activity" id="tsActivity" hidden>
+          <div class="ts-panel-head"><h2>Recent activity</h2></div>
+          <ul id="tsTicker"></ul>
+        </section>
+
+        <p class="ts-trust">
+          Nothing to buy &middot; Print or build at home &middot; Change anything you like
+        </p>
+      </div>
     </main>
 
     <!-- BEGIN: site footer (keep identical across all pages) -->
@@ -159,6 +120,7 @@
               <li><a href="/talk">Talk</a></li>
               <li><a href="/creators">Creators</a></li>
               <li><a href="about.html">About</a></li>
+              <li><a href="guide.html">Guide</a></li>
               <li><a href="/public/game/game.html">Game</a></li>
             </ul>
           </div>
@@ -167,9 +129,6 @@
             <ul>
               <li>
                 <a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a>
-              </li>
-              <li>
-                <a href="https://github.com/taborgreat/robokyle">GitHub</a>
               </li>
             </ul>
           </div>

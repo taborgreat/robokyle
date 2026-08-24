@@ -48,17 +48,17 @@ export default function Creators() {
             <li key={u.username}>
               <span className="creator-rank">{i + 1}</span>
               {/* A wall of colored bursts: the eye finds the deep specialists instantly. */}
-              <img className="avatar-sm" src={avatarUrl(u.username)} alt="" width="28" height="28" loading="lazy" />
+              <img className="avatar-sm" src={avatarUrl(u.username, 28)} alt="" width="28" height="28" loading="lazy" />
               <span className="creator-who">
                 <Link to={`/user/${u.username}`}>{u.username}</Link>
                 {u.bio && <small>{u.bio.length > 90 ? u.bio.slice(0, 90) + '…' : u.bio}</small>}
               </span>
               <span className="creator-nums">
                 {category
-                  ? <><strong>{Math.round(u.categoryXp)}</strong> xp · level {u.categoryLevel}</>
+                  ? <><strong className="rs-num">{Math.round(u.categoryXp)}</strong> xp · level <span className="rs-num">{u.categoryLevel}</span></>
                   : sort === 'level'
-                    ? <><strong>Level {u.totalLevel}</strong> · {Math.round(u.roboXp).toLocaleString()} RoboXP</>
-                    : <><strong>{Math.round(u.roboXp).toLocaleString()} RoboXP</strong> · level {u.totalLevel}</>}
+                    ? <><strong>Level <span className="rs-num">{u.totalLevel}</span></strong> · <span className="rs-num">{Math.round(u.roboXp).toLocaleString()}</span> RoboXP</>
+                    : <><strong className="rs-num">{Math.round(u.roboXp).toLocaleString()}</strong> RoboXP · level <span className="rs-num">{u.totalLevel}</span></>}
               </span>
             </li>
           ))}

@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import ProducedSection from '../ProducedSection.jsx';
 import DocRevisions from '../DocRevisions.jsx';
 import ErrorBar from '../ErrorBar.jsx';
+import { SkillIcon } from '../rs.jsx';
 
 const fmtSize = (n) => n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -46,6 +47,7 @@ export default function DesignView() {
   const [cWhyFor, setCWhyFor] = useState(null);   // comment id awaiting a downvote reason
   const [cWhy, setCWhy] = useState('');
   const [config, setConfig] = useState(null);
+  const [builtSignal, setBuiltSignal] = useState(0);   // Actions' "I built one" opens the Produced form
 
   const load = () => api(`/designs/${id}`).then(setD).catch(e => setError(e.message));
   useEffect(() => { load(); }, [id]);
@@ -192,17 +194,19 @@ export default function DesignView() {
   return (
     <>
       <ErrorBar error={error} onDismiss={() => setError('')} />
-      <p><Link to="/works">&larr; All works</Link></p>
-      <div className="app-head">
+      <p className="back-link"><Link to="/works">&larr; All works</Link></p>
+      <div className="rs-frame">
+        <div className="rs-main">
+      <div className="app-head" style={{ marginBottom: 0 }}>
         <div>
           <h1>{d.title}</h1>
-          <span className="stat">by <Link to={`/user/${d.author.username}`}><strong>{d.author.username}</strong></Link>{d.author.roboXp > 0 && <span className="roboxp" title="RoboXP: verified value produced"> {Math.round(d.author.roboXp).toLocaleString()} RoboXP</span>} · v{d.version} · updated {fmtDate(d.updatedAt)} · {d.downloadCount} downloads</span>
-        </div>
-        <div className="toolbar" style={{ margin: 0 }}>
-          <button className={'btn btn-ghost vote' + (d.upvoted ? ' on' : '')} onClick={() => vote('upvote')} aria-pressed={d.upvoted}>▲ {d.upvoteCount}</button>
-          <button className={'btn btn-ghost vote vote-down' + (d.downvoted ? ' on' : '')} onClick={() => vote('downvote')} aria-pressed={d.downvoted}>▼ {d.downvoteCount || 0}</button>
-          {mine && <Link className="btn btn-ghost" to={`/works/${id}/edit`}>Edit</Link>}
-          {mine && <button className="btn btn-danger" onClick={delDesign}>Delete</button>}
+          <span className="stat">by <Link to={`/user/${d.author.username}`}><strong>{d.author.username}</strong></Link>{d.author.roboXp > 0 && <span className="roboxp" title="RoboXP: verified value produced"> <span className="rs-num">{Math.round(d.author.roboXp).toLocaleString()}</span> RoboXP</span>} · v{d.version} · updated {fmtDate(d.updatedAt)} · <span className="rs-num">{d.downloadCount}</span> downloads
+            {' · '}{lin.isOriginal
+              ? <>original work</>
+              : <>built on {lin.parent
+                  ? <><Link to={`/works/${lin.parent.id}`}>{lin.parent.title}</Link> by <Link to={`/user/${lin.parent.author}`}>{lin.parent.author}</Link></>
+                  : <em>a removed work</em>}</>}
+          </span>
         </div>
       </div>
 
@@ -220,8 +224,6 @@ export default function DesignView() {
         </form>
       )}
 
-      <div className="design-detail-grid">
-        <div>
           {hero && (
             <figure className="gallery">
               <a href={fileUrl(hero.viewUrl)} target="_blank" rel="noreferrer">
@@ -241,30 +243,18 @@ export default function DesignView() {
             </figure>
           )}
 
-          <div className="panel lineage">
-            {lin.isOriginal
-              ? <p className="stat">Original work{lin.familyCount > 1 && <> · {lin.familyCount - 1} {lin.familyCount === 2 ? 'revision' : 'revisions'} built on it</>}</p>
-              : <p className="stat">
-                  Built on{' '}
-                  {lin.parent
-                    ? <><Link to={`/works/${lin.parent.id}`}>{lin.parent.title}</Link> v{lin.parent.version} by{' '}
-                        <Link to={`/user/${lin.parent.author}`}>{lin.parent.author}</Link></>
-                    : <em>a work that has since been removed</em>}
-                </p>}
-            <div className="toolbar" style={{ margin: '.75rem 0 0' }}>
-              <button className="btn btn-sm btn-build" onClick={buildOnThis} disabled={forking}>
-                {forking ? 'Copying…' : 'Build on this'}
-              </button>
-              {lin.familyCount > 1 && <Link className="btn btn-ghost btn-sm" to={`/works/${id}/tree`}>See all {lin.familyCount} versions</Link>}
-              <Link className="btn btn-ghost btn-sm" to={`/talk?work=${id}`}>Threads about this</Link>
-              <Link className="btn btn-ghost btn-sm" to={`/talk/new?work=${id}`}>Start one</Link>
-            </div>
-          </div>
-
           <div className="panel">
             <p className="desc">{d.description}</p>
             <div className="meta" style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              {(d.categories || []).map(c => <span key={c.id} className="tag cat-tag">{c.id} {c.weight}%</span>)}
+              {(d.categories || []).map(c => {
+                const cat = (config?.xp?.categories || []).find(x => x.id === c.id);
+                return (
+                  <span key={c.id} className="rs-cat-cell" style={{ '--cat': cat?.color }}>
+                    <SkillIcon id={c.id} name={cat?.name || c.id} color={cat?.color} size={16} />
+                    {cat?.name || c.id} <span className="rs-num">{c.weight}%</span>
+                  </span>
+                );
+              })}
               {(d.needTags || []).map(t => <Link key={t} className="tag need-tag" to={`/works?q=${encodeURIComponent(t)}`}>{t}</Link>)}
               {(d.facets || []).map(f => <Link key={f} className="tag" to={`/works?facet=${f}`}>{f}</Link>)}
               {d.tags.map(t => <Link key={t} className="tag" to={`/works?tag=${encodeURIComponent(t)}`}>{t}</Link>)}
@@ -323,48 +313,6 @@ export default function DesignView() {
             </div>
           )}
 
-          {(d.ports?.provides?.length > 0 || d.ports?.accepts?.length > 0) && (
-            <div className="panel" style={{ marginTop: '1.5rem' }}>
-              <h2>Ports</h2>
-              {d.ports.provides.length > 0 && (
-                <div className="port-group">
-                  <span className="stat">Provides</span>
-                  {d.ports.provides.map(p => (
-                    <div key={p.id} className={'port-chip-row' + (p.status === 'verified' ? ' is-verified' : '')}>
-                      {p.missing
-                        ? <span className="stat">a standard that has since been removed</span>
-                        : <>
-                            <Link className="tag port-chip" to={`/works/${p.standard}/hub`}
-                                  title={`${p.title}: open the hub`}>
-                              {p.portName || p.title} {p.status === 'verified' ? '✓' : ''}
-                            </Link>
-                            <span className="stat">
-                              {p.status === 'verified' ? 'verified' : 'claimed'}
-                              {p.pinnedVersion ? ` · pinned to v${p.pinnedVersion}` : ''}
-                              {Object.entries(p.fieldValues || {}).map(([k, v]) => ` · ${k}: ${v}`).join('')}
-                            </span>
-                            {p.canVerify && <button className="link-btn" title="You have standing in this field: does the work really offer this interface?"
-                                                    onClick={() => verifyPort(p.id, false)}>verify</button>}
-                            {p.canUnverify && <button className="link-btn" onClick={() => verifyPort(p.id, true)}>withdraw verification</button>}
-                          </>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {d.ports.accepts.length > 0 && (
-                <div className="port-group">
-                  <span className="stat">Accepts</span>
-                  {d.ports.accepts.map(a => (
-                    a.missing
-                      ? <span key={a.id} className="stat">a standard that has since been removed</span>
-                      : <Link key={a.id} className="tag port-chip" to={`/works/${a.standard}/hub`}
-                              title={`${a.title}: open the hub`}>{a.portName || a.title}</Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {d.uses?.length > 0 && (
             <div className="panel" style={{ marginTop: '1.5rem' }}>
               <h2>Built from</h2>
@@ -396,58 +344,6 @@ export default function DesignView() {
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
-
-          {(d.effectiveRequires && (d.effectiveRequires.equipment.length > 0 || d.effectiveRequires.materials.length > 0)) && (
-            <div className="panel" style={{ marginTop: '1.5rem' }}>
-              <h2>What building it takes</h2>
-              {d.readiness && (
-                <p className={'stat readiness ' + (d.readiness.buildable ? 'ok' : 'gap')}>
-                  {d.readiness.buildable
-                    ? 'Buildable with your equipment.'
-                    : `Missing from your equipment: ${d.readiness.missing.join(', ')}`}
-                </p>
-              )}
-              {d.effectiveRequires.equipment.length > 0 && (
-                <>
-                  <h3 className="req-h">Equipment</h3>
-                  <ul className="req-list">
-                    {d.effectiveRequires.equipment.map(e => (
-                      <li key={e.item}>{e.item}{e.note && <span className="stat"> ({e.note})</span>}
-                        {e.from?.length > 0 && <span className="stat"> via {e.from.join(', ')}</span>}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              {d.effectiveRequires.materials.length > 0 && (
-                <>
-                  <h3 className="req-h">Materials</h3>
-                  <ul className="req-list">
-                    {d.effectiveRequires.materials.map((m, i) => (
-                      <li key={i}>{m.item}: {m.qty} {m.unit}
-                        {m.from?.length > 0 && <span className="stat"> via {m.from.join(', ')}</span>}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-
-          {d.usedIn?.length > 0 && (
-            <div className="panel" style={{ marginTop: '1.5rem' }}>
-              <h2>Used in ({d.usedIn.length})</h2>
-              <ul className="revision-list">
-                {d.usedIn.map(w => (
-                  <li key={String(w.id)}>
-                    <Link to={`/works/${w.id}`}>{w.title}</Link>
-                    <span className="stat"> by <Link to={`/user/${w.author}`}>{w.author}</Link></span>
-                  </li>
-                ))}
-              </ul>
-              <p className="stat" style={{ marginTop: '.5rem' }}>
-                Improving this work improves every build that follows it.
-              </p>
             </div>
           )}
 
@@ -512,7 +408,7 @@ export default function DesignView() {
             </div>
           )}
 
-          <ProducedSection workId={id} workVersion={d.version} user={user}
+          <ProducedSection workId={id} workVersion={d.version} user={user} openSignal={builtSignal}
                            onNeedLogin={() => nav('/login', { state: { from: `/works/${id}` } })} />
 
           <DocRevisions workId={id} steps={d.steps} user={user} isAuthor={mine}
@@ -539,7 +435,7 @@ export default function DesignView() {
                           onClick={() => judgeDispute(c.id, 1)} title="The flag is right">agree</button>
                   <button className={'link-btn' + (c.myVote === -1 ? ' on' : '')} disabled={c.frozen}
                           onClick={() => judgeDispute(c.id, -1)} title="The declaration is fine">disagree</button>
-                  <span className="stat">{c.voteCount} {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' (final)'}</span>
+                  <span className="stat"><span className="rs-num">{c.voteCount}</span> {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' (final)'}</span>
                 </span>
               </div>
             ))}
@@ -557,7 +453,9 @@ export default function DesignView() {
                           onClick={() => judgeReason(c.id, 1)} title="This objection is fair">▲</button>
                   <button className={'link-btn' + (c.myVote === -1 ? ' on' : '')} disabled={c.frozen}
                           onClick={() => judgeReason(c.id, -1)} title="This objection is bad faith">▼</button>
-                  <span className="stat">{c.voteCount} {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' · final'}</span>
+                  <span className="stat"><span className="rs-num">{c.voteCount}</span> {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' · final'}</span>
+                  {c.mine && c.state !== 'struck' && <button className="link-btn" title="Removes the reason and withdraws your downvote"
+                          onClick={() => { if (confirm('Remove your reason? This withdraws your downvote too.')) vote('downvote'); }}>Remove</button>}
                 </span>
               </div>
             ))}
@@ -565,7 +463,7 @@ export default function DesignView() {
               <div className="comment" key={c._id}>
                 <span className="who">{c.author?.username
                   ? <>
-                      <img className="avatar-sm" src={avatarUrl(c.author.username)} alt="" width="22" height="22" loading="lazy" />
+                      <img className="avatar-sm" src={avatarUrl(c.author.username, 22)} alt="" width="22" height="22" loading="lazy" />
                       <Link to={`/user/${c.author.username}`}>{c.author.username}</Link>
                       {c.author.chip && (c.author.chip.newUser
                         ? <span className="tag chip-new">new user</span>
@@ -580,8 +478,8 @@ export default function DesignView() {
                 {/* Part III: comments are accountability targets — votable at
                     display stakes, downvotes carry reason cards, zero XP. */}
                 <span className="toolbar talk-comment-tools">
-                  <button className={'link-btn' + (c.upvoted ? ' on' : '')} onClick={() => voteWorkComment(c, 'up')}>▲ {c.upvoteCount || 0}</button>
-                  <button className={'link-btn' + (c.downvoted ? ' on' : '')} onClick={() => voteWorkComment(c, 'down')}>▼ {c.downvoteCount || 0}</button>
+                  <button className={'link-btn' + (c.upvoted ? ' on' : '')} onClick={() => voteWorkComment(c, 'up')}>▲ <span className="rs-num">{c.upvoteCount || 0}</span></button>
+                  <button className={'link-btn' + (c.downvoted ? ' on' : '')} onClick={() => voteWorkComment(c, 'down')}>▼ <span className="rs-num">{c.downvoteCount || 0}</span></button>
                 </span>
                 {cWhyFor === c._id && (
                   <form className="panel why-box" onSubmit={e => { e.preventDefault(); voteWorkComment(c, 'down', cWhy); }}>
@@ -607,7 +505,9 @@ export default function DesignView() {
                               onClick={() => judgeWorkCommentReason(c._id, rc.id, 1)} title="This objection is fair">▲</button>
                       <button className={'link-btn' + (rc.myVote === -1 ? ' on' : '')} disabled={rc.frozen}
                               onClick={() => judgeWorkCommentReason(c._id, rc.id, -1)} title="This objection is bad faith">▼</button>
-                      <span className="stat">{rc.voteCount} {rc.voteCount === 1 ? 'judgment' : 'judgments'}{rc.frozen && ' · final'}</span>
+                      <span className="stat"><span className="rs-num">{rc.voteCount}</span> {rc.voteCount === 1 ? 'judgment' : 'judgments'}{rc.frozen && ' · final'}</span>
+                      {rc.mine && rc.state !== 'struck' && <button className="link-btn" title="Removes the reason and withdraws your downvote"
+                              onClick={() => { if (confirm('Remove your reason? This withdraws your downvote too.')) voteWorkComment(c, 'down'); }}>Remove</button>}
                     </span>
                   </div>
                 ))}
@@ -623,7 +523,24 @@ export default function DesignView() {
           </div>
         </div>
 
-        <aside>
+        <aside className="rs-side">
+          {/* One column to read, one panel to act: every action that used to
+              be scattered across the page collects here. */}
+          <div className="panel rs-actions">
+            <h2>Actions</h2>
+            <div className="rs-actions-row">
+              <button className={'btn btn-ghost btn-sm vote' + (d.upvoted ? ' on' : '')} onClick={() => vote('upvote')} aria-pressed={d.upvoted}>▲ <span className="rs-num">{d.upvoteCount}</span></button>
+              <button className={'btn btn-ghost btn-sm vote vote-down' + (d.downvoted ? ' on' : '')} onClick={() => vote('downvote')} aria-pressed={d.downvoted}>▼ <span className="rs-num">{d.downvoteCount || 0}</span></button>
+              <button className="btn btn-sm btn-build" onClick={buildOnThis} disabled={forking}>{forking ? 'Copying…' : 'Build on this'}</button>
+              <button className="btn btn-primary btn-sm" onClick={() => user ? setBuiltSignal(n => n + 1) : nav('/login', { state: { from: `/works/${id}` } })}>I built one</button>
+              {lin.familyCount > 1 && <Link className="btn btn-ghost btn-sm" to={`/works/${id}/tree`}>All {lin.familyCount} versions</Link>}
+              <Link className="btn btn-ghost btn-sm" to={`/talk?work=${id}`}>Threads</Link>
+              <Link className="btn btn-ghost btn-sm" to={`/talk/new?work=${id}`}>Start one</Link>
+              {mine && <Link className="btn btn-ghost btn-sm" to={`/works/${id}/edit`}>Edit</Link>}
+              {mine && <button className="btn btn-danger btn-sm" onClick={delDesign}>Delete</button>}
+            </div>
+          </div>
+
           <div className="panel">
             <h2>Files</h2>
             {d.files.length === 0 ? <p className="stat">No files hosted here. See the links below.</p> : (
@@ -651,7 +568,7 @@ export default function DesignView() {
           </div>
 
           {d.links?.length > 0 && (
-            <div className="panel" style={{ marginTop: '1.5rem' }}>
+            <div className="panel">
               <h2>Elsewhere</h2>
               {LINK_GROUPS.map(([kind, label]) => {
                 const group = d.links.filter(l => (l.kind || 'other') === kind);
@@ -676,7 +593,101 @@ export default function DesignView() {
             </div>
           )}
 
-          <div className="panel" style={{ marginTop: '1.5rem' }}>
+          {(d.ports?.provides?.length > 0 || d.ports?.accepts?.length > 0) && (
+            <div className="panel">
+              <h2>Ports</h2>
+              {d.ports.provides.length > 0 && (
+                <div className="port-group">
+                  <span className="stat">Provides</span>
+                  {d.ports.provides.map(p => (
+                    <div key={p.id} className={'port-chip-row' + (p.status === 'verified' ? ' is-verified' : '')}>
+                      {p.missing
+                        ? <span className="stat">a standard that has since been removed</span>
+                        : <>
+                            <Link className="tag port-chip" to={`/works/${p.standard}/hub`}
+                                  title={`${p.title}: open the hub`}>
+                              {p.portName || p.title} {p.status === 'verified' ? '✓' : ''}
+                            </Link>
+                            <span className="stat">
+                              {p.status === 'verified' ? 'verified' : 'claimed'}
+                              {p.pinnedVersion ? ` · pinned to v${p.pinnedVersion}` : ''}
+                              {Object.entries(p.fieldValues || {}).map(([k, v]) => ` · ${k}: ${v}`).join('')}
+                            </span>
+                            {p.canVerify && <button className="link-btn" title="You have standing in this field: does the work really offer this interface?"
+                                                    onClick={() => verifyPort(p.id, false)}>verify</button>}
+                            {p.canUnverify && <button className="link-btn" onClick={() => verifyPort(p.id, true)}>withdraw verification</button>}
+                          </>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {d.ports.accepts.length > 0 && (
+                <div className="port-group">
+                  <span className="stat">Accepts</span>
+                  {d.ports.accepts.map(a => (
+                    a.missing
+                      ? <span key={a.id} className="stat">a standard that has since been removed</span>
+                      : <Link key={a.id} className="tag port-chip" to={`/works/${a.standard}/hub`}
+                              title={`${a.title}: open the hub`}>{a.portName || a.title}</Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(d.effectiveRequires && (d.effectiveRequires.equipment.length > 0 || d.effectiveRequires.materials.length > 0)) && (
+            <div className="panel">
+              <h2>What building it takes</h2>
+              {d.readiness && (
+                <p className={'stat readiness ' + (d.readiness.buildable ? 'ok' : 'gap')}>
+                  {d.readiness.buildable
+                    ? 'Buildable with your equipment.'
+                    : `Missing from your equipment: ${d.readiness.missing.join(', ')}`}
+                </p>
+              )}
+              {d.effectiveRequires.equipment.length > 0 && (
+                <>
+                  <h3 className="req-h">Equipment</h3>
+                  <ul className="req-list">
+                    {d.effectiveRequires.equipment.map(e => (
+                      <li key={e.item}>{e.item}{e.note && <span className="stat"> ({e.note})</span>}
+                        {e.from?.length > 0 && <span className="stat"> via {e.from.join(', ')}</span>}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {d.effectiveRequires.materials.length > 0 && (
+                <>
+                  <h3 className="req-h">Materials</h3>
+                  <ul className="req-list">
+                    {d.effectiveRequires.materials.map((m, i) => (
+                      <li key={i}>{m.item}: {m.qty} {m.unit}
+                        {m.from?.length > 0 && <span className="stat"> via {m.from.join(', ')}</span>}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {d.usedIn?.length > 0 && (
+            <div className="panel">
+              <h2>Used in ({d.usedIn.length})</h2>
+              <ul className="revision-list">
+                {d.usedIn.map(w => (
+                  <li key={String(w.id)}>
+                    <Link to={`/works/${w.id}`}>{w.title}</Link>
+                    <span className="stat"> by <Link to={`/user/${w.author}`}>{w.author}</Link></span>
+                  </li>
+                ))}
+              </ul>
+              <p className="stat" style={{ marginTop: '.5rem' }}>
+                Improving this work improves every build that follows it.
+              </p>
+            </div>
+          )}
+
+          <div className="panel">
             <h2>Version history</h2>
             <ol className="history">
               {timeline.map(v => (
@@ -706,7 +717,7 @@ export default function DesignView() {
             </ol>
           </div>
         </aside>
-      </div>
+        </div>
     </>
   );
 }

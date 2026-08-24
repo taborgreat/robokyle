@@ -160,14 +160,23 @@ export default function WorkWizard() {
         </div>
       </div>
 
-      <ol className="wizard-stages" aria-label="Stages">
-        {STAGES.map((label, i) => (
-          <li key={label} className={stage === i + 1 ? 'on' : stage > i + 1 ? 'done' : ''}>
-            <button type="button" onClick={() => setStage(i + 1)}>{i + 1}. {label}</button>
-          </li>
-        ))}
-      </ol>
-
+      <div className="rs-frame">
+        <aside className="rs-side wizard-rail">
+          <div className="panel">
+            <div className="produced-head" style={{ marginBottom: '.5rem' }}>
+              <h2>Stages</h2>
+              <span className="rs-num wizard-frac" aria-hidden="true">{stage}&#8725;3</span>
+            </div>
+            <ol className="wizard-stages wizard-stages-rail" aria-label="Stages">
+              {STAGES.map((label, i) => (
+                <li key={label} className={stage === i + 1 ? 'on' : stage > i + 1 ? 'done' : ''}>
+                  <button type="button" onClick={() => setStage(i + 1)}>{i + 1}. {label}</button>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
+        <div className="rs-main">
       {error && <div className="form-error" role="alert">{error}</div>}
 
       {stage === 1 && (
@@ -453,6 +462,8 @@ export default function WorkWizard() {
           </div>
         </section>
       )}
+        </div>
+      </div>
     </div>
   );
 }

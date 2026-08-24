@@ -50,12 +50,12 @@ const arc = (r, a0, a1) => `M${pos(r, a0)} A${r2(r)} ${r2(r)} 0 0 1 ${pos(r, a1)
    advertised without lying about progress (open decision 1) — and the fill
    rises from the inner edge as level/99. Notch lines cross the filled part at
    each title band (10/20/30/40/50): countable at profile size, gone at 24px. */
-function wedges(levels) {
+function wedges(levels, gap = GAP) {
   const cap = XP.levelCurve.cap;
   const parts = [];
   CATS.forEach((cat, i) => {
-    const a0 = i * WEDGE + GAP;
-    const a1 = (i + 1) * WEDGE - GAP;
+    const a0 = i * WEDGE + gap;
+    const a1 = (i + 1) * WEDGE - gap;
     const level = Math.max(0, Math.min(cap, (levels && levels[cat.id]) || 0));
     parts.push(`<path d="${sector(R_IN, R_OUT, a0, a1)}" fill="${cat.color}" fill-opacity=".13"/>`);
     if (level > 0) {
@@ -117,10 +117,12 @@ function glyph(username) {
 
 /* levels: { mech: 12, fab: 3, ... } — the visible categories' cached levels.
    Returns the complete standalone SVG document. */
-function avatarSvg(levels, username) {
+/* Below ~64px the wedge gaps read as a loading spinner, so the small
+   variant (Avatar Spec size rule) drops them: a solid ring of color mass. */
+function avatarSvg(levels, username, { gaps = true } = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="skill avatar">` +
     `<circle cx="${C}" cy="${C}" r="${R_OUT + 1}" fill="${RING_BASE}"/>` +
-    wedges(levels) +
+    wedges(levels, gaps ? GAP : 0) +
     `<circle cx="${C}" cy="${C}" r="${R_IN - 1}" fill="${DISC}"/>` +
     glyph(username) +
     `</svg>`;

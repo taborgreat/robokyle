@@ -11,9 +11,12 @@ select {
   border: 1px solid color-mix(in oklab, var(--ink) 18%, var(--line));
   border-radius: var(--radius-sm); padding: .5rem .7rem;
 }
-select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transparent); border-color: var(--brand); }
+select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark); }
 
-.form-card { max-width: 30rem; margin: 0 auto; background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-sm); }
+.form-card {
+  max-width: 30rem; margin: 0 auto; background: var(--rs-panel); padding: 2rem; border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);  box-shadow: var(--rs-step-out);
+}
 .form-card h1 { margin-top: 0; }
 .field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
 .field label { font-weight: 600; font-size: .95rem; }
@@ -26,7 +29,7 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
   border-radius: var(--radius-sm); padding: .65rem .8rem;
 }
 .field select { cursor: pointer; }
-.field input:focus, .field textarea:focus, .field select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transparent); border-color: var(--brand); }
+.field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark); }
 .field textarea { min-height: 9rem; resize: vertical; }
 .field small { color: var(--ink-mute); }
 .form-error { color: #B3261E; background: color-mix(in oklab, #B3261E 10%, transparent); border-radius: var(--radius-sm); padding: .6rem .8rem; margin-bottom: 1rem; }
@@ -39,13 +42,30 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
 .stat { color: var(--ink-mute); font-size: .85rem; }
 .stat strong { color: var(--ink); }
 
+/* One quiet way back, everywhere: a muted crumb above the page, not a
+   full-dress hyperlink floating over the chrome. */
+.back-link { margin: 0 0 .9rem; }
+.back-link a {
+  display: inline-flex; align-items: center; gap: .35rem;
+  color: var(--ink-mute); text-decoration: none;
+  font-size: .88rem; font-weight: 600;
+}
+.back-link a:hover { color: var(--brand); }
+
 .design-detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
 @media (max-width: 800px) { .design-detail-grid { grid-template-columns: 1fr; } }
-.panel { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-sm); }
-.panel h2 { font-size: 1.05rem; margin: 0 0 .8rem; font-family: var(--font-sans); }
+/* RS chrome tier 1 (RS Profile Spec §1/§8): every content region is a
+   beveled panel — light top/left edge, dark bottom/right, square-shouldered. */
+.panel {
+  background: var(--rs-panel); padding: 1.25rem; border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+  box-shadow: var(--rs-step-out);
+}
+.panel h2 { font-size: 1.15rem; margin: 0 0 .8rem; font-family: var(--font-panel); font-weight: 600; letter-spacing: .01em; }
 .desc { white-space: pre-wrap; }
 .file-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; }
-.file-list li { display: flex; justify-content: space-between; gap: .5rem; align-items: center; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: .5rem .75rem; }
+.file-list li { display: flex; justify-content: space-between; gap: .5rem; align-items: center; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: .5rem .75rem;   box-shadow: var(--rs-step-in);
+}
 .file-list .size { color: var(--ink-mute); font-size: .85rem; }
 
 .vote { display: inline-flex; align-items: center; gap: .4rem; }
@@ -161,12 +181,10 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
 .profile-name { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .profile-name .tag { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
 .admin-tag { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
-.profile-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: start; }
-@media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
 .profile-section { font-size: 1.1rem; margin: 2rem 0 1rem; }
 .profile-bio .desc { margin: 0 0 .75rem; }
 .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem .5rem; }
-.profile-stat .n { display: block; font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--brand); }
+.profile-stat .n { display: block; font-size: 1.6rem; line-height: 1; }
 .profile-stat .l { display: block; margin-top: .2rem; color: var(--ink-mute); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
 .comment-feed { list-style: none; padding: 0; margin: 0; }
 .comment-feed li { padding: .7rem 0; border-top: 1px solid var(--line-soft); font-size: .92rem; }
@@ -264,32 +282,14 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
 .cat-chip input { width: 4.2rem; padding: .35rem .4rem; }
 .cat-sum-off { color: var(--warn); font-weight: 600; }
 
-.roboxp { color: var(--brand); font-weight: 600; }
+/* The number is gold (earned); the label stays quiet. Teal is for links. */
+.roboxp { font-weight: 600; }
 .badge-row { display: inline-flex; gap: .35rem; margin-top: .35rem; flex-wrap: wrap; }
 .innov-aura {
   margin-bottom: .9rem; padding: .55rem .8rem; border-radius: var(--radius);
   background: color-mix(in oklab, var(--warn) 12%, transparent);
   border: 1px solid color-mix(in oklab, var(--warn) 30%, transparent);
   font-size: .92rem;
-}
-/* §7.1: the interface reports; it never begs. The grid is flat and scannable:
-   name + level + xp, no bars, category colour the only saturation. */
-.skill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
-/* Cells are buttons: tapping one scopes the ledger to that skill's receipts. */
-.skill-cell {
-  display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 0 .5rem;
-  padding: .5rem .65rem; border-radius: var(--radius);
-  background: var(--bg-sunk); border: 1px solid var(--line-soft);
-  border-left: 3px solid var(--cat, var(--line));
-  cursor: pointer; font: inherit; text-align: left; width: 100%;
-}
-.skill-cell .skill-name { font-size: .82rem; color: var(--ink-soft); }
-.skill-cell .skill-level { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: var(--ink); }
-.skill-cell .skill-xp { grid-column: 1 / 3; font-size: .75rem; color: var(--ink-mute); }
-.skill-cell.maxed { border-color: var(--cat); background: color-mix(in oklab, var(--cat) 12%, var(--bg-sunk)); }
-.skill-cell.on {
-  background: color-mix(in oklab, var(--cat) 16%, var(--bg-sunk));
-  border-color: color-mix(in oklab, var(--cat) 55%, var(--line));
 }
 .skill-detail {
   margin-top: .6rem; padding: .5rem .7rem; font-size: .9rem;
@@ -333,12 +333,14 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
 .chip-new { margin-left: .4rem; opacity: .75; }
 
 .level-toasts { position: fixed; right: 1rem; bottom: 1rem; z-index: 60; display: grid; gap: .4rem; }
+/* The one celebration in the product, now a small chromed panel. It appears;
+   it does not animate in (no motion, ever). */
 .level-toast {
-  background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: .5rem .85rem; font-size: .9rem; box-shadow: var(--shadow);
-  animation: toast-in .25s ease;
+  background: var(--rs-panel); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+  padding: .5rem .85rem; font-size: .9rem;
+  box-shadow: var(--rs-step-out);
 }
-@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .cat-tag { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
 .need-tag { background: color-mix(in oklab, var(--ok) 14%, transparent); color: var(--ok); border-color: transparent; }
@@ -490,12 +492,66 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
   border-radius: 0 var(--radius) var(--radius) 0;
   padding: .5rem .8rem;
 }
-.talk-replies { margin-left: 1.25rem; padding-left: .75rem; border-left: 1px solid var(--line-soft); }
-.talk-collapse summary { cursor: pointer; color: var(--ink-mute); font-size: .88rem; padding: .25rem 0; }
+/* The thread line: every reply level hangs off a visible rail, so a deleted
+   parent still clearly owns its children. */
+.talk-replies { margin-left: .55rem; padding-left: .9rem; border-left: 2px solid var(--line); }
+.talk-collapse summary { cursor: pointer; color: var(--ink-mute); font-size: .85rem; padding: .25rem 0; user-select: none; }
+.talk-collapse summary:hover { color: var(--brand); }
 .talk-collapse[open] summary { margin-bottom: .25rem; }
 .talk-comment-tools { margin: .2rem 0 .4rem; gap: .6rem; }
 .talk-comment-tools .link-btn { text-decoration: none; font-size: .85rem; }
 .talk-comment-tools .link-btn.on { color: var(--brand); font-weight: 700; }
+
+/* Forum-shaped thread page: the post is one card with a modest title and a
+   slim action row, the conversation starts right under it, and comment rows
+   stay small so a phone screen fits several at once. */
+/* Reading column: threads read best narrow and centered, not site-wide. */
+.talk-post { max-width: 46rem; margin: 0 auto; }
+.talk-post-card { margin-bottom: 1.25rem; }
+.talk-post-meta {
+  display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: center;
+  font-size: .85rem; color: var(--ink-mute);
+}
+.talk-post-author { display: inline-flex; align-items: center; gap: .1rem; }
+.talk-post-title {
+  font-family: var(--font-sans); font-size: 1.4rem; font-weight: 700;
+  line-height: 1.25; margin: .4rem 0 0; overflow-wrap: break-word;
+}
+.talk-post-body { margin: .5rem 0 0; }
+.talk-post-actions { margin: .7rem 0 0; }
+.talk-post-actions .link-btn.vote-down.on { color: var(--warn); }
+.talk-plan-strip {
+  display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: center;
+  margin-top: .7rem; padding: .5rem .7rem; font-size: .9rem;
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+}
+.talk-thread h2 { margin-bottom: .5rem; }
+/* The invitation to speak hangs off the post itself, Reddit-style; it grows
+   from one quiet line into a real box when it has focus or content. */
+.talk-post-card .talk-composer { margin-top: .7rem; }
+.talk-composer textarea {
+  min-height: 2.9rem; width: 100%; transition: min-height .12s ease;
+  font: inherit; color: var(--ink); resize: vertical;
+  background: color-mix(in oklab, var(--ink) 7%, var(--bg-elev));
+  border: 1px solid color-mix(in oklab, var(--ink) 18%, var(--line));
+  border-radius: var(--radius-sm); padding: .55rem .7rem;
+}
+.talk-composer textarea:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark); }
+.talk-composer textarea:focus, .talk-composer textarea:not(:placeholder-shown) { min-height: 4.5rem; }
+.talk-composer-row { display: none; gap: .5rem; margin: .4rem 0 0; }
+.talk-composer:focus-within .talk-composer-row,
+.talk-composer textarea:not(:placeholder-shown) ~ .talk-composer-row { display: flex; }
+.talk-comment .talk-composer { margin: .3rem 0 .5rem; }
+.talk-post .talk-comment { padding: .55rem 0; }
+.talk-post .talk-comment .who { font-size: .88rem; display: inline-flex; flex-wrap: wrap; align-items: center; gap: .1rem; }
+.talk-post .talk-comment .when { font-size: .78rem; margin-left: .5rem; }
+.talk-post .talk-comment p { font-size: .95rem; margin: .25rem 0 0; }
+.talk-post .talk-comment .avatar-sm { width: 18px; height: 18px; vertical-align: -4px; }
+@media (max-width: 640px) {
+  .talk-post .panel { padding: .8rem; }
+  .talk-post .talk-replies { margin-left: .35rem; padding-left: .55rem; }
+  .talk-post-title { font-size: 1.2rem; }
+}
 
 /* --- category dispute flag --- */
 .flag-btn { font-size: .82rem; color: var(--ink-mute); }
@@ -596,7 +652,6 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
 .pub-checklist li.todo { color: var(--ink-mute); }
 .pub-checklist li.todo::before { content: ""; border: 2px solid var(--line); }
 
-.skill-hint { margin: -.3rem 0 .6rem; font-size: .82rem; }
 .field-mismatch { color: var(--warn); font-weight: 600; }
 .field-match { color: var(--ok); }
 .link-edit-row { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; margin-bottom: .5rem; }
@@ -639,3 +694,237 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
 .step-link-row input { flex: 1; min-width: 10rem; padding: .4rem .6rem; font: inherit;
   color: var(--ink); background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .step-link-row input:last-of-type { flex: 0 1 11rem; }
+.talk-feed { list-style: none; margin: 0; padding: 0; font-size: .92rem; }
+.talk-feed li { padding: .45rem 0; border-top: 1px solid var(--line-soft); display: flex; align-items: baseline; gap: .45rem; flex-wrap: wrap; }
+.talk-feed li:first-child { border-top: 0; }
+.talk-feed a { font-weight: 600; }
+.talk-became { color: var(--ok); font-weight: 600; }
+
+/* ============================================================
+   RS chrome (RuneScape Profile Spec). Five classes are the whole
+   vocabulary: panel bevel (.panel above), slot well (.rs-slot),
+   gold numeral (.rs-num), hover outline, tooltip panel (.rs-tip).
+   Everything in the character sheet composes from these; nothing
+   gets its own new visual idea. Gold marks EARNED numbers only.
+   ============================================================ */
+/* The --rs-* tokens live in public/index.css: one source, site-wide. */
+
+/* Gold numeral: earned numbers only — levels, XP, RoboXP, Produced counts,
+   vote scores. If a number was not earned by someone it stays body-color. */
+.rs-num {
+  color: var(--rs-gold); font-weight: 700; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; text-shadow: 1px 1px 0 var(--rs-shadow);
+}
+
+/* Slot well: the inverse bevel, a recessed square that holds a thing. */
+.rs-slot {
+  width: 44px; height: 44px; display: grid; place-items: center; position: relative;
+  background: var(--rs-well); border-radius: 2px; color: var(--ink-soft);
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in);
+}
+a.rs-slot { text-decoration: none; }
+.rs-slot:hover, .rs-slot:focus-visible { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
+.rs-empty { background: color-mix(in oklab, var(--rs-well) 65%, var(--bg-elev)); }
+.rs-empty:hover { outline: none; }
+.rs-item-img { width: 40px; height: 40px; object-fit: cover; border-radius: 1px; display: block; }
+.rs-stack { position: absolute; top: 0; left: 2px; font-size: .72rem; line-height: 1.1; }
+
+/* Icons: Tabor-made SVGs from /assets/icons/; the fallback tile renders
+   until the file exists so layout never waits on art. */
+.rs-icon { display: inline-block; flex: none; }
+.rs-icon-fallback {
+  display: inline-grid; place-items: center; border-radius: 2px; font-weight: 700;
+  background: color-mix(in oklab, var(--cat, var(--ink-mute)) 22%, transparent);
+  color: var(--cat, var(--ink-mute));
+}
+
+/* Tooltip panel: the RS examine/stat hover, a small chromed panel. */
+.rs-tipwrap { position: relative; }
+.rs-tipwrap .rs-tip {
+  display: none; position: absolute; z-index: 40; left: 0; top: calc(100% + 4px);
+  width: max-content; max-width: 16rem; padding: .5rem .65rem; text-align: left;
+  font-size: .78rem; font-weight: 400; line-height: 1.35; color: var(--ink);
+  background: var(--rs-panel); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+  pointer-events: none; white-space: normal;
+  box-shadow: var(--rs-step-out);
+}
+.rs-tipwrap:hover .rs-tip, .rs-tipwrap:focus-visible .rs-tip, .rs-tipwrap:focus .rs-tip { display: grid; gap: 2px; }
+.rs-tip strong { font-size: .82rem; }
+.rs-tip-scope, .rs-examine { color: var(--ink-mute); }
+.rs-tip-line { color: var(--ink-soft); }
+
+/* --- §5 page composition: skills fixed left, the bag and shelf right --- */
+.rs-layout { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; align-items: start; margin-bottom: 1.5rem; }
+.rs-mainCol { display: grid; gap: 1.5rem; align-content: start; }
+.rs-ledger { margin-bottom: 1.5rem; }
+.rs-below { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; align-items: start; }
+@media (max-width: 800px) { .rs-layout { grid-template-columns: 1fr; } }
+
+/* --- §2 the skills panel: the old-RS stats tab --- */
+.rs-skills { padding: .6rem; }
+.rs-skill-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+.rs-skill-cell {
+  display: flex; align-items: center; gap: .2rem; height: 34px; padding: 0 .25rem; min-width: 0;
+  background: var(--rs-well); border-radius: 2px; cursor: pointer; font: inherit; color: var(--ink);
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in);
+}
+.rs-skill-cell:hover, .rs-skill-cell:focus-visible, .rs-skill-cell.on { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
+/* The skillcape moment, always on: a maxed cell keeps its category color. */
+.rs-skill-cell.maxed { outline: 1px solid var(--cat); outline-offset: -1px; }
+.rs-skill-cell.maxed:hover, .rs-skill-cell.maxed.on { outline-color: var(--rs-gold); }
+.rs-frac { margin-left: auto; font-size: .76rem; line-height: 1; white-space: nowrap; }
+.rs-frac-cur { position: relative; top: -2px; }
+.rs-frac-div { font-size: .78em; opacity: .8; padding: 0 1px; }
+.rs-frac-cap { position: relative; top: 2px; font-size: .88em; }
+.rs-frac-maxed { font-size: .95rem; }
+.rs-total-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: .5rem;
+  margin-top: .6rem; padding: .35rem .55rem; font-weight: 600; font-size: .92rem;
+  background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in);
+}
+.rs-total-num { font-size: 1.1rem; }
+.rs-robo-row { margin-top: 3px; font-size: .82rem; font-weight: 500; }
+/* Innovation: tier name only, no number ever; the aura is a border tint. */
+.rs-innov-strip {
+  display: block; width: 100%; margin-top: 3px; padding: .32rem .55rem; text-align: left;
+  font: inherit; font-size: .82rem; color: var(--ink); cursor: pointer;
+  background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in), inset 0 0 0 1px color-mix(in oklab, #C9A648 40%, transparent);
+}
+.rs-innov-strip.on { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
+
+/* The bio at the skills panel's foot: flavor text, plain on the panel. */
+.rs-bio { margin-top: .8rem; padding-top: .7rem; border-top: 1px solid var(--line-soft); font-size: .85rem; }
+.rs-bio .desc { margin: 0; font-size: .85rem; color: var(--ink-soft); }
+.rs-bio .profile-bio .desc { margin-bottom: .5rem; }
+.rs-bio .field textarea { min-height: 5rem; }
+
+/* --- §3 the inventory: 4 x 7, the canonical bag. Slots run larger than the
+   generic 44px well here: a work's photo has to be recognizable, and the
+   panel hugs the grid so the bag reads as a bag, not a strip in a field. --- */
+.rs-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.rs-sideStack { display: grid; gap: 1.5rem; align-content: start; }
+@media (max-width: 1000px) { .rs-row { grid-template-columns: 1fr; } }
+.rs-inv-panel { width: fit-content; }
+.rs-inv { display: grid; grid-template-columns: repeat(4, 64px); gap: 5px; }
+.rs-inv .rs-slot { width: 64px; height: 64px; }
+.rs-inv .rs-item-img { width: 58px; height: 58px; }
+.rs-inv-bank { grid-template-columns: repeat(4, 64px); }
+.rs-bankbar {
+  margin-top: .6rem; width: 100%; padding: .35rem; text-align: center; cursor: pointer;
+  font: inherit; font-size: .85rem; color: var(--ink); background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+  box-shadow: var(--rs-step-out);
+}
+.rs-bankbar:active { border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark); }
+.rs-bank { margin-top: .6rem; }
+.rs-bank-tabs { display: flex; gap: 3px; align-items: center; margin-bottom: .5rem; flex-wrap: wrap; }
+.rs-bank-tab {
+  width: 34px; height: 30px; display: grid; place-items: center; cursor: pointer;
+  font: inherit; font-size: .8rem; color: var(--ink); background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+  box-shadow: var(--rs-step-out);
+}
+.rs-bank-tab.on {
+  border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  outline: 1px solid var(--rs-gold); outline-offset: -1px;
+}
+.rs-contrib { margin-top: .7rem; }
+
+/* --- §4 the tools shelf --- */
+.rs-toolrow { display: flex; flex-wrap: wrap; gap: 4px; }
+.rs-tool-x {
+  position: absolute; top: -7px; right: -7px; width: 16px; height: 16px; padding: 0;
+  display: none; line-height: 1; font-size: .7rem; cursor: pointer; border-radius: 2px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink-mute);
+}
+.rs-tool:hover .rs-tool-x, .rs-tool:focus-within .rs-tool-x { display: block; }
+/* One pattern for "put a thing here" everywhere: the dashed ghost slot. */
+.rs-ghost { border: 2px dashed var(--line); background: transparent; color: var(--ink-mute); font-size: 1.15rem; cursor: pointer; }
+.rs-tool-picker { margin-top: .6rem; display: flex; flex-wrap: wrap; gap: .35rem; }
+.rs-tool-prefs { margin-top: .8rem; display: grid; gap: .35rem; font-size: .88rem; }
+.rs-tool-prefs label { display: flex; gap: .5rem; align-items: center; cursor: pointer; }
+
+/* --- §8 site-wide: buttons take the bevel; pressed is a swap, not a
+   transition. Inputs are inset wells. Focus stays the usability ring. --- */
+/* Buttons take their bevel from public/index.css now. */
+.field input, .field textarea, .field select, select, .toolbar input, .toolbar select {
+  border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);  box-shadow: var(--rs-step-in);
+}
+.design-card {
+  border-radius: 2px; box-shadow: var(--rs-step-out);
+  border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+}
+.design-card:hover { transform: none; box-shadow: var(--rs-step-out); outline: 1px solid var(--rs-gold); outline-offset: -1px; }
+.file-list li {
+  background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+}
+/* §10 the global page frame: the OSRS client as layout — a centered
+   viewport column (the thing itself, in reading order) beside a sticky
+   side-panel stack (everything about the thing). Centering makes modern
+   pages feel calm, the side-stack makes game clients feel equipped;
+   this frame is both at once. */
+.rs-frame { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 2rem; align-items: start; }
+.rs-main { min-width: 0; }
+.rs-main > * + * { margin-top: 1.5rem; }
+.rs-side {
+  position: sticky; top: 5rem; max-height: calc(100vh - 6rem);
+  overflow-y: auto; min-width: 0;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.rs-side > * + * { margin-top: 1rem; }
+.rs-side .panel { padding: 1rem; }
+.rs-side .panel h2 { font-size: 1rem; }
+.rs-actions-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.rs-actions .btn { padding: .55rem .9rem; }
+@media (max-width: 900px) {
+  .rs-frame { grid-template-columns: 1fr; }
+  .rs-side { position: static; max-height: none; overflow: visible; }
+  /* Actions condense to a slim sticky bottom bar; the rest stacks beneath. */
+  .rs-actions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
+    padding: .5rem .75rem; overflow-x: auto;
+  }
+  .rs-actions h2 { display: none; }
+  .rs-actions .rs-actions-row { flex-wrap: nowrap; }
+  .rs-frame:has(.rs-actions) { padding-bottom: 4.5rem; }
+}
+
+/* The wizard's frame flips: the stage rail is the side panel, placed left
+   so the walk reads rail-then-work; stages stack vertically inside it. */
+.wizard .rs-frame { grid-template-columns: 280px minmax(0, 1fr); }
+.wizard-stages-rail { flex-direction: column; gap: 3px; }
+.wizard-stages-rail button { width: 100%; text-align: left; }
+@media (max-width: 900px) { .wizard .rs-frame { grid-template-columns: 1fr; } }
+
+/* Declared skills on a work page: mini skill-cells, rhyming with the
+   profile panel — icon, name, gold weight, in a recessed well. */
+.rs-cat-cell {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .55rem;
+  font-size: .8rem; color: var(--ink); background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in);
+}
+
+/* The wizard's RS progress fraction, top-right of the stage row. */
+.wizard-head { display: flex; align-items: center; gap: 1rem; }
+.wizard-head .wizard-stages { flex: 1; margin-bottom: 0; }
+.wizard-frac { font-size: 1rem; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .rs-slot { width: 40px; height: 40px; }
+  .rs-item-img { width: 36px; height: 36px; }
+  .rs-inv, .rs-inv-bank { grid-template-columns: repeat(4, 56px); }
+  .rs-inv .rs-slot { width: 56px; height: 56px; }
+  .rs-inv .rs-item-img { width: 50px; height: 50px; }
+  .rs-inv-panel { width: auto; }
+}

@@ -28,7 +28,7 @@ function Branch({ node, currentId }) {
           by <Link to={`/user/${node.author.username}`}>{node.author.username}</Link>
           {' · '}v{node.version}
           {node.parentVersion ? ` · from v${node.parentVersion}` : ' · original'}
-          {' · '}▲ {node.upvoteCount}
+          {' · '}▲ <span className="rs-num">{node.upvoteCount}</span>
           {' · '}{fmtDate(node.createdAt)}
         </span>
         {isCurrent && <span className="tag">you are here</span>}
@@ -60,7 +60,7 @@ export default function WorkTree() {
 
   return (
     <>
-      <p><Link to={`/works/${id}`}>&larr; Back to the work</Link></p>
+      <p className="back-link"><Link to={`/works/${id}`}>&larr; Back to the work</Link></p>
       <div className="app-head">
         <div>
           <h1>How this work grew</h1>

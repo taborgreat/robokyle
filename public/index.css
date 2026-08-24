@@ -7,6 +7,9 @@
 
 /* ---------- Design tokens (light) ---------- */
 :root {
+    /* Native chrome (scrollbars, form controls) follows the theme instead of
+       defaulting to light: white boxes and white scrollbars on a dark page. */
+    color-scheme: light;
     --bg:        #FAF7F2;
     --bg-elev:  #FFFFFF;
     --bg-sunk:  #F1ECE2;
@@ -25,9 +28,23 @@
     --ok:      #2E7D57;
     --warn:    #C46A18;
 
-    --radius-sm: 8px;
-    --radius:    14px;
-    --radius-lg: 22px;
+    /* Old-school chrome: the whole site is square-shouldered. */
+    --radius-sm: 2px;
+    --radius:    2px;
+    --radius-lg: 2px;
+
+    /* RS chrome tokens (RuneScape Profile Spec): bevel edges, the gold that
+       marks earned numbers, panel and well surfaces. One source, site-wide. */
+    --rs-gold: #8C6A1C;
+    --rs-lite: #FFFFFF;
+    --rs-dark: rgba(23,27,38,.38);
+    --rs-panel: color-mix(in oklab, var(--ink) 3%, var(--bg-elev));
+    --rs-well:  color-mix(in oklab, var(--ink) 9%, var(--bg-elev));
+    --rs-shadow: rgba(255,255,255,.5);
+    /* The second bevel step: a 1px inner line that makes outset panels and
+       inset wells read as carved, not outlined. */
+    --rs-step-out: inset 1px 1px 0 rgba(255,255,255,.9), inset -1px -1px 0 rgba(23,27,38,.12);
+    --rs-step-in:  inset 1px 1px 0 rgba(23,27,38,.12), inset -1px -1px 0 rgba(255,255,255,.9);
 
     --shadow-sm: 0 1px 2px rgba(23,27,38,.06), 0 1px 1px rgba(23,27,38,.04);
     --shadow:    0 6px 18px rgba(23,27,38,.08), 0 2px 4px rgba(23,27,38,.04);
@@ -38,11 +55,13 @@
     --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
     --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    --font-panel: "Alegreya", Georgia, "Times New Roman", serif;
 }
 
 /* ---------- Design tokens (dark) ---------- */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+        color-scheme: dark;
         --bg:        #0E1218;
         --bg-elev:  #171C25;
         --bg-sunk:  #0A0D12;
@@ -64,9 +83,18 @@
         --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
         --shadow:    0 8px 22px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3);
         --shadow-lg: 0 30px 60px -20px rgba(0,0,0,.55), 0 12px 24px -12px rgba(0,0,0,.4);
+        --rs-gold: #E2BE55;
+        --rs-lite: rgba(241,233,218,.30);
+        --rs-dark: rgba(0,0,0,.78);
+        --rs-panel: color-mix(in oklab, var(--ink) 4%, var(--bg-elev));
+        --rs-well:  color-mix(in oklab, black 28%, var(--bg-elev));
+        --rs-shadow: rgba(0,0,0,.9);
+        --rs-step-out: inset 1px 1px 0 rgba(255,255,255,.07), inset -1px -1px 0 rgba(0,0,0,.4);
+        --rs-step-in:  inset 1px 1px 0 rgba(0,0,0,.4), inset -1px -1px 0 rgba(255,255,255,.06);
     }
 }
 :root[data-theme="dark"] {
+    color-scheme: dark;
     --bg:        #0E1218;
     --bg-elev:  #171C25;
     --bg-sunk:  #0A0D12;
@@ -88,6 +116,22 @@
     --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
     --shadow:    0 8px 22px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3);
     --shadow-lg: 0 30px 60px -20px rgba(0,0,0,.55), 0 12px 24px -12px rgba(0,0,0,.4);
+
+    --rs-gold: #E2BE55;
+    --rs-lite: rgba(241,233,218,.30);
+    --rs-dark: rgba(0,0,0,.78);
+    --rs-panel: color-mix(in oklab, var(--ink) 4%, var(--bg-elev));
+    --rs-well:  color-mix(in oklab, black 28%, var(--bg-elev));
+    --rs-shadow: rgba(0,0,0,.9);
+    --rs-step-out: inset 1px 1px 0 rgba(255,255,255,.07), inset -1px -1px 0 rgba(0,0,0,.4);
+    --rs-step-in:  inset 1px 1px 0 rgba(0,0,0,.4), inset -1px -1px 0 rgba(255,255,255,.06);
+}
+
+/* Gold numeral: earned numbers only (votes, XP, downloads, produced counts).
+   Defined here so the flat pages and the app share one treatment. */
+.rs-num {
+    color: var(--rs-gold); font-weight: 700; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums; text-shadow: 1px 1px 0 var(--rs-shadow);
 }
 
 /* ---------- Base ---------- */
@@ -169,9 +213,9 @@ hr {
 /* ---------- Focus, accessibility ---------- */
 :focus { outline: none; }
 :focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
-    border-radius: 4px;
+    outline: 2px solid var(--rs-gold);
+    outline-offset: 2px;
+    border-radius: 2px;
 }
 
 .skip-link {
@@ -200,7 +244,9 @@ hr {
 /* ---------- Layout container ---------- */
 .wrap {
     width: 100%;
-    max-width: 1120px;
+    /* §10 the page frame: ~720px content + 2rem gap + 280px side panel.
+       The nav shares it, so every page focuses down the same center. */
+    max-width: 1064px;
     margin: 0 auto;
     padding: 0 clamp(1rem, 3vw, 2rem);
 }
@@ -402,8 +448,9 @@ hr {
     align-items: center;
     gap: .5rem;
     padding: .8rem 1.25rem;
-    border-radius: 999px;
-    border: 1px solid transparent;
+    border-radius: 2px;
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
     background: var(--ink);
     color: var(--bg);
     font: inherit;
@@ -413,9 +460,10 @@ hr {
     cursor: pointer;
     transition: transform .1s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
     box-shadow: var(--shadow-sm);
+    box-shadow: var(--rs-step-out);
 }
-.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
-.btn:active { transform: translateY(0); }
+.btn:hover { transform: none; }
+.btn:active { transform: none; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark); box-shadow: var(--rs-step-in); }
 
 .btn-primary {
     background: var(--brand);
@@ -440,33 +488,82 @@ hr {
 .btn .arrow { transition: transform .15s ease; }
 .btn:hover .arrow { transform: translateX(3px); }
 
-/* ---------- Hero ---------- */
-.hero {
-    position: relative;
-    padding: clamp(3rem, 8vw, 6.5rem) 0 clamp(2.5rem, 6vw, 5rem);
-    overflow: hidden;
+/* ---------- Homepage: the title screen (RS Spec §9) ----------
+   Games do not have landing pages, they have title screens: one centered
+   column, dense with real state. Logo lockup, the menu panel, live gold
+   counters, latest works as inventory slots, the activity ticker. The
+   chrome and the gold are the art direction; the only background is a
+   whisper of vignette. */
+.title-screen {
+    padding: clamp(2rem, 6vw, 4rem) 1rem 3rem;
+    background: radial-gradient(130% 100% at 50% 0%,
+        transparent 55%, color-mix(in oklab, var(--ink) 10%, transparent) 100%);
 }
-.hero::before {
-    content: "";
-    position: absolute;
-    inset: -20% -10% auto -10%;
-    height: 70%;
-    background:
-        radial-gradient(60% 60% at 20% 30%, color-mix(in oklab, var(--brand) 22%, transparent) 0%, transparent 60%),
-        radial-gradient(50% 60% at 85% 20%, color-mix(in oklab, var(--accent) 20%, transparent) 0%, transparent 60%);
-    filter: blur(30px);
-    z-index: -1;
-    pointer-events: none;
+.ts-col { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.1rem; }
+.ts-logo { text-align: center; }
+.ts-mark {
+    width: 84px; height: 84px; margin: 0 auto; display: block;
+    background-color: var(--ink);
+    -webkit-mask: url("/public/logo.png") center / contain no-repeat;
+    mask: url("/public/logo.png") center / contain no-repeat;
 }
-.hero-inner {
-    display: grid;
-    grid-template-columns: 1.15fr .85fr;
-    gap: clamp(2rem, 5vw, 4rem);
-    align-items: center;
+.ts-name { font-size: clamp(2.6rem, 8vw, 3.5rem); margin: .35rem 0 .3rem; }
+.ts-tagline {
+    margin: 0; color: var(--ink-mute);
+    font-size: .8rem; letter-spacing: .22em; text-transform: uppercase;
 }
-@media (max-width: 860px) {
-    .hero-inner { grid-template-columns: 1fr; }
+/* The menu panel: Play / Continue / Multiplayer. Outset chrome that presses
+   inset on click, the one state change the doctrine allows. */
+.ts-menu { display: flex; flex-direction: column; gap: .65rem; }
+.ts-menu-btn {
+    display: flex; align-items: center; justify-content: center; gap: .6rem;
+    min-height: 52px; padding: .6rem 1rem;
+    font-family: var(--font-panel); font-weight: 700; font-size: 1.2rem;
+    color: var(--ink); text-decoration: none; text-align: center;
+    background: color-mix(in oklab, var(--ink) 6%, var(--bg-elev));
+    border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px; box-shadow: var(--rs-step-out);
 }
+.ts-menu-btn:hover, .ts-menu-btn:focus-visible { outline: 1px solid var(--rs-gold); outline-offset: -1px; color: var(--ink); }
+.ts-menu-btn:active {
+    border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+    box-shadow: var(--rs-step-in);
+}
+.ts-primary { background: color-mix(in oklab, var(--brand) 16%, var(--bg-elev)); }
+.ts-menu-btn .ts-sub {
+    font-family: var(--font-sans); font-size: .66rem; font-weight: 700;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--rs-gold);
+}
+/* The counters row: the "2,000 players online" line. Real numbers only. */
+.ts-counters {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+    gap: .35rem 1.4rem; padding: .6rem 1rem;
+    font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute);
+}
+.ts-counters .rs-num { font-size: 1rem; letter-spacing: 0; }
+.ts-panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .7rem; }
+.ts-panel-head h2 { font-family: var(--font-panel); font-size: 1.15rem; margin: 0; }
+.ts-panel-head a { text-decoration: none; font-weight: 600; font-size: .9rem; }
+/* Latest works as inventory slots (§3 chrome): items, not brochures. */
+.ts-slots { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ts-slot {
+    width: 44px; height: 44px; position: relative; display: grid; place-items: center;
+    background: var(--rs-well); color: var(--ink-soft);
+    border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+    border-radius: 2px; box-shadow: var(--rs-step-in);
+}
+a.ts-slot { text-decoration: none; }
+a.ts-slot:hover, a.ts-slot:focus-visible { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
+.ts-slot img { width: 40px; height: 40px; object-fit: cover; border-radius: 1px; display: block; }
+.ts-slot svg { width: 24px; height: 24px; opacity: .65; }
+.ts-slot .ts-stack { position: absolute; top: 0; left: 2px; font-size: .68rem; line-height: 1.1; }
+.ts-empty { background: color-mix(in oklab, var(--rs-well) 65%, var(--bg-elev)); box-shadow: none; }
+.ts-slots > .stat { margin: 0; align-self: center; }
+/* The ticker: the receipts culture, visible before a word about it. */
+.ts-activity ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; font-size: .9rem; }
+.ts-activity li { display: flex; gap: .6rem; align-items: baseline; }
+.ts-activity .rs-num { min-width: 3.4ch; text-align: right; flex: none; }
+.ts-trust { text-align: center; color: var(--ink-mute); font-size: .85rem; margin: .4rem 0 0; }
 
 .eyebrow {
     display: inline-flex;
@@ -486,79 +583,6 @@ hr {
     width: 8px; height: 8px; border-radius: 50%;
     background: currentColor;
 }
-
-.hero h1 {
-    margin-bottom: 1rem;
-}
-.hero .lede {
-    font-size: clamp(1.05rem, .6vw + 1rem, 1.25rem);
-    color: var(--ink-soft);
-    max-width: 34rem;
-    margin-bottom: 1.75rem;
-}
-.hero-cta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .75rem;
-    margin-bottom: 1.5rem;
-}
-.hero-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-    color: var(--ink-mute);
-    font-size: .9rem;
-}
-.hero-meta span { display: inline-flex; align-items: center; gap: .4rem; }
-.hero-meta .check {
-    width: 16px; height: 16px; border-radius: 50%;
-    background: var(--brand-soft);
-    color: var(--brand);
-    display: inline-grid; place-items: center;
-    font-size: .7rem; font-weight: 800;
-}
-
-/* Hero art panel */
-.hero-art {
-    position: relative;
-    aspect-ratio: 5 / 4;
-    border-radius: var(--radius-lg);
-    background: linear-gradient(140deg, var(--brand-soft), var(--bg-elev));
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-}
-.hero-art .blob {
-    position: absolute; inset: 0;
-    background:
-      radial-gradient(45% 45% at 30% 30%, color-mix(in oklab, var(--brand) 55%, transparent) 0%, transparent 70%),
-      radial-gradient(45% 45% at 70% 70%, color-mix(in oklab, var(--accent) 55%, transparent) 0%, transparent 70%);
-    filter: blur(10px);
-    opacity: .8;
-}
-.hero-art .card {
-    position: absolute;
-    background: var(--bg-elev);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: .9rem 1rem;
-    box-shadow: var(--shadow);
-    display: flex; align-items: center; gap: .7rem;
-    font-size: .9rem;
-}
-.hero-art .card .icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: var(--brand); color: var(--brand-ink);
-    display: grid; place-items: center; font-weight: 700;
-}
-.hero-art .card .icon.coral { background: var(--accent); color: var(--accent-ink); }
-.hero-art .card .icon.ink { background: var(--ink); color: var(--bg); }
-.hero-art .card strong { display: block; color: var(--ink); }
-.hero-art .card small { color: var(--ink-mute); }
-
-.hero-art .card-1 { top: 12%; left: 8%; }
-.hero-art .card-2 { top: 46%; right: 8%; }
-.hero-art .card-3 { bottom: 10%; left: 18%; }
 
 /* ---------- Sections ---------- */
 section { padding: clamp(3rem, 7vw, 5.5rem) 0; }
@@ -582,21 +606,17 @@ section { padding: clamp(3rem, 7vw, 5.5rem) 0; }
 @media (max-width: 620px) { .pillars { grid-template-columns: 1fr; } }
 
 .pillar {
-    background: var(--bg-elev);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
+    background: var(--rs-panel);
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px;
     padding: 1.6rem;
-    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
     gap: .6rem;
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    box-shadow: var(--rs-step-out);
 }
-.pillar:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-    border-color: color-mix(in oklab, var(--brand) 40%, var(--line));
-}
+.pillar:hover { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
 .pillar .icon {
     width: 44px; height: 44px;
     border-radius: 12px;
@@ -661,43 +681,29 @@ section { padding: clamp(3rem, 7vw, 5.5rem) 0; }
     border: 1px solid var(--line);
     box-shadow: var(--shadow);
 }
-.split ul.checks {
-    list-style: none;
+/* Plain lists, the way the old web did them: square markers, no badges. */
+ul.checks {
+    list-style: square;
     margin: 1rem 0 0;
-    padding: 0;
+    padding: 0 0 0 1.2rem;
     display: grid;
     gap: .6rem;
 }
-.checks li {
-    display: grid;
-    grid-template-columns: 22px 1fr;
-    gap: .6rem;
-    align-items: start;
-    color: var(--ink-soft);
-}
-.checks li::before {
-    content: "✓";
-    grid-column: 1;
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    background: var(--brand-soft);
-    color: var(--brand);
-    display: inline-grid; place-items: center;
-    font-size: .8rem;
-    font-weight: 800;
-    margin-top: .1rem;
-}
+.checks li { color: var(--ink-soft); }
+.checks li::marker { color: var(--rs-gold); }
 
 /* ---------- Quote / testimonial ---------- */
 .quote {
-    background: var(--bg-elev);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
+    background: var(--rs-panel);
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px;
     padding: clamp(1.5rem, 3vw, 2.5rem);
     box-shadow: var(--shadow);
     max-width: 46rem;
     margin: 0 auto;
     text-align: center;
+    box-shadow: var(--rs-step-out);
 }
 .quote blockquote {
     margin: 0 0 1rem;
@@ -743,6 +749,7 @@ section { padding: clamp(3rem, 7vw, 5.5rem) 0; }
 .cta .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; }
 
 /* ---------- Footer ---------- */
+main:has(.title-screen) + .site-footer { margin-top: 0; }
 .site-footer {
     margin-top: 4rem;
     padding: 2.5rem 0 3rem;
@@ -803,14 +810,16 @@ main.page > h1 {
 .story-panel {
     background:
       radial-gradient(120% 120% at 15% 0%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 60%),
-      var(--bg-elev);
-    border: none;
-    border-radius: var(--radius-lg);
+      var(--rs-panel);
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px;
     padding: clamp(1.5rem, 3.5vw, 2.5rem);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--rs-step-out);
 }
 .story-panel h2 { margin-top: 0; }
 .story-panel p:last-child { margin-bottom: 0; }
+.about-doc .story-panel { margin: 2rem 0; }
 
 .prose h3 {
     font-family: var(--font-sans);
@@ -821,10 +830,86 @@ main.page > h1 {
 }
 
 /* ---------- Two-column page grid (About) ---------- */
+/* ---------- About page: a plain document ---------- */
+/* One narrow centered column, prose directly on the background. The h1 sits
+   at reading scale, not billboard scale; section heads take the panel voice
+   (Alegreya) without any panel. */
+.about-doc {
+    max-width: 640px; margin: 0 auto;
+    padding: clamp(2rem, 5vw, 3.5rem) clamp(1rem, 3vw, 2rem) 1rem;
+}
+.about-doc h1 { font-size: clamp(1.6rem, 2.5vw, 2rem); margin: 0 0 .6rem; }
+.about-doc .lede { color: var(--ink-soft); font-size: 1.05rem; margin: 0 0 2.2rem; }
+.about-doc h2 {
+    font-family: var(--font-panel); font-weight: 600;
+    font-size: 1.3rem; margin: 2.4rem 0 .7rem;
+}
+.about-doc h3 {
+    font-family: var(--font-panel); font-weight: 600;
+    font-size: 1.05rem; margin: 1.4rem 0 .35rem;
+}
+.about-doc p { color: var(--ink-soft); line-height: 1.65; margin: 0 0 1rem; }
+.about-doc ul.checks { margin: .6rem 0 0; }
+
 .about-hero {
     padding: clamp(2.5rem, 6vw, 5rem) 0 clamp(2rem, 4vw, 3rem);
 }
 .about-hero .lede { max-width: 42rem; color: var(--ink-soft); font-size: 1.15rem; }
+
+/* ---------- Guide page (guide.html) ---------- */
+/* Long manual. Every section starts with a rule line so you can tell where
+   you are while scrolling, and anchors land clear of the sticky header. */
+.guide h2 {
+    border-top: 1px solid var(--line);
+    padding-top: 1.6rem;
+    margin-top: 2.6rem;
+    scroll-margin-top: 90px;
+}
+.guide h2:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+.guide-toc {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-top: 1.75rem;
+    box-shadow: var(--shadow-sm);
+}
+.guide-toc strong {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: .78rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: .6rem;
+}
+.guide-toc ol {
+    margin: 0;
+    padding-left: 1.25rem;
+    columns: 2;
+    column-gap: 2.5rem;
+}
+.guide-toc li { margin: .25rem 0; break-inside: avoid; }
+.guide-toc a { text-decoration: none; }
+.guide-toc a:hover { text-decoration: underline; }
+@media (max-width: 560px) { .guide-toc ol { columns: 1; } }
+
+.skill-entry {
+    background: var(--bg-elev);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: .9rem 0;
+    box-shadow: var(--shadow-sm);
+}
+.skill-entry h3 { margin: 0 0 .3rem; }
+.skill-entry .skill-scope { color: var(--ink-mute); margin: 0 0 .45rem; }
+.skill-entry p:last-child { margin-bottom: 0; }
+
+.guide-list { padding-left: 1.25rem; }
+.guide-list li { margin: .55rem 0; }
+.guide .story-panel { margin: 2.2rem 0; }
 
 .about-grid {
     display: grid;
@@ -961,8 +1046,8 @@ main.page > h1 {
     pointer-events: none;
 }
 .filter-group input[type="radio"]:focus-visible + .filter-pill {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
+    outline: 2px solid var(--rs-gold);
+    outline-offset: 2px;
 }
 .filter-group input[type="radio"]:checked + .filter-pill {
     background: var(--brand);
@@ -999,14 +1084,15 @@ main.page > h1 {
 .design-card {
     display: flex;
     flex-direction: column;
-    background: var(--bg-elev);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    background: var(--rs-panel);
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px;
     overflow: hidden;
     text-decoration: none;
     color: inherit;
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    box-shadow: var(--rs-step-out);
 }
 .design-card:hover {
     transform: translateY(-2px);
@@ -1015,8 +1101,8 @@ main.page > h1 {
     color: inherit;
 }
 .design-card:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
+    outline: 2px solid var(--rs-gold);
+    outline-offset: 2px;
 }
 .design-card .thumb {
     aspect-ratio: 4 / 3;
@@ -1053,25 +1139,8 @@ main.page > h1 {
     align-items: center;
 }
 
-/* ---------- Home page: hero, latest works, how it works ---------- */
-.home-hero { padding-bottom: clamp(1.5rem, 4vw, 2.5rem); }
-.home-works { padding-top: clamp(1.5rem, 4vw, 2.5rem); }
-.home-works-head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .75rem;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-}
-.home-works-head h2 { margin: 0; }
-.home-works-head a { color: var(--brand); text-decoration: none; font-weight: 600; }
-.home-works-head a:hover { text-decoration: underline; }
-.home-works .design-grid > .stat { grid-column: 1 / -1; margin: 0; }
 .design-card .thumb.has-photo { padding: 0; }
 .design-card .thumb.has-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.home-how .checks { margin-top: 1rem; }
-.home-story { margin-top: 1.75rem; color: var(--ink-mute); }
 
 /* ---------- Status + needs badges ---------- */
 .badge {
@@ -1098,7 +1167,7 @@ main.page > h1 {
 .tag {
     display: inline-block;
     padding: .2rem .55rem;
-    border-radius: 6px;
+    border-radius: 2px;
     background: var(--bg-sunk);
     color: var(--ink-soft);
     font-size: .78rem;
@@ -1347,17 +1416,6 @@ table { display: block; width: 100%; overflow-x: auto; }
     section { padding: clamp(2.25rem, 8vw, 3.25rem) 0; }
     h2 { margin-top: 1.4em; }
     .section-head { margin-bottom: 1.75rem; }
-
-    /* The floating hero cards are decorative; shrink so they never
-       collide inside the narrower art panel. */
-    .hero-art { aspect-ratio: 4 / 3; }
-    .hero-art .card { padding: .6rem .7rem; font-size: .78rem; gap: .5rem; max-width: 62%; }
-    .hero-art .card .icon { width: 26px; height: 26px; font-size: .8rem; }
-    .hero-art .card-1 { top: 8%;  left: 5%; }
-    .hero-art .card-2 { top: 44%; right: 5%; }
-    .hero-art .card-3 { bottom: 8%; left: 10%; }
-
-    .hero-meta { gap: .5rem 1rem; font-size: .85rem; }
 
     /* Comfortable thumb targets everywhere (WCAG 2.2 target size). */
     .btn { min-height: 44px; padding: .75rem 1.15rem; }

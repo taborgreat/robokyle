@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { api } from './lib/api.js';
 import { useAuth } from './lib/auth.jsx';
 import { useConfig } from './lib/config.js';
+import { SkillIcon } from './rs.jsx';
 
 /* Shown until the address is confirmed. Reading is unaffected; posting is what
    the server blocks, so the banner explains why and offers another email. */
@@ -60,7 +61,9 @@ function LevelToasts({ user }) {
     <div className="level-toasts" role="status">
       {toasts.map(t => (
         <div key={t.id} className="level-toast">
-          {t.id.charAt(0).toUpperCase() + t.id.slice(1)} level {t.from} to {t.to}
+          <SkillIcon id={t.id} name={t.id} size={18} />{' '}
+          {t.id.charAt(0).toUpperCase() + t.id.slice(1)} level{' '}
+          <span className="rs-num">{t.from}</span> to <span className="rs-num">{t.to}</span>
         </div>
       ))}
     </div>
@@ -70,6 +73,10 @@ function LevelToasts({ user }) {
 export default function Layout() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  // The mobile menu closes itself once you pick something: on navigation, and
+  // on any link tap (covers tapping the page you are already on).
+  const { pathname } = useLocation();
+  useEffect(() => { setOpen(false); }, [pathname]);
   return (
     <>
       <a className="skip-link" href="#main">Skip to main content</a>
@@ -84,7 +91,8 @@ export default function Layout() {
             <span className="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
             <span className="nav-toggle-text">Menu</span>
           </button>
-          <ul id="site-menu" className={'nav-links' + (open ? ' is-open' : '')}>
+          <ul id="site-menu" className={'nav-links' + (open ? ' is-open' : '')}
+              onClick={e => { if (e.target.closest('a')) setOpen(false); }}>
             <li><a href="/about.html">About</a></li>
             <li><NavLink className="nav-strong" to="/works">Works</NavLink></li>
             <li><NavLink to="/creators">Creators</NavLink></li>
@@ -119,6 +127,7 @@ export default function Layout() {
                 <li><Link to="/talk">Talk</Link></li>
                 <li><Link to="/creators">Creators</Link></li>
                 <li><a href="/about.html">About</a></li>
+                <li><a href="/guide.html">Guide</a></li>
                 <li><a href="/public/game/game.html">Game</a></li>
               </ul>
             </div>
@@ -126,7 +135,6 @@ export default function Layout() {
               <h4>Get in touch</h4>
               <ul>
                 <li><a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a></li>
-                <li><a href="https://github.com/taborgreat/robokyle">GitHub</a></li>
               </ul>
             </div>
           </div>

@@ -1,40 +1,291 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, fileUrl, avatarUrl } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
+import { SkillIcon, ToolIcon, LevelFraction } from '../rs.jsx';
 
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 const fmtWhen = (d) => new Date(d).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const fmtExact = (d) => new Date(d).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' });
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const toolLabel = (id) => id.replace(/-/g, ' ');
 
 function Stat({ n, label }) {
-  return <div className="profile-stat"><span className="n">{n}</span><span className="l">{label}</span></div>;
+  return <div className="profile-stat"><span className="n rs-num">{n}</span><span className="l">{label}</span></div>;
 }
 
-/* Delta B: equipment the member owns, from the curated list. Private by
-   design: other people only ever see the derived buildable flag on works. */
-function EquipmentEditor({ owned, config, onSaved }) {
-  const items = config?.xp?.equipmentItems || [];
-  const [busy, setBusy] = useState(false);
-  async function toggle(id) {
-    const next = owned.includes(id) ? owned.filter(x => x !== id) : [...owned, id];
-    setBusy(true);
-    try { await api('/users/me', { method: 'PATCH', body: { equipment: next } }); onSaved(next); }
-    catch {} finally { setBusy(false); }
-  }
+/* ============================================================
+   The skills panel (RS Profile Spec §2): the old-RuneScape stats
+   tab. 3 x 3 cells in registry order, each an icon and the gold
+   level-over-99 fraction; total level and RoboXP in the bottom
+   rows; Innovation as a tier-name strip. Hover is a chromed
+   tooltip; tapping a cell scopes the ledger to that skill.
+   Identical for the owner and everyone else.
+   ============================================================ */
+function SkillsPanel({ xpv, skillFocus, setSkillFocus, bio }) {
   return (
-    <div className="panel" style={{ marginTop: '1.5rem' }}>
-      <h2>My equipment</h2>
-      <p className="stat">Only you see this list. Works show you a buildable-with-my-equipment
-        check, and the works list can filter to what you can actually make.</p>
-      <div className="need-chips">
-        {items.map(id => (
-          <button key={id} type="button" disabled={busy}
-                  className={'tag need-chip' + (owned.includes(id) ? ' on' : '')}
-                  aria-pressed={owned.includes(id)} onClick={() => toggle(id)}>{id}</button>
+    <div className={'panel rs-skills' + (xpv.innovation ? ' has-aura' : '')}>
+      <div className="rs-skill-grid">
+        {xpv.skills.map(s => (
+          <button key={s.id} type="button"
+                  className={'rs-skill-cell rs-tipwrap' + (s.level >= 99 ? ' maxed' : '') + (skillFocus === s.id ? ' on' : '')}
+                  style={{ '--cat': s.color }}
+                  aria-pressed={skillFocus === s.id}
+                  aria-label={`${s.name}, level ${s.level}`}
+                  onClick={() => setSkillFocus(skillFocus === s.id ? null : s.id)}>
+            <SkillIcon id={s.id} name={s.name} color={s.color} size={20} />
+            <LevelFraction level={s.level} />
+            <span className="rs-tip" role="tooltip">
+              <strong>{s.name}</strong>
+              <span className="rs-tip-scope">{s.scope}</span>
+              <span className="rs-tip-line">{Math.round(s.xp).toLocaleString()} xp</span>
+              <span className="rs-tip-line">{s.nextLevelXp === null
+                ? 'maxed'
+                : `${Math.ceil(s.nextLevelXp - s.xp).toLocaleString()} xp to level ${s.level + 1}`}</span>
+              {s.title && <span className="rs-tip-line">{s.title}</span>}
+            </span>
+          </button>
         ))}
       </div>
+      <div className="rs-total-row">
+        <span>Total level:</span>
+        <span className="rs-num rs-total-num">{xpv.totalLevel}</span>
+      </div>
+      <div className="rs-total-row rs-robo-row">
+        <span>RoboXP</span>
+        <span className="rs-num">{Math.round(xpv.roboXp ?? 0).toLocaleString()}</span>
+      </div>
+      {xpv.innovation && (
+        <button type="button"
+                className={'rs-innov-strip' + (skillFocus === 'innov' ? ' on' : '')}
+                aria-pressed={skillFocus === 'innov'}
+                onClick={() => setSkillFocus(skillFocus === 'innov' ? null : 'innov')}
+                title="Real-world impact of your ideas. Tap for its receipts.">
+          Innovation: {xpv.innovation.tier}
+        </button>
+      )}
+      {skillFocus && skillFocus !== 'innov' && (() => {
+        const s = xpv.skills.find(x => x.id === skillFocus);
+        if (!s) return null;
+        const maxed = s.nextLevelXp === null;
+        const span = maxed ? 1 : s.nextLevelXp - s.levelFloorXp;
+        const pct = maxed ? 100 : Math.max(0, Math.min(100, ((s.xp - s.levelFloorXp) / span) * 100));
+        return (
+          <div className="skill-detail" style={{ '--cat': s.color }}>
+            <strong>{s.name}</strong> · level {s.level}{s.title && <> · {s.title}</>}
+            <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(pct)}
+                 aria-valuemin={0} aria-valuemax={100}
+                 aria-label={maxed ? `${s.name} maxed` : `${Math.round(pct)}% through level ${s.level}`}
+                 title={maxed ? 'Maxed' : `${Math.round(s.xp - s.levelFloorXp).toLocaleString()} / ${span.toLocaleString()} into level ${s.level + 1}`}>
+              <span className={'xp-bar-fill' + (maxed ? ' is-maxed' : '')} style={{ width: `${pct}%` }} />
+            </div>
+            <span className="stat">
+              {Math.round(s.xp).toLocaleString()} xp
+              {maxed ? <> · maxed</> : <> · {Math.ceil(s.nextLevelXp - s.xp).toLocaleString()} to level {s.level + 1}</>}
+            </span>
+          </div>
+        );
+      })()}
+      {bio}
+    </div>
+  );
+}
+
+/* One work as one item in a slot: image cropped square, Produced count as
+   the stack number top-left, examine text on hover. */
+function WorkSlot({ w, isSelf, dragProps }) {
+  const catId = w.categories?.[0]?.id;
+  const examine = (w.description || '').length > 140 ? w.description.slice(0, 140) + '…' : w.description;
+  return (
+    <Link to={`/works/${w.id}`} className="rs-slot rs-item rs-tipwrap" {...(dragProps || {})}>
+      {w.thumbUrl
+        ? <img className="rs-item-img" src={fileUrl(w.thumbUrl)} alt="" loading="lazy" />
+        : <SkillIcon id={catId || 'mech'} name={w.title} size={24} />}
+      {w.producedCount > 0 && <span className="rs-num rs-stack">{w.producedCount}</span>}
+      <span className="rs-tip" role="tooltip">
+        <strong>{w.title}</strong>
+        {examine && <em className="rs-examine">{examine}</em>}
+        {w.producedCount > 0 && <span className="rs-tip-line">produced {w.producedCount}×</span>}
+        {isSelf && <span className="rs-tip-line">drag to reorder</span>}
+      </span>
+    </Link>
+  );
+}
+
+/* ============================================================
+   The inventory (§3): 4 wide, 7 tall, 28 slots — works as items.
+   Empty slots are open recessed wells. The owner drags to curate
+   the front-of-bag order (saved to the profile); more than 28
+   works opens the bank view with per-skill tabs.
+   ============================================================ */
+function Inventory({ p, isSelf, config }) {
+  const [order, setOrder] = useState(p.works);
+  const [bank, setBank] = useState(null);        // null closed, [] loading done
+  const [bankOpen, setBankOpen] = useState(false);
+  const [bankTab, setBankTab] = useState('');
+  const dragFrom = useRef(null);
+  useEffect(() => { setOrder(p.works); }, [p.works]);
+
+  const total = p.stats.works;
+  const slots = [...order.slice(0, 28)];
+  while (slots.length < 28) slots.push(null);
+
+  function drop(i) {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (from === null || from === i || !order[from]) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(Math.min(i, next.length), 0, moved);
+    setOrder(next);
+    api('/users/me', { method: 'PATCH', body: { inventoryOrder: next.map(w => String(w.id)) } }).catch(() => {});
+  }
+
+  async function openBank() {
+    setBankOpen(true);
+    if (bank) return;
+    try {
+      const r = await api(`/designs?by=${encodeURIComponent(p.username)}&limit=50&sort=new`);
+      setBank(r.items);
+    } catch { setBank([]); }
+  }
+
+  const cats = (config?.xp?.categories || []).filter(c => !c.hidden);
+  const catOf = (w) => w.categories?.[0]?.id;
+  const bankCats = bank ? cats.filter(c => bank.some(w => catOf(w) === c.id)) : [];
+  const bankShown = bank ? (bankTab ? bank.filter(w => catOf(w) === bankTab) : bank) : null;
+
+  return (
+    <div className="panel rs-inv-panel">
+      <div className="produced-head">
+        <h2>{isSelf ? 'Your works' : `Works by ${p.username}`} <span className="rs-num">{total}</span></h2>
+        {isSelf && <Link className="btn btn-primary btn-sm" to="/works/new">Add a work</Link>}
+      </div>
+      {total === 0 && (
+        <p className="stat">
+          {isSelf ? <>Nothing in the bag yet. <Link to="/works/new">Add your first work</Link>.</> : 'Nothing posted yet.'}
+        </p>
+      )}
+      <div className="rs-inv" role="list">
+        {slots.map((w, i) => w ? (
+          <WorkSlot key={String(w.id)} w={w} isSelf={isSelf}
+                    dragProps={isSelf ? {
+                      draggable: true,
+                      onDragStart: (e) => { dragFrom.current = i; e.dataTransfer.effectAllowed = 'move'; },
+                      onDragOver: (e) => e.preventDefault(),
+                      onDrop: (e) => { e.preventDefault(); drop(i); },
+                    } : {
+                      onDragOver: undefined,
+                    }} />
+        ) : (
+          <span key={`empty-${i}`} className="rs-slot rs-empty" aria-hidden="true"
+                onDragOver={isSelf ? (e) => e.preventDefault() : undefined}
+                onDrop={isSelf ? (e) => { e.preventDefault(); drop(order.length - 1); } : undefined} />
+        ))}
+      </div>
+      {total > 28 && !bankOpen && (
+        <button type="button" className="rs-bankbar" onClick={openBank}>View all {total}</button>
+      )}
+      {bankOpen && (
+        <div className="rs-bank">
+          <div className="rs-bank-tabs" role="tablist">
+            <button type="button" className={'rs-bank-tab' + (bankTab === '' ? ' on' : '')}
+                    onClick={() => setBankTab('')}>All</button>
+            {bankCats.map(c => (
+              <button key={c.id} type="button" className={'rs-bank-tab' + (bankTab === c.id ? ' on' : '')}
+                      style={{ '--cat': c.color }} onClick={() => setBankTab(c.id)}>
+                <SkillIcon id={c.id} name={c.name} color={c.color} size={18} />
+              </button>
+            ))}
+            <button type="button" className="link-btn" style={{ marginLeft: 'auto' }}
+                    onClick={() => setBankOpen(false)}>close</button>
+          </div>
+          {!bankShown ? <p className="stat">Loading…</p> : (
+            <div className="rs-inv rs-inv-bank">
+              {bankShown.map(w => <WorkSlot key={String(w.id)} w={w} />)}
+            </div>
+          )}
+        </div>
+      )}
+      {p.contributions?.length > 0 && (
+        <p className="stat rs-contrib">
+          Contributed to:{' '}
+          {p.contributions.map((c, i) => (
+            <span key={String(c.id)}>{i > 0 && ', '}<Link to={`/works/${c.id}`}>{c.title}</Link></span>
+          ))}
+          {' '}(accepted doc revisions)
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   The tools panel (§4): what you own, one slot per equipment
+   item, public by default with a hide toggle. On your own view
+   an add slot opens the vocabulary picker, and the checkbox
+   under the shelf applies the buildable filter site-wide —
+   your equipment IS the filter.
+   ============================================================ */
+function ToolsPanel({ p, setP, config }) {
+  const isSelf = p.isSelf;
+  const owned = p.equipment || [];
+  const items = config?.xp?.equipmentItems || [];
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  if (!isSelf && (owned.length === 0)) return null;
+
+  async function save(next) {
+    setBusy(true);
+    try { await api('/users/me', { method: 'PATCH', body: { equipment: next } }); setP({ ...p, equipment: next }); }
+    catch {} finally { setBusy(false); }
+  }
+  async function toggleHidden() {
+    const next = !p.equipmentHidden;
+    setP({ ...p, equipmentHidden: next });
+    try { await api('/users/me', { method: 'PATCH', body: { equipmentHidden: next } }); } catch {}
+  }
+  const unowned = items.filter(i => !owned.includes(i));
+  return (
+    <div className="panel rs-tools">
+      <h2>Tools</h2>
+      <div className="rs-toolrow">
+        {owned.map(id => (
+          <span key={id} className="rs-slot rs-tool rs-tipwrap" tabIndex={0}>
+            <ToolIcon id={id} />
+            <span className="rs-tip" role="tooltip">
+              <strong>{toolLabel(id)}</strong>
+              {isSelf && <span className="rs-tip-line">click × to remove</span>}
+            </span>
+            {isSelf && (
+              <button type="button" className="rs-tool-x" aria-label={`Remove ${toolLabel(id)}`}
+                      disabled={busy} onClick={() => save(owned.filter(x => x !== id))}>×</button>
+            )}
+          </span>
+        ))}
+        {isSelf && (
+          <button type="button" className="rs-slot rs-ghost" aria-label="Add a tool"
+                  onClick={() => setPicking(!picking)}>+</button>
+        )}
+      </div>
+      {picking && (
+        <div className="rs-tool-picker">
+          {unowned.length === 0 ? <p className="stat">You own everything on the list.</p> : unowned.map(id => (
+            <button key={id} type="button" className="tag need-chip" disabled={busy}
+                    onClick={() => save([...owned, id])}>{toolLabel(id)}</button>
+          ))}
+        </div>
+      )}
+      {isSelf && (
+        <div className="rs-tool-prefs">
+          <label>
+            <input type="checkbox" checked={!!p.equipmentHidden} onChange={toggleHidden} />
+            <span>Hide my tools from other people</span>
+          </label>
+        </div>
+      )}
+      {!isSelf && <p className="stat">Works show whether this member could build them from this shelf.</p>}
     </div>
   );
 }
@@ -44,8 +295,6 @@ function BioEditor({ bio, onSaved, introMinChars, hasIntroXp }) {
   const [text, setText] = useState(bio);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  // The intro receipt's bar, made visible: an invisible threshold that pays
-  // silently or not at all just reads as broken.
   const shortOf = introMinChars && !hasIntroXp && text.trim().length < introMinChars
     ? introMinChars - text.trim().length : 0;
 
@@ -112,8 +361,6 @@ export default function Profile() {
     api('/config').then(setConfig).catch(() => {});
   }, [username]);
 
-  /* Refetch in place — no loading flash — so XP that just landed (the bio's
-     intro receipt, say) appears live: skill numbers, RoboXP, bar, ledger. */
   const reloadXp = () => {
     api(`/users/${encodeURIComponent(username)}`).then(setP).catch(() => {});
     api(`/users/${encodeURIComponent(username)}/ledger`).then(setLedger).catch(() => {});
@@ -122,8 +369,6 @@ export default function Profile() {
     }
   };
 
-  /* Tapping a skill cell scopes the ledger to that category server-side, so
-     a sparse skill's receipts are not lost behind the newest-100 window. */
   useEffect(() => {
     if (!skillFocus) { setCatLedger(null); return; }
     let live = true;
@@ -160,12 +405,12 @@ export default function Profile() {
           <div className="profile-id">
             {/* The wedge ring IS the stat sheet (Avatar Spec): a full wedge is
                 the mastery segment, a dark ring self-identifies a newcomer. */}
-            <img className="avatar-svg" src={avatarUrl(p.username)} alt="" width="72" height="72" />
+            <img className="avatar-svg" src={avatarUrl(p.username)} alt="" width="80" height="80" />
             <div>
               <h1 className="profile-name">
                 {p.username}
                 <span className="total-level" title="Overall level: the sum of all nine skill levels">
-                  Lv {p.xp?.totalLevel ?? 0}
+                  Lv <span className="rs-num">{p.xp?.totalLevel ?? 0}</span>
                 </span>
                 {p.role === 'admin' && <span className="tag admin-tag">admin</span>}
                 {p.isSelf && <span className="tag">you</span>}
@@ -181,7 +426,6 @@ export default function Profile() {
           )}
         </div>
         <div className="toolbar" style={{ margin: 0 }}>
-          {p.isSelf && <Link className="btn btn-primary" to="/works/new">Add a work</Link>}
           {p.canManageRole && (p.role === 'admin'
             ? <button className="btn btn-ghost" disabled={roleBusy} onClick={() => setRole('user')}>Demote to member</button>
             : <button className="btn btn-ghost" disabled={roleBusy} onClick={() => setRole('admin')}>Promote to admin</button>)}
@@ -190,211 +434,145 @@ export default function Profile() {
       </div>
       {roleNote && <div className="notice" style={{ marginBottom: '1.5rem' }} role="status">{roleNote}</div>}
 
-      <div className="profile-grid">
-        <div>
-          <div className="panel">
-            {p.isSelf
-              ? <BioEditor bio={p.bio}
-                           introMinChars={config?.xp?.introBioMinChars || 0}
-                           hasIntroXp={(p.xp?.skills.find(x => x.id === 'comm')?.xp || 0) > 0}
-                           onSaved={bio => { setP({ ...p, bio }); refresh().catch(() => {}); reloadXp(); }} />
-              : (p.bio ? <p className="desc">{p.bio}</p> : <p className="stat">This member has not written a bio.</p>)}
-          </div>
-
-          <h2 className="profile-section">{p.isSelf ? 'Your works' : `Works by ${p.username}`} ({s.works})</h2>
-          {p.works.length === 0 ? (
-            <p className="empty">
-              {p.isSelf
-                ? <>Nothing posted yet. <Link to="/works/new">Add your first work</Link>.</>
-                : 'Nothing posted yet.'}
-            </p>
-          ) : (
-            <div className="design-grid">
-              {p.works.map(w => (
-                <Link key={w.id} className="design-card" to={`/works/${w.id}`}>
-                  {w.thumbUrl ? (
-                    <div className="thumb has-photo"><img src={fileUrl(w.thumbUrl)} alt="" loading="lazy" /></div>
-                  ) : (
-                    <div className="thumb" aria-hidden="true">
-                      <svg viewBox="0 0 64 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M32 6l22 12v18L32 44 10 36V18z"/><path d="M32 22l22-4M32 22L10 18M32 22v22"/>
-                      </svg>
-                    </div>
-                  )}
-                  <div className="body">
-                    <h3>{w.title}</h3>
-                    <p>{w.description.length > 120 ? w.description.slice(0, 120) + '…' : w.description}</p>
-                    <div className="meta">
-                      <span className="stat">
-                        <strong>▲ {w.upvoteCount}</strong>{w.producedCount > 0 && <> · produced {w.producedCount}×</>} · {w.downloadCount} downloads · v{w.version}
-                        {w.guideSteps > 0 && <> · guide</>}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <aside>
-          {p.xp && (
-            <div className={'panel skill-panel' + (p.xp.innovation ? ' has-aura' : '')}>
-              <h2>Skills</h2>
-              {!skillFocus && <p className="stat skill-hint">Tap a skill to see its XP history.</p>}
-              {/* Each cell opens that skill's own receipts below — where the
-                  number came from, event by event. The grid reports; tapping
-                  is the tooltip's deeper form, not a prompt. */}
-              <div className="skill-grid">
-                {p.xp.skills.map(s => (
-                  <button key={s.id} type="button"
-                          className={'skill-cell' + (s.level >= 99 ? ' maxed' : '') + (skillFocus === s.id ? ' on' : '')}
-                          style={{ '--cat': s.color }}
-                          aria-pressed={skillFocus === s.id}
-                          onClick={() => setSkillFocus(skillFocus === s.id ? null : s.id)}
-                          title={`${s.name}: ${s.scope}` +
-                                 (s.nextLevelXp !== null ? `\n${Math.ceil(s.nextLevelXp - s.xp)} xp to level ${s.level + 1}` : '\nmaxed') +
-                                 (s.title ? `\n${s.title}` : '')}>
-                    <span className="skill-name">{s.name}</span>
-                    <span className="skill-level">{s.level}</span>
-                    <span className="skill-xp">{Math.round(s.xp).toLocaleString()} xp</span>
-                  </button>
-                ))}
-              </div>
-              {p.xp.innovation && (
-                <button type="button" className={'innov-tier link-btn' + (skillFocus === 'innov' ? ' on' : '')}
-                        aria-pressed={skillFocus === 'innov'}
-                        onClick={() => setSkillFocus(skillFocus === 'innov' ? null : 'innov')}
-                        title="Real-world impact of your ideas. Tap for its receipts.">
-                  Innovation: {p.xp.innovation.tier}
-                </button>
-              )}
-              {skillFocus && skillFocus !== 'innov' && (() => {
-                const s = p.xp.skills.find(x => x.id === skillFocus);
-                if (!s) return null;
-                const maxed = s.nextLevelXp === null;
-                // Progress within the current level, OSRS-style: floor to next.
-                const span = maxed ? 1 : s.nextLevelXp - s.levelFloorXp;
-                const pct = maxed ? 100 : Math.max(0, Math.min(100, ((s.xp - s.levelFloorXp) / span) * 100));
-                return (
-                  <div className="skill-detail" style={{ '--cat': s.color }}>
-                    <strong>{s.name}</strong> · level {s.level}{s.title && <> · {s.title}</>}
-                    <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(pct)}
-                         aria-valuemin={0} aria-valuemax={100}
-                         aria-label={maxed ? `${s.name} maxed` : `${Math.round(pct)}% through level ${s.level}`}
-                         title={maxed ? 'Maxed' : `${Math.round(s.xp - s.levelFloorXp).toLocaleString()} / ${span.toLocaleString()} into level ${s.level + 1}`}>
-                      <span className={'xp-bar-fill' + (maxed ? ' is-maxed' : '')} style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="stat">
-                      {Math.round(s.xp).toLocaleString()} xp
-                      {maxed
-                        ? <> · maxed</>
-                        : <> · {Math.ceil(s.nextLevelXp - s.xp).toLocaleString()} to level {s.level + 1}</>}
-                      <br />{s.scope}
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          <div className="panel" style={{ marginTop: p.xp ? '1.5rem' : 0 }}>
-            <h2>Activity</h2>
-            <div className="profile-stats">
-              <Stat n={s.works} label={s.works === 1 ? 'work' : 'works'} />
-              <Stat n={s.comments} label="comments" />
-              <Stat n={s.upvotes} label="upvotes" />
-              <Stat n={s.downloads} label="downloads" />
-            </div>
-            <p className="stat" style={{ marginTop: '.75rem' }}>
-              {s.files > 0 && <>{plural(s.files, 'file')} shared</>}
-              {s.files > 0 && s.guides > 0 && ' · '}
-              {s.guides > 0 && <>{plural(s.guides, 'build guide')} written</>}
-            </p>
-          </div>
-
-          {p.isSelf && (
-            <EquipmentEditor owned={p.equipment || []} config={config}
-                             onSaved={equipment => setP({ ...p, equipment })} />
-          )}
-
+      {/* §5 composition: skills fixed left, the bag and the shelf right,
+          ledger full-width beneath, conversation panels last. */}
+      <div className="rs-layout">
+        <div className="rs-left">
+          {/* The bio rides at the skills panel's foot: flavor text. */}
           {(() => {
-            /* One panel, two scopes: everything, or the tapped skill's own
-               receipts with that category's share of each entry. */
-            const shown = skillFocus ? catLedger : ledger;
-            const focusSkill = skillFocus && skillFocus !== 'innov' && p.xp?.skills.find(x => x.id === skillFocus);
-            const amountOf = (e) => skillFocus ? (e.split?.[skillFocus] ?? 0) : e.amount;
-            if (!skillFocus && !(ledger?.entries?.length > 0)) return null;
-            return (
-              <div className="panel" style={{ marginTop: '1.5rem' }}>
-                <div className="produced-head">
-                  <h2>{skillFocus ? `${focusSkill ? focusSkill.name : 'Innovation'} ledger` : 'XP ledger'}</h2>
-                  {skillFocus && <button type="button" className="link-btn" onClick={() => setSkillFocus(null)}>✕ all skills</button>}
-                </div>
-                {!shown ? <p className="stat">Loading…</p>
-                  : shown.entries.length === 0 ? <p className="stat">Nothing has routed here yet.</p> : (
-                  <ul className="xp-ledger">
-                    {shown.entries.slice(0, 30).map((e, i) => (
-                      <li key={i} className={amountOf(e) < 0 ? 'loss' : ''}>
-                        <span className="xl-amt">{amountOf(e) > 0 ? '+' : ''}{Math.round(amountOf(e) * 10) / 10}</span>
-                        {/* One short line per event, linked to its subject.
-                            Struck/endorsed reasons stay unnamed on purpose:
-                            naming the work would unmask an anonymous downvote. */}
-                        <span className="xl-what">
-                          {e.kind === 'publish' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'publish-derived' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> (revision)</>}
-                          {e.kind === 'version' && <>new version of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'upvote' && <>upvote on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link>{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
-                          {e.kind === 'downvote' && <>downvote on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'downvote-struck' && <>your downvote reason was struck</>}
-                          {e.kind === 'reason-endorsed' && <>your downvote reason was endorsed</>}
-                          {e.kind === 'referenced' && <><Link to={`/works/${e.workId}`}>{e.workTitle}</Link> used in {e.refTitle ? <Link to={`/works/${e.refId}`}>{e.refTitle}</Link> : 'another work'}{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
-                          {e.kind === 'accepted-answer' && <>accepted answer on {e.talkId ? <Link to={`/talk/${e.talkId}`}>{e.talkTitle}</Link> : 'a question'}</>}
-                          {e.kind === 'standard-compliance' && <>{e.refTitle ? <Link to={`/works/${e.refId}`}>{e.refTitle}</Link> : 'a work'} verified compliant with <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'build' && <>verified build of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'build-fit' && <>fit findings on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'build-author' && <><Link to={`/works/${e.workId}`}>{e.workTitle}</Link> built{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
-                          {e.kind === 'fit-report' && <>fit report on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'fit-confirmed' && <>real use of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> confirmed{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
-                          {e.kind === 'entry-upvote' && <>your result on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> upvoted{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
-                          {e.kind === 'entry-downvote' && <>downvote on your result on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'doc-revision' && <>doc revision accepted on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                          {e.kind === 'moderation' && <>moderation action upheld</>}
-                          {e.kind === 'profile-bio' && <>introduced yourself</>}
-                        </span>
-                        <span className="when">{fmtDate(e.at)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="stat" style={{ marginTop: '.5rem' }}>
-                  {skillFocus
-                    ? 'Only what routed into this skill, with its share of each event.'
-                    : 'Every number above decomposes into these receipts. Public by default.'}
-                </p>
+            const bioBlock = (
+              <div className="rs-bio">
+                {p.isSelf
+                  ? <BioEditor bio={p.bio}
+                               introMinChars={config?.xp?.introBioMinChars || 0}
+                               hasIntroXp={(p.xp?.skills.find(x => x.id === 'comm')?.xp || 0) > 0}
+                               onSaved={bio => { setP({ ...p, bio }); refresh().catch(() => {}); reloadXp(); }} />
+                  : (p.bio ? <p className="desc">{p.bio}</p> : <p className="stat">This member has not written a bio.</p>)}
               </div>
             );
+            return p.xp
+              ? <SkillsPanel xpv={p.xp} skillFocus={skillFocus} setSkillFocus={setSkillFocus} bio={bioBlock} />
+              : <div className="panel rs-skills">{bioBlock}</div>;
           })()}
+        </div>
 
-          <div className="panel" style={{ marginTop: '1.5rem' }}>
-            <h2>Recent comments</h2>
-            {p.comments.length === 0 ? <p className="stat">Nothing yet.</p> : (
-              <ul className="comment-feed">
-                {p.comments.map(c => (
-                  <li key={c.id}>
-                    {c.work
-                      ? <Link to={`/works/${c.work.id}`}>{c.work.title}</Link>
-                      : c.post
-                        ? <Link to={`/talk/${c.post.id}`}>Talk: {c.post.title}</Link>
-                        : <em>removed</em>}
-                    <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
-                    <p>{c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body}</p>
+        <div className="rs-mainCol">
+          <div className="rs-row">
+            <Inventory p={p} isSelf={p.isSelf} config={config} />
+            <div className="rs-sideStack">
+              <ToolsPanel p={p} setP={setP} config={config} />
+              <div className="panel">
+                <h2>Activity</h2>
+                <div className="profile-stats">
+                  <Stat n={s.works} label={s.works === 1 ? 'work' : 'works'} />
+                  <Stat n={s.comments} label="comments" />
+                  <Stat n={s.upvotes} label="upvotes" />
+                  <Stat n={s.downloads} label="downloads" />
+                </div>
+                <p className="stat" style={{ marginTop: '.75rem' }}>
+                  {s.files > 0 && <>{plural(s.files, 'file')} shared</>}
+                  {s.files > 0 && s.guides > 0 && ' · '}
+                  {s.guides > 0 && <>{plural(s.guides, 'build guide')} written</>}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {(() => {
+        const shown = skillFocus ? catLedger : ledger;
+        const focusSkill = skillFocus && skillFocus !== 'innov' && p.xp?.skills.find(x => x.id === skillFocus);
+        const amountOf = (e) => skillFocus ? (e.split?.[skillFocus] ?? 0) : e.amount;
+        if (!skillFocus && !(ledger?.entries?.length > 0)) return null;
+        return (
+          <div className="panel rs-ledger">
+            <div className="produced-head">
+              <h2>{skillFocus ? `${focusSkill ? focusSkill.name : 'Innovation'} ledger` : 'XP ledger'}</h2>
+              {skillFocus && <button type="button" className="link-btn" onClick={() => setSkillFocus(null)}>✕ all skills</button>}
+            </div>
+            {!shown ? <p className="stat">Loading…</p>
+              : shown.entries.length === 0 ? <p className="stat">Nothing has routed here yet.</p> : (
+              <ul className="xp-ledger">
+                {shown.entries.slice(0, 30).map((e, i) => (
+                  <li key={i} className={amountOf(e) < 0 ? 'loss' : ''}>
+                    <span className="xl-amt rs-num">{amountOf(e) > 0 ? '+' : ''}{Math.round(amountOf(e) * 10) / 10}</span>
+                    {/* One short line per event, linked to its subject.
+                        Struck/endorsed reasons stay unnamed on purpose:
+                        naming the work would unmask an anonymous downvote. */}
+                    <span className="xl-what">
+                      {e.kind === 'publish' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'publish-derived' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> (revision)</>}
+                      {e.kind === 'version' && <>new version of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'upvote' && <>upvote on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link>{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
+                      {e.kind === 'downvote' && <>downvote on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'downvote-struck' && <>your downvote reason was struck</>}
+                      {e.kind === 'reason-endorsed' && <>your downvote reason was endorsed</>}
+                      {e.kind === 'referenced' && <><Link to={`/works/${e.workId}`}>{e.workTitle}</Link> used in {e.refTitle ? <Link to={`/works/${e.refId}`}>{e.refTitle}</Link> : 'another work'}{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
+                      {e.kind === 'accepted-answer' && <>accepted answer on {e.talkId ? <Link to={`/talk/${e.talkId}`}>{e.talkTitle}</Link> : 'a question'}</>}
+                      {e.kind === 'standard-compliance' && <>{e.refTitle ? <Link to={`/works/${e.refId}`}>{e.refTitle}</Link> : 'a work'} verified compliant with <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'build' && <>verified build of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'build-fit' && <>fit findings on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'build-author' && <><Link to={`/works/${e.workId}`}>{e.workTitle}</Link> built{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
+                      {e.kind === 'fit-report' && <>fit report on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'fit-confirmed' && <>real use of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> confirmed{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
+                      {e.kind === 'entry-upvote' && <>your result on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> upvoted{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
+                      {e.kind === 'entry-downvote' && <>downvote on your result on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'doc-revision' && <>doc revision accepted on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
+                      {e.kind === 'moderation' && <>moderation action upheld</>}
+                      {e.kind === 'profile-bio' && <>introduced yourself</>}
+                    </span>
+                    <span className="when">{fmtDate(e.at)}</span>
                   </li>
                 ))}
               </ul>
             )}
+            {skillFocus && (
+              <p className="stat" style={{ marginTop: '.5rem' }}>
+                Only what routed into this skill, with its share of each event.
+              </p>
+            )}
           </div>
-        </aside>
+        );
+      })()}
+
+      <div className="rs-below">
+        {p.talk?.posts?.length > 0 && (
+          <div className="panel">
+            <h2>In Talk</h2>
+            {p.talk.accepted > 0 && (
+              <p className="stat">{p.talk.accepted} answer{p.talk.accepted === 1 ? '' : 's'} accepted by other people.</p>
+            )}
+            <ul className="talk-feed">
+              {p.talk.posts.map(t => (
+                <li key={String(t.id)}>
+                  <span className="tag">{t.type === 'linked' ? 'about a work' : t.type}</span>
+                  <Link to={`/talk/${t.id}`}>{t.title}</Link>
+                  {t.status && <span className={'stat' + (t.status === 'became a work' ? ' talk-became' : '')}> · {t.status}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="panel">
+          <h2>Recent comments</h2>
+          {p.comments.length === 0 ? <p className="stat">Nothing yet.</p> : (
+            <ul className="comment-feed">
+              {p.comments.map(c => (
+                <li key={c.id}>
+                  {c.work
+                    ? <Link to={`/works/${c.work.id}`}>{c.work.title}</Link>
+                    : c.post
+                      ? <Link to={`/talk/${c.post.id}`}>Talk: {c.post.title}</Link>
+                      : <em>removed</em>}
+                  <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
+                  <p>{c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </>
   );

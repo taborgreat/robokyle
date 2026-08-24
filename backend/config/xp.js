@@ -25,9 +25,9 @@ const categories = [
   { id: 'elec',  name: 'Electronics',   icon: '⚡', color: '#C4A23A', hidden: false,
     scope: 'Circuits, PCBs, sensors, motors, power', titles: GENERIC_TITLES },
   { id: 'soft',  name: 'Software',      icon: '💻', color: '#6E8FBF', hidden: false,
-    scope: 'Firmware, apps, APIs, embedded, works-as-software', titles: GENERIC_TITLES },
+    scope: 'Apps, firmware, APIs, control software, simulation, software for hardware that exists or is still coming', titles: GENERIC_TITLES },
   { id: 'sys',   name: 'Systems',       icon: '🔧', color: '#8B7FA8', hidden: false,
-    scope: 'Integration, control, calibration, making sub-works cooperate', titles: GENERIC_TITLES },
+    scope: 'Integration, hardware-software bridges, control, calibration, making sub-works cooperate', titles: GENERIC_TITLES },
   { id: 'abil',  name: 'Ability',       icon: '🦾', color: '#4E9E9E', hidden: false,
     scope: 'Human factors, fit, donning, real-user testing, accessibility review', titles: [
       [1, 'Helper'], [10, 'Fitter'], [20, 'Adapter'],
@@ -270,7 +270,7 @@ module.exports = {
 
   /* Delta C: software facets. Zero XP, pure discovery; the nine categories
      stay frozen and Software slices inside itself. */
-  softwareFacets: ['server', 'database', 'firmware', 'driver', 'api', 'mobile', 'desktop', 'library'],
+  softwareFacets: ['server', 'database', 'firmware', 'driver', 'api', 'mobile', 'desktop', 'library', 'control-app', 'simulation', 'embedded'],
 
   // §8.1 novelty: file-set overlap above this ratio = version/fork, not new work.
   novelty: { overlapThreshold: 0.7 },

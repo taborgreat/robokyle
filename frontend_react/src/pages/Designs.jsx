@@ -15,7 +15,10 @@ export default function Designs() {
   const q = params.get('q') || '';
   const tag = params.get('tag') || '';
   const sort = params.get('sort') || 'new';
-  const buildable = params.get('buildable') === '1';
+  /* The buildable toggle remembers itself across visits; the URL param,
+     when present, always wins so filtered links can be shared. */
+  const buildPref = (() => { try { return localStorage.getItem('rk-buildable') === '1'; } catch { return false; } })();
+  const buildable = params.has('buildable') ? params.get('buildable') === '1' : buildPref;
   const facet = params.get('facet') || '';
   const page = Number(params.get('page') || 1);
   const [data, setData] = useState(null);
@@ -72,7 +75,11 @@ export default function Designs() {
             <legend>Show</legend>
             <div className="options">
               <label>
-                <input type="checkbox" checked={buildable} onChange={() => update({ buildable: buildable ? '' : '1' })} />
+                <input type="checkbox" checked={buildable}
+                       onChange={() => {
+                         try { buildable ? localStorage.removeItem('rk-buildable') : localStorage.setItem('rk-buildable', '1'); } catch {}
+                         update({ buildable: buildable ? '0' : '1' });
+                       }} />
                 <span className="filter-pill">Buildable with my equipment</span>
               </label>
             </div>
@@ -138,7 +145,7 @@ export default function Designs() {
                 {user && d.buildable === true && (d.fileCount > 0 || d.guideSteps > 0) && <span className="tag ok-tag">buildable</span>}
                 {d.tags.slice(0, 3).map(t => <span key={t} className="tag">{t}</span>)}
                 <span className="stat">
-                  <strong>&#9650; {d.upvoteCount}</strong>{d.producedCount > 0 && <> · <span className="tag endorsed-tag" title="Verified real-world results">produced {d.producedCount}×</span></>} · {d.downloadCount} downloads · {d.commentCount} comments · v{d.version} · by {d.author.username}
+                  <strong>&#9650; <span className="rs-num">{d.upvoteCount}</span></strong>{d.producedCount > 0 && <> · <span className="tag endorsed-tag" title="Verified real-world results">produced <span className="rs-num">{d.producedCount}</span>×</span></>} · <span className="rs-num">{d.downloadCount}</span> downloads · {d.commentCount} comments · v{d.version} · by {d.author.username}
                   {d.fileCount > 0 && <> · {d.fileCount} file{d.fileCount > 1 ? 's' : ''}</>}
                   {d.linkCount > 0 && <> · {d.linkCount} link{d.linkCount > 1 ? 's' : ''}</>}
                   {d.guideSteps > 0 && <> · guide</>}

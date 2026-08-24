@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>The Guide | Robo Kyle</title>
+    <meta
+      name="description"
+      content="The manual for Robo Kyle. The nine skills, how XP is earned, levels and titles, avatars, connectors, and where to start."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Alegreya:wght@600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href="/public/logo.png" />
+    <link rel="stylesheet" href="/public/index.css" />
+  </head>
+  <body class="page-body">
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <!-- BEGIN: site nav (keep identical across all pages) -->
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Main">
+        <a class="site-logo" href="index.html" aria-label="Robo Kyle home">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span class="logo-word">Robo Kyle</span>
+        </a>
+        <button
+          class="nav-toggle"
+          id="navToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-menu"
+          aria-label="Open menu"
+        >
+          <span class="nav-toggle-bars" aria-hidden="true"
+            ><span></span><span></span><span></span
+          ></span>
+          <span class="nav-toggle-text">Menu</span>
+        </button>
+        <ul id="site-menu" class="nav-links">
+          <li><a href="about.html">About</a></li>
+          <li><a class="nav-strong" href="/works">Works</a></li>
+          <li><a href="/creators">Creators</a></li>
+          <li><a href="/talk">Talk</a></li>
+          <li><a href="/login">Log in</a></li>
+        </ul>
+      </nav>
+    </header>
+    <!-- END: site nav -->
+
+    <main id="main">
+      <section class="about-hero">
+        <div class="wrap prose guide">
+          <h1>The Robo Kyle Guide</h1>
+          <p class="lede">
+            How the site works in full. Skills, XP, levels, avatars,
+            connectors, and where to start. If you just want to know what the
+            site is, the <a href="about.html">About page</a> covers that. This
+            is the manual.
+          </p>
+
+          <nav class="guide-toc" aria-label="On this page">
+            <strong>On this page</strong>
+            <ol>
+              <li><a href="#big-picture">The big picture</a></li>
+              <li><a href="#skills">The nine skills</a></li>
+              <li><a href="#earning">How earning works</a></li>
+              <li><a href="#levels">Levels and titles</a></li>
+              <li><a href="#avatar">Your avatar</a></li>
+              <li><a href="#votes">Votes and downvotes</a></li>
+              <li><a href="#produced">The Produced section</a></li>
+              <li><a href="#publishing">Publishing a work</a></li>
+              <li><a href="#connectors">Connectors</a></li>
+              <li><a href="#tools">Tools and parts</a></li>
+              <li><a href="#talk">Talk</a></li>
+              <li><a href="#fair-play">Fair play</a></li>
+              <li><a href="#start">Where to start</a></li>
+            </ol>
+          </nav>
+        </div>
+      </section>
+
+      <section style="padding-top: 0">
+        <div class="wrap prose guide">
+          <h2 id="big-picture">1. The big picture</h2>
+          <p>
+            Everything on the site exists to get real devices and real
+            software into real people's lives. The skills, the XP, the votes,
+            and the forum all serve that. The whole system is built around
+            works. A work is a design, a program, a guide, or a standard that
+            people publish, build, improve, and connect together.
+          </p>
+          <p>
+            You do not earn anything here for being loud. You earn when other
+            people confirm that what you made is real and useful. That is the
+            rule behind every number on the site.
+          </p>
+
+          <h2 id="skills">2. The nine skills</h2>
+          <p>
+            Everyone has nine skills. Each one levels separately from 1 to 99.
+            Your profile shows all of them, so anyone can see what you are
+            good at.
+          </p>
+
+          <div class="skill-entry">
+            <h3>Mechanical</h3>
+            <p class="skill-scope">CAD, mechanisms, linkages, structural design.</p>
+            <p>Publish mechanical designs and earn votes on them.</p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Fabrication</h3>
+            <p class="skill-scope">Making physical things by any process. Printing, soldering, machining, laser cutting, casting, sewing.</p>
+            <p>
+              Build things. Post a build of any design in its Produced section
+              with photos and notes. You earn Fabrication whether the build
+              succeeded or failed. Assembling a circuit counts as much as
+              printing a bracket. Honest failure reports are useful and earn
+              XP too.
+            </p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Electronics</h3>
+            <p class="skill-scope">Circuits, PCBs, sensors, motors, power.</p>
+            <p>Publish electronics works and earn votes on them.</p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Software</h3>
+            <p class="skill-scope">Firmware, apps, servers, APIs.</p>
+            <p>
+              Publish software works and earn votes on them. You can show a
+              live deployment in a work's Produced section, but it earns
+              nothing. Building the thing is the achievement, not running it.
+            </p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Systems</h3>
+            <p class="skill-scope">Integration. Making parts work together.</p>
+            <p>
+              Publish works that combine other works. A kit that combines a
+              spoon, a socket, and a connector is a Systems work.
+            </p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Ability</h3>
+            <p class="skill-scope">Fit, comfort, one handed use, real usability.</p>
+            <p>
+              Post fit reports. A fit report says who used the device, what
+              worked, and what did not. You never need to touch CAD to be
+              valuable here.
+            </p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Documentation</h3>
+            <p class="skill-scope">Guides, part lists, diagrams, standards writing.</p>
+            <p>
+              Improve other people's documentation. Submit a revision to a
+              work with a thin guide. If the author or the community accepts
+              it, you earn Documentation XP and are listed as a contributor.
+              Your own work's docs count as part of the work itself.
+            </p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Design</h3>
+            <p class="skill-scope">Industrial design, looks, ease of use.</p>
+            <p>Publish works weighted toward Design and earn votes on them.</p>
+          </div>
+
+          <div class="skill-entry">
+            <h3>Community</h3>
+            <p class="skill-scope">Helping people.</p>
+            <p>
+              Get answers accepted in Talk and on works. Write downvote
+              reasons the community endorses. Do moderation work that holds
+              up.
+            </p>
+          </div>
+
+          <div class="story-panel">
+            <h3>The tenth skill</h3>
+            <p>
+              There is one more, and you cannot grind it. Innovation has no
+              level and no bar. It grows when your ideas prove out in the
+              world. Someone builds your design. Another work incorporates
+              yours. Works adopt a standard you wrote. You never earn it from
+              your own actions, only from what other people do with what you
+              made.
+            </p>
+          </div>
+
+          <h2 id="earning">3. How earning works</h2>
+          <p>
+            Every point of XP comes from a specific event, and most events
+            require someone else.
+          </p>
+          <ul class="guide-list">
+            <li>
+              Publishing a work earns a starting amount, split across the one
+              to three skills you declare for it. The community can dispute a
+              work that claims skills it does not show.
+            </li>
+            <li>
+              Upvotes on your works earn XP, weighted by who is voting. A
+              vote from someone with a high level in that skill counts far
+              more than a vote from a new account. Early votes carry the most
+              XP, so a late pile on adds little.
+            </li>
+            <li>
+              When someone posts an accepted build of your design, they earn
+              Fabrication and you earn Innovation plus a share across your
+              work's skills.
+            </li>
+            <li>
+              When another work includes yours as a component, you earn
+              Innovation. Once per work.
+            </li>
+            <li>
+              Standards you write pay you each time a work is verified as
+              following them.
+            </li>
+            <li>
+              Accepted doc revisions, accepted answers, and accepted fit
+              reports each pay their skill.
+            </li>
+          </ul>
+          <p>
+            There are daily limits on the things you can do alone, and
+            identical files cannot be uploaded twice for credit. Every gain
+            and loss appears in your public XP ledger, which anyone can read.
+            Nothing is granted by hand and nothing is hidden.
+          </p>
+
+          <h2 id="levels">4. Levels, titles, and the two big numbers</h2>
+          <p>
+            Each skill runs from 1 to 99. Early levels come fast. Later ones
+            take real time. Reaching 99 marks that skill's color on your
+            profile ring for good. All nine at 99 is called Maxed. XP keeps
+            counting past 99, so maxed players keep climbing the rankings.
+          </p>
+          <p>
+            Skills carry titles at milestone levels. Mechanical runs from
+            Apprentice to Inventor. Ability runs from Helper to Life Changer.
+            Your current title shows next to your name when you comment.
+          </p>
+          <p>
+            Two numbers summarize you. Total Level is your nine levels added
+            together, up to 891. It measures breadth. RoboXP is everything
+            you have earned, with social XP counting slightly less than work
+            XP. It is never capped, and it ranks the Creators page, which you
+            can filter by skill and by need.
+          </p>
+          <p>
+            A specialist can top RoboXP with a modest Total Level. A
+            generalist can carry a high Total Level on mid RoboXP. Both are
+            real.
+          </p>
+
+          <h2 id="avatar">5. Your avatar</h2>
+          <p>
+            Your profile picture is generated from your skills. It is a
+            circle of nine wedges, one per skill, in the same position for
+            everyone. Each wedge fills with its skill's color as you level.
+            In the middle is a mark generated from your username. New
+            accounts show a plain dark ring until they earn their first
+            points, so you can tell who is proven and who just arrived.
+          </p>
+
+          <h2 id="votes">6. Votes, downvotes, and saying why</h2>
+          <p>
+            Upvote what is good. Your vote's weight grows with your level in
+            the relevant skill.
+          </p>
+          <p>
+            Downvoting requires a reason. Every downvote opens a small box
+            asking why. Your reason posts into the thread as a card without
+            your name on it, and people can vote on the reason itself.
+          </p>
+          <p>
+            If the community endorses your reason, you earn Community XP. If
+            the community rejects it as unfair or lazy, the reason is struck.
+            The downvote is undone, the person you hit gets their XP back,
+            and you lose double what the downvote took. A struck verdict
+            sticks even if you withdraw the vote.
+          </p>
+          <p>
+            A downvote costs one honest sentence. If you cannot write the
+            sentence, do not cast the vote.
+          </p>
+
+          <h2 id="produced">7. The Produced section</h2>
+          <p>
+            Every work has a Produced gallery for real results. There are
+            three kinds of posts.
+          </p>
+          <ul class="guide-list">
+            <li>
+              Builds. You made the thing. Post photos, your process, and how
+              it went. Success, modified, and failed are all welcome, and all
+              three earn Fabrication.
+            </li>
+            <li>
+              Deployments. For software, a link to the thing running. Good
+              for trust, worth no XP.
+            </li>
+            <li>
+              In use. The device in someone's daily life, with fit notes.
+            </li>
+          </ul>
+          <p>
+            Votes on Produced posts answer one question. Was this result
+            useful? A well documented failure deserves upvotes. A blurry
+            success photo does not. Works show their Produced count and a
+            success rate per version. Those are the strongest trust signals
+            on the site.
+          </p>
+
+          <h2 id="publishing">8. Publishing a work</h2>
+          <p>Three stages, saved automatically as you go.</p>
+          <ol class="guide-list">
+            <li>
+              What it is. Name, short description, need tags, and photos.
+            </li>
+            <li>
+              How it is made. Steps. Each step carries its own files and
+              links, so the bracket file lives on the printing step. A step
+              can also be another whole work. Your steps become the build
+              guide.
+            </li>
+            <li>
+              Ship it. Preview the page, declare which skills the work
+              represents and in what split, and publish.
+            </li>
+          </ol>
+          <p>
+            Works are versioned. Updating one keeps every old version's
+            history, builds, and comments. Because components are their own
+            works, updating a part updates everything that uses it. You fix
+            the spoon once, not five kits.
+          </p>
+
+          <h2 id="connectors">9. Connectors</h2>
+          <p>Works can declare connection points.</p>
+          <ul class="guide-list">
+            <li>
+              Provides means the work offers a connector. A quick release
+              face, a data API, a mounting rail.
+            </li>
+            <li>Accepts means the work attaches to that connector.</li>
+          </ul>
+          <p>
+            Each connector type is defined by a standard, which is a work in
+            its own right with the exact specs. Dimensions, tolerances,
+            pinouts, API details. Every standard has a hub page listing
+            everything that provides it, everything that accepts it, and
+            every adapter that bridges it to other standards. You can check
+            whether two things mate before you print either one.
+          </p>
+          <p>
+            Body mounts are connectors too. Devices declare which body site
+            they mount to, like a wrist, a forearm, or a wheelchair frame,
+            with fit fields like circumference range. You can search by your
+            anatomy and find devices that fit.
+          </p>
+          <p>
+            Standard authors earn XP each time a work is verified as
+            compliant. Adapter makers get incorporated wherever two
+            ecosystems meet.
+          </p>
+
+          <h2 id="tools">10. Tools and parts</h2>
+          <p>
+            Works list what they need. Equipment like a printer or a
+            soldering iron, and materials like bolts and filament. Kits total
+            up parts from their components.
+          </p>
+          <p>
+            List the equipment you own once on your profile. Nobody else sees
+            the list. Every work then shows whether you can build it or what
+            you are missing.
+          </p>
+
+          <h2 id="talk">11. Talk</h2>
+          <p>
+            Talk is the forum. Boards match the nine skills. There are three
+            kinds of posts.
+          </p>
+          <ul class="guide-list">
+            <li>
+              Posts about a work. Discussion attached to a specific work,
+              which stays pinned at the top.
+            </li>
+            <li>
+              Questions. The asker can accept an answer. Accepted answers
+              earn Community XP, and that is the only XP in Talk. Forum votes
+              are worth no points on purpose.
+            </li>
+            <li>
+              Plans. An idea looking for collaborators. People join, the plan
+              grows, and one button promotes it into a real work with the
+              participants credited. On the Ability board this also runs in
+              reverse. Users and caregivers post needs looking for builders.
+            </li>
+          </ul>
+          <p>
+            Deep reply chains fold away by default, and tangents can be split
+            into their own posts.
+          </p>
+
+          <h2 id="fair-play">12. Fair play</h2>
+          <p>
+            XP only flows from verifiable events, and every event is on the
+            public record. Duplicate uploads earn nothing, since the site
+            keeps one copy of any file. Rings of accounts boosting each other
+            stand out in the data and get unwound, and the points come back
+            off the ledger. Every profile's ledger is public, so the
+            community usually spots nonsense before the system does.
+          </p>
+          <p>Play it straight and none of this concerns you.</p>
+
+          <h2 id="start">13. Where to start</h2>
+          <ul class="checks">
+            <li>Own a printer? Build any device and post it in Produced.</li>
+            <li>Write code? Publish a tool.</li>
+            <li>Good with words? Find a solid device with a weak guide and submit a revision.</li>
+            <li>Use adaptive devices, or care for someone who does? Post fit reports. They are the most needed contribution on the site.</li>
+            <li>See how things should fit together? Study the connector hubs, build an adapter, or write the standard everyone is missing.</li>
+          </ul>
+          <p>If it is real, it counts, and everyone can see why.</p>
+          <p style="margin-top: 1.5rem">
+            <a class="btn btn-primary" href="/works">
+              Browse the works
+              <span class="arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <!-- BEGIN: site footer (keep identical across all pages) -->
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a class="site-logo" href="index.html" aria-label="Robo Kyle home">
+              <span class="logo-mark" aria-hidden="true"></span>
+              <span class="logo-word">Robo Kyle</span>
+            </a>
+            <p>
+              Free designs for adaptive gear anyone can build, shared by the
+              people who made them.
+            </p>
+          </div>
+          <div>
+            <h4>Site</h4>
+            <ul>
+              <li><a href="/works">Works</a></li>
+              <li><a href="/talk">Talk</a></li>
+              <li><a href="/creators">Creators</a></li>
+              <li><a href="about.html">About</a></li>
+              <li><a href="guide.html">Guide</a></li>
+              <li><a href="/public/game/game.html">Game</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4>Get in touch</h4>
+            <ul>
+              <li>
+                <a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>&copy; <span id="year">2026</span> Robo Kyle</span>
+          <span>Everything here is free to download and build.</span>
+        </div>
+      </div>
+    </footer>
+    <!-- END: site footer -->
+
+    <script src="/public/site.js"></script>
+  </body>
+</html>

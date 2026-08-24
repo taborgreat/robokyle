@@ -17,8 +17,11 @@ const Chip = ({ author }) => author?.chip ? (author.chip.newUser
       {author.chip.title} · {author.chip.name} {author.chip.level}
     </span>) : null;
 
-function ReasonCards({ cards, onJudge }) {
+function ReasonCards({ cards, onJudge, onRemove }) {
   if (!cards?.length) return null;
+  // A struck card is a verdict and stays; anything else of yours you can take
+  // back, which withdraws the downvote it rode in on.
+  const removable = (c) => c.mine && c.state !== 'struck' && onRemove;
   return cards.map(c => (
     <div key={c.id} className={`reason-card is-${c.state}`}>
       <span className="reason-label">
@@ -33,7 +36,9 @@ function ReasonCards({ cards, onJudge }) {
                 onClick={() => onJudge(c.id, 1)} title="This objection is fair">▲</button>
         <button className={'link-btn' + (c.myVote === -1 ? ' on' : '')} disabled={c.frozen}
                 onClick={() => onJudge(c.id, -1)} title="This objection is bad faith">▼</button>
-        <span className="stat">{c.voteCount} {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' · final'}</span>
+        <span className="stat"><span className="rs-num">{c.voteCount}</span> {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' · final'}</span>
+        {removable(c) && <button className="link-btn" title="Removes the reason and withdraws your downvote"
+                onClick={() => { if (confirm('Remove your reason? This withdraws your downvote too.')) onRemove(); }}>Remove</button>}
       </span>
     </div>
   ));
@@ -163,34 +168,39 @@ export default function TalkPostView() {
             <span className="who">
               {c.author
                 ? <>
-                    <img className="avatar-sm" src={avatarUrl(c.author.username)} alt="" width="22" height="22" loading="lazy" />
+                    <img className="avatar-sm" src={avatarUrl(c.author.username, 22)} alt="" width="22" height="22" loading="lazy" />
                     <Link to={`/user/${c.author.username}`}>{c.author.username}</Link> <Chip author={c.author} />
                   </>
                 : 'deleted'}
               {c.accepted && <span className="tag endorsed-tag">✓ accepted answer</span>}
+              <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
             </span>
-            <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
             <p>{c.body}</p>
             <span className="toolbar talk-comment-tools">
-              <button className={'link-btn' + (c.upvoted ? ' on' : '')} onClick={() => voteComment(c, 'up')}>▲ {c.upvoteCount}</button>
-              <button className={'link-btn' + (c.downvoted ? ' on' : '')} onClick={() => voteComment(c, 'down')}>▼ {c.downvoteCount || 0}</button>
-              {!p.archived && <button className="link-btn" onClick={() => user ? setReplyTo({ id: c._id, username: c.author?.username }) : needLogin()}>Reply</button>}
+              <button className={'link-btn' + (c.upvoted ? ' on' : '')} onClick={() => voteComment(c, 'up')}>▲ <span className="rs-num">{c.upvoteCount}</span></button>
+              <button className={'link-btn' + (c.downvoted ? ' on' : '')} onClick={() => voteComment(c, 'down')}>▼ <span className="rs-num">{c.downvoteCount || 0}</span></button>
+              {!p.archived && <button className="link-btn" onClick={() => user
+                ? setReplyTo(replyTo?.id === c._id ? null : { id: c._id, username: c.author?.username })
+                : needLogin()}>Reply</button>}
               {p.canAccept && !c.accepted && c.author && <button className="link-btn" onClick={() => accept(c._id)}>Accept</button>}
               {p.canAccept && c.accepted && <button className="link-btn" onClick={() => accept(null)}>Un-accept</button>}
               {p.canFork && kids.length > 0 && <button className="link-btn" title="Slice this tangent into its own post" onClick={() => fork(c)}>Fork</button>}
               {(c.mine || p.canEdit) && <button className="link-btn" onClick={() => delComment(c._id)}>Delete</button>}
             </span>
             {whyFor === c._id && <WhyBox onSubmit={(why) => voteComment(c, 'down', why)} onCancel={() => setWhyFor(null)} />}
-            <ReasonCards cards={c.reasonCards} onJudge={(rid, dir) => judgeCommentReason(c._id, rid, dir)} />
+            {replyTo?.id === c._id && composer}
+            <ReasonCards cards={c.reasonCards} onJudge={(rid, dir) => judgeCommentReason(c._id, rid, dir)}
+                         onRemove={() => voteComment(c, 'down')} />
           </>
         )}
-        {/* Depth collapse: the derail spiral still exists, behind a click. */}
-        {kids.length > 0 && !c.forkedTo && (depth >= 1
-          ? <details className="talk-collapse">
-              <summary>{kids.length} {kids.length === 1 ? 'reply' : 'replies'}</summary>
-              {replies}
-            </details>
-          : replies)}
+        {/* Every branch collapses behind its reply count; deep branches start
+            closed so the derail spiral stays a click away. */}
+        {kids.length > 0 && !c.forkedTo && (
+          <details className="talk-collapse" open={depth < 1}>
+            <summary>{kids.length} {kids.length === 1 ? 'reply' : 'replies'}</summary>
+            {replies}
+          </details>
+        )}
       </div>
     );
   }
@@ -198,10 +208,27 @@ export default function TalkPostView() {
   const plan = p.plan;
   const statusLabel = { open: 'open. Who is in?', 'in-progress': 'in progress', 'became-work': 'became a work', abandoned: 'abandoned' };
 
+  /* One composer, rendered where the conversation is: at the top of the
+     thread for a new comment, inline under a comment when replying. */
+  const composer = !p.archived && (
+    <form className="talk-composer" onSubmit={postComment}>
+      <textarea required disabled={!user} value={comment} autoFocus={!!replyTo}
+                aria-label={replyTo ? 'Your reply' : p.type === 'question' ? 'Your answer' : 'Add a comment'}
+                placeholder={user
+                  ? (replyTo ? `Reply to ${replyTo.username || 'this comment'}` : p.type === 'question' ? 'Your answer' : 'Add a comment')
+                  : 'Log in to join in'}
+                onChange={e => setComment(e.target.value)} />
+      <div className="talk-composer-row">
+        <button className="btn btn-primary btn-sm" disabled={!user}>{replyTo ? 'Reply' : 'Post'}</button>
+        {replyTo && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplyTo(null)}>Cancel</button>}
+      </div>
+    </form>
+  );
+
   return (
-    <>
+    <div className="talk-post">
       <ErrorBar error={error} onDismiss={() => setError('')} />
-      <p><Link to="/talk">&larr; Talk</Link></p>
+      <p className="back-link"><Link to="/talk">&larr; Talk</Link></p>
 
       {p.archived && (
         <div className="notice" role="status">
@@ -216,87 +243,67 @@ export default function TalkPostView() {
           <div>
             <span className="stat">{p.becameWork ? 'This plan became a work' : 'About the work'}</span>
             <h2>{p.work.title}</h2>
-            <span className="stat">v{p.workVersion || p.work.version} by {p.work.author} · ▲ {p.work.upvoteCount} · {p.work.downloadCount} downloads</span>
+            <span className="stat">v{p.workVersion || p.work.version} by {p.work.author} · ▲ <span className="rs-num">{p.work.upvoteCount}</span> · <span className="rs-num">{p.work.downloadCount}</span> downloads</span>
           </div>
         </Link>
       )}
 
-      <div className="app-head">
-        <div>
-          <h1>{p.title}</h1>
-          <span className="stat">
-            {p.type === 'question' ? 'Question' : p.type === 'plan' ? 'Plan' : 'Thread'} on{' '}
-            <Link to={`/talk?board=${p.board}`}>{p.board}</Link> by{' '}
-            {p.author
-              ? <>
-                  <img className="avatar-sm" src={avatarUrl(p.author.username)} alt="" width="22" height="22" />
-                  <Link to={`/user/${p.author.username}`}>{p.author.username}</Link>
-                </>
-              : 'deleted'}{' '}
-            <Chip author={p.author} />
-            {p.forkedFrom && <> · forked from <Link to={`/talk/${p.forkedFrom.post}`}>another thread</Link></>}
-          </span>
+      {/* The post is one card, forum-shaped: who first, then what and where. */}
+      <div className="panel talk-post-card">
+        <div className="talk-post-meta">
+          {p.author
+            ? <span className="talk-post-author">
+                <img className="avatar-sm" src={avatarUrl(p.author.username, 22)} alt="" width="22" height="22" />
+                <Link to={`/user/${p.author.username}`}>{p.author.username}</Link> <Chip author={p.author} />
+              </span>
+            : <span>deleted</span>}
+          <span>· {p.type === 'question' ? 'Question' : p.type === 'plan' ? 'Plan' : 'Thread'} in</span>
+          <Link className="tag" to={`/talk?board=${p.board}`}>{p.board}</Link>
+          <span className="when" title={fmtExact(p.createdAt)}>{fmtWhen(p.createdAt)}</span>
+          {p.forkedFrom && <span>· forked from <Link to={`/talk/${p.forkedFrom.post}`}>another thread</Link></span>}
         </div>
-        <div className="toolbar" style={{ margin: 0 }}>
-          <button className={'btn btn-ghost vote' + (p.upvoted ? ' on' : '')} onClick={() => votePost('up')} aria-pressed={p.upvoted}>▲ {p.upvoteCount}</button>
-          <button className={'btn btn-ghost vote vote-down' + (p.downvoted ? ' on' : '')} onClick={() => votePost('down')} aria-pressed={p.downvoted}>▼ {p.downvoteCount || 0}</button>
-          {p.canArchive && <button className="btn btn-ghost" onClick={archive}>{p.archived ? 'Unarchive' : 'Archive'}</button>}
-          {p.canEdit && <button className="btn btn-danger" onClick={delPost}>Delete</button>}
-        </div>
-      </div>
+        <h1 className="talk-post-title">{p.title}</h1>
+        {p.body && <p className="desc talk-post-body">{p.body}</p>}
 
-      {whyOpen && <WhyBox onSubmit={(why) => votePost('down', why)} onCancel={() => setWhyOpen(false)} />}
-      <ReasonCards cards={p.reasonCards} onJudge={judgePostReason} />
-
-      {plan && (
-        <div className="panel talk-plan">
-          <div className="talk-plan-head">
+        {plan && (
+          <div className="talk-plan-strip">
             <span className={`tag talk-type talk-type-plan`}>{statusLabel[plan.status] || plan.status}</span>
             {plan.needed.length > 0 && <span className="stat">needs: {plan.needed.map(n =>
               <Link key={n} className="tag" to={`/talk?needed=${n}`} style={{ marginRight: '.3rem' }}>{n}</Link>)}</span>}
             {plan.needTags.length > 0 && <span className="stat">for: {plan.needTags.join(', ')}</span>}
+            {plan.goal && <span className="stat">Goal: {plan.goal}</span>}
+            <span className="stat">{plan.participants.length} in: {plan.participants.map(x => x.username).join(', ')}</span>
+            {!p.archived && plan.status !== 'became-work' && plan.status !== 'abandoned' && (
+              <>
+                {user && !plan.joined && <button className="btn btn-ghost btn-sm" title="Signals commitment. No XP." onClick={join}>Join</button>}
+                {user && plan.joined && !p.canEdit && <button className="btn btn-ghost btn-sm" onClick={leave}>Leave</button>}
+                {p.canPromote
+                  ? <button className="btn btn-primary btn-sm" onClick={promote} title="Opens the creation wizard pre-filled from this plan">Promote to Work →</button>
+                  : user && plan.joined && !plan.promotion && <button className="btn btn-ghost btn-sm" onClick={requestPromote}>Ask to promote this</button>}
+                {p.promoteWhy && plan.joined && <span className="stat">{p.promoteWhy}</span>}
+                {p.canEdit && plan.promotion && !plan.promotion.approved &&
+                  <button className="btn btn-primary btn-sm" onClick={approvePromote}>Approve the promotion request</button>}
+              </>
+            )}
           </div>
-          {plan.goal && <p className="desc"><strong>Goal:</strong> {plan.goal}</p>}
-          <p className="stat">
-            {plan.participants.length} in: {plan.participants.map(x => x.username).join(', ')}
-          </p>
-          {!p.archived && plan.status !== 'became-work' && plan.status !== 'abandoned' && (
-            <div className="toolbar" style={{ margin: '.5rem 0 0' }}>
-              {user && !plan.joined && <button className="btn btn-ghost btn-sm" onClick={join}>Join (signals commitment, no XP)</button>}
-              {user && plan.joined && !p.canEdit && <button className="btn btn-ghost btn-sm" onClick={leave}>Leave</button>}
-              {p.canPromote
-                ? <button className="btn btn-primary btn-sm" onClick={promote} title="Opens the creation wizard pre-filled from this plan">Promote to Work →</button>
-                : user && plan.joined && !plan.promotion && <button className="btn btn-ghost btn-sm" onClick={requestPromote}>Ask to promote this</button>}
-              {p.promoteWhy && plan.joined && <span className="stat">{p.promoteWhy}</span>}
-              {p.canEdit && plan.promotion && !plan.promotion.approved &&
-                <button className="btn btn-primary btn-sm" onClick={approvePromote}>Approve the promotion request</button>}
-            </div>
-          )}
+        )}
+
+        <div className="toolbar talk-comment-tools talk-post-actions">
+          <button className={'link-btn' + (p.upvoted ? ' on' : '')} onClick={() => votePost('up')} aria-pressed={p.upvoted}>▲ <span className="rs-num">{p.upvoteCount}</span></button>
+          <button className={'link-btn vote-down' + (p.downvoted ? ' on' : '')} onClick={() => votePost('down')} aria-pressed={p.downvoted}>▼ <span className="rs-num">{p.downvoteCount || 0}</span></button>
+          {p.canArchive && <button className="link-btn" onClick={archive}>{p.archived ? 'Unarchive' : 'Archive'}</button>}
+          {p.canEdit && <button className="link-btn" onClick={delPost}>Delete</button>}
         </div>
-      )}
+        {whyOpen && <WhyBox onSubmit={(why) => votePost('down', why)} onCancel={() => setWhyOpen(false)} />}
+        <ReasonCards cards={p.reasonCards} onJudge={judgePostReason} onRemove={() => votePost('down')} />
+        {!replyTo && composer}
+      </div>
 
-      {p.body && <div className="panel"><p className="desc">{p.body}</p></div>}
-
-      <div className="panel" style={{ marginTop: '1.5rem' }}>
+      <div className="panel talk-thread">
         <h2>{p.type === 'question' ? 'Answers' : 'Comments'} ({p.comments.length})</h2>
         {tree.length === 0 && <p className="stat">{p.type === 'question' ? 'No answers yet.' : 'Nothing yet.'}</p>}
         {tree.map(c => <CommentNode key={c._id} c={c} depth={0} />)}
-
-        {!p.archived && (
-          <form onSubmit={postComment} style={{ marginTop: '1rem' }}>
-            {replyTo && (
-              <p className="stat">Replying to {replyTo.username || 'a comment'}{' '}
-                <button type="button" className="link-btn" onClick={() => setReplyTo(null)}>✕</button></p>
-            )}
-            <div className="field">
-              <label htmlFor="tc">{user ? (replyTo ? 'Your reply' : p.type === 'question' ? 'Your answer' : 'Add a comment') : 'Log in to join in'}</label>
-              <textarea id="tc" required disabled={!user} style={{ minHeight: '5rem' }} value={comment}
-                        onChange={e => setComment(e.target.value)} />
-            </div>
-            <button className="btn btn-primary btn-sm" disabled={!user}>Post</button>
-          </form>
-        )}
       </div>
-    </>
+    </div>
   );
 }

@@ -66,6 +66,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/drafts', draftRoutes);
 app.use('/api/talk', talkRoutes);
 app.use('/api/designs/:designId/produced', producedRoutes);
+app.use('/api/stats', require('./routes/stats'));
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));

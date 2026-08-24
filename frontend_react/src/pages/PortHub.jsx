@@ -36,7 +36,7 @@ export default function PortHub() {
   const s = hub.standard;
   return (
     <>
-      <p><Link to={`/works/${s.id}`}>&larr; {s.title}</Link></p>
+      <p className="back-link"><Link to={`/works/${s.id}`}>&larr; {s.title}</Link></p>
       <div className="app-head">
         <div>
           <h1><code>{s.portName}</code> hub</h1>
@@ -52,6 +52,8 @@ export default function PortHub() {
         </div>
       </div>
 
+      <div className="rs-frame">
+        <div className="rs-main">
       <div className="panel">
         <h2>Providers: works offering this interface</h2>
         {s.fields?.length > 0 && (
@@ -76,7 +78,7 @@ export default function PortHub() {
                     : <span className="tag" title="Declared by the author; awaiting a qualified review">claimed</span>}
                   <br />
                   <span className="stat">
-                    by <Link to={`/user/${w.author}`}>{w.author}</Link> · v{w.version} · ▲ {w.upvoteCount} · {w.downloadCount} downloads
+                    by <Link to={`/user/${w.author}`}>{w.author}</Link> · v{w.version} · ▲ <span className="rs-num">{w.upvoteCount}</span> · <span className="rs-num">{w.downloadCount}</span> downloads
                     {Object.entries(w.fieldValues || {}).map(([k, v]) => ` · ${k}: ${v}`).join('')}
                   </span>
                 </div>
@@ -86,7 +88,10 @@ export default function PortHub() {
         )}
       </div>
 
-      <div className="panel" style={{ marginTop: '1.5rem' }}>
+        </div>
+
+        <aside className="rs-side">
+      <div className="panel">
         <h2>Consumers: works that connect to it</h2>
         {hub.consumers.length === 0 ? <p className="stat">Nothing accepts this yet.</p> : (
           <ul className="revision-list">
@@ -101,7 +106,7 @@ export default function PortHub() {
       </div>
 
       {hub.adapters.length > 0 && (
-        <div className="panel" style={{ marginTop: '1.5rem' }}>
+        <div className="panel">
           <h2>Adapters: bridges into other standards</h2>
           <ul className="revision-list">
             {hub.adapters.map(w => (
@@ -115,7 +120,7 @@ export default function PortHub() {
       )}
 
       {hub.plans.length > 0 && (
-        <div className="panel" style={{ marginTop: '1.5rem' }}>
+        <div className="panel">
           <h2>Being planned around it</h2>
           <ul className="revision-list">
             {hub.plans.map(p => (
@@ -127,6 +132,8 @@ export default function PortHub() {
           </ul>
         </div>
       )}
+        </aside>
+      </div>
     </>
   );
 }

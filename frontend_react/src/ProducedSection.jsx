@@ -12,12 +12,20 @@ const fmtWhen = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeri
 const TYPE_LABEL = { physical: 'built it', deployment: 'running live', usage: 'in real use' };
 const OUTCOME_TAG = { success: ['worked', 'endorsed-tag'], modified: ['worked, modified', ''], failed: ['failed', 'behind'] };
 
-export default function ProducedSection({ workId, workVersion, user, onNeedLogin }) {
+export default function ProducedSection({ workId, workVersion, user, onNeedLogin, openSignal }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [whyFor, setWhyFor] = useState(null);        // entry id awaiting a downvote reason
   const [challengeFor, setChallengeFor] = useState(null);
+
+  /* The frame's Actions panel owns the "I built one" button (§10): each
+     press signals here — open the form and bring the section into view. */
+  useEffect(() => {
+    if (!openSignal) return;
+    setFormOpen(true);
+    document.getElementById('produced-section')?.scrollIntoView({ block: 'start' });
+  }, [openSignal]);
   const [commentFor, setCommentFor] = useState(null);
 
   const load = () => api(`/designs/${workId}/produced`).then(setData).catch(e => setError(e.message));
@@ -56,11 +64,9 @@ export default function ProducedSection({ workId, workVersion, user, onNeedLogin
   const totalOutcomes = o.success + o.modified + o.failed;
 
   return (
-    <div className="panel" style={{ marginTop: '1.5rem' }}>
+    <div className="panel" id="produced-section" style={{ marginTop: '1.5rem' }}>
       <div className="produced-head">
-        <h2>Produced {data.producedCount > 0 && <span className="tag endorsed-tag">{data.producedCount} verified {data.producedCount === 1 ? 'time' : 'times'}</span>}</h2>
-        {user && data.canPost && !formOpen &&
-          <button className="btn btn-primary btn-sm" onClick={() => setFormOpen(true)}>I made this</button>}
+        <h2>Produced {data.producedCount > 0 && <span className="tag endorsed-tag"><span className="rs-num">{data.producedCount}</span> verified {data.producedCount === 1 ? 'time' : 'times'}</span>}</h2>
         {user && !data.canPost &&
           <span className="stat">Posting results opens once your account has a little history.</span>}
       </div>
@@ -79,7 +85,13 @@ export default function ProducedSection({ workId, workVersion, user, onNeedLogin
       {formOpen && <EntryForm workId={workId} onDone={() => { setFormOpen(false); load(); }} onCancel={() => setFormOpen(false)} />}
 
       {data.items.length === 0 && !formOpen && (
-        <p className="stat">No results yet. The first photo of this thing existing in the world is the strongest endorsement it can get.</p>
+        <p className="stat">No results yet.{' '}
+          {(!user || data.canPost)
+            ? <button type="button" className="link-btn" onClick={() => user ? setFormOpen(true) : onNeedLogin()}>
+                The first photo of this thing existing in the world
+              </button>
+            : <>The first photo of this thing existing in the world</>}
+          {' '}is the strongest endorsement it can get.</p>
       )}
 
       {data.items.map(e => {
@@ -88,7 +100,7 @@ export default function ProducedSection({ workId, workVersion, user, onNeedLogin
           <div key={e.id} className={'produced-entry' + (e.state === 'rejected' ? ' is-rejected' : '')}>
             <div className="produced-meta">
               {e.poster && <>
-                <img className="avatar-sm" src={avatarUrl(e.poster.username)} alt="" width="22" height="22" loading="lazy" />
+                <img className="avatar-sm" src={avatarUrl(e.poster.username, 22)} alt="" width="22" height="22" loading="lazy" />
                 <Link to={`/user/${e.poster.username}`}>{e.poster.username}</Link>
               </>}
               <span className="stat">{TYPE_LABEL[e.type]} · v{e.workVersion} · {fmtWhen(e.createdAt)}</span>
@@ -114,9 +126,9 @@ export default function ProducedSection({ workId, workVersion, user, onNeedLogin
 
             <span className="toolbar talk-comment-tools">
               <button className={'link-btn' + (e.upvoted ? ' on' : '')} title="Was this result useful?"
-                      onClick={() => vote(e, 'up')}>▲ {e.upvoteCount}</button>
+                      onClick={() => vote(e, 'up')}>▲ <span className="rs-num">{e.upvoteCount}</span></button>
               <button className={'link-btn' + (e.downvoted ? ' on' : '')}
-                      onClick={() => vote(e, 'down')}>▼ {e.downvoteCount || 0}</button>
+                      onClick={() => vote(e, 'down')}>▼ <span className="rs-num">{e.downvoteCount || 0}</span></button>
               <button className="link-btn" onClick={() => setCommentFor(commentFor === e.id ? null : e.id)}>
                 {e.comments.length ? `${e.comments.length} comment${e.comments.length === 1 ? '' : 's'}` : 'Comment'}
               </button>
@@ -134,7 +146,8 @@ export default function ProducedSection({ workId, workVersion, user, onNeedLogin
                          cta="Challenge this entry" onSubmit={(t) => challenge(e.id, t)} onCancel={() => setChallengeFor(null)} />
             )}
             {e.reasonCards.map(c => (
-              <JudgedCard key={c.id} c={c} label="Downvote reason" onJudge={(dir) => judgeReason(e.id, c.id, dir)} />
+              <JudgedCard key={c.id} c={c} label="Downvote reason" onJudge={(dir) => judgeReason(e.id, c.id, dir)}
+                          onRemove={() => vote(e, 'down')} />
             ))}
             {e.challenges.map(c => (
               <JudgedCard key={c.id} c={c} label="Challenge"
@@ -166,7 +179,7 @@ function ReasonBox({ label, cta, onSubmit, onCancel }) {
   );
 }
 
-function JudgedCard({ c, label, endorsedLabel = 'community-endorsed', struckLabel = 'struck', onJudge }) {
+function JudgedCard({ c, label, endorsedLabel = 'community-endorsed', struckLabel = 'struck', onJudge, onRemove }) {
   return (
     <div className={`reason-card is-${c.state}`}>
       <span className="reason-label">
@@ -179,7 +192,9 @@ function JudgedCard({ c, label, endorsedLabel = 'community-endorsed', struckLabe
       <span className="reason-judge">
         <button className={'link-btn' + (c.myVote === 1 ? ' on' : '')} disabled={c.frozen} onClick={() => onJudge(1)} title="This claim is fair">▲</button>
         <button className={'link-btn' + (c.myVote === -1 ? ' on' : '')} disabled={c.frozen} onClick={() => onJudge(-1)} title="This claim is bad faith">▼</button>
-        <span className="stat">{c.voteCount} {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' · final'}</span>
+        <span className="stat"><span className="rs-num">{c.voteCount}</span> {c.voteCount === 1 ? 'judgment' : 'judgments'}{c.frozen && ' · final'}</span>
+        {c.mine && c.state !== 'struck' && onRemove && <button className="link-btn" title="Removes the reason and withdraws your downvote"
+                onClick={() => { if (confirm('Remove your reason? This withdraws your downvote too.')) onRemove(); }}>Remove</button>}
       </span>
     </div>
   );
@@ -207,7 +222,7 @@ function EntryComments({ entry, user, onPost }) {
   );
 }
 
-/* "I made this": one small form, three result types. */
+/* "I built one": one small form, three result types. */
 function EntryForm({ workId, onDone, onCancel }) {
   const [type, setType] = useState('physical');
   const [outcome, setOutcome] = useState('success');

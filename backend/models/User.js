@@ -36,6 +36,12 @@ const userSchema = new mongoose.Schema({
   /* Delta B: equipment the member owns, from the curated vocabulary. Private:
      never serialized to other viewers; works derive a buildable-by-you flag. */
   equipment: { type: [String], default: [] },
+  /* RS Profile Spec: tools show on the profile publicly by default; this is
+     the per-user opt-out. The buildable filter works either way. */
+  equipmentHidden: { type: Boolean, default: false },
+  /* RS Profile Spec: the owner-curated inventory order, work ids front-first.
+     Works not listed here follow, newest first. */
+  inventoryOrder: { type: [mongoose.Schema.Types.ObjectId], default: [] },
   /* Cached XP totals: { cats: {mech: n, ...}, workXp, socialXp, updatedAt }.
      A pure cache — lib/xp.js recomputes it from the works themselves. */
   xp: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
