@@ -26,6 +26,7 @@ function Stat({ n, label }) {
 function SkillsPanel({ xpv, skillFocus, setSkillFocus, bio }) {
   return (
     <div className={'panel rs-skills' + (xpv.innovation ? ' has-aura' : '')}>
+      <h2>Skills</h2>
       <div className="rs-skill-grid">
         {xpv.skills.map(s => (
           <button key={s.id} type="button"

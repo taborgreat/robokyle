@@ -621,9 +621,9 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   font-size: .68rem; font-weight: 700;
   letter-spacing: .09em; text-transform: uppercase;
 }
-.tag.src-work { color: var(--brand); }
-.tag.src-talk { color: var(--ink-mute); }
-.tag.src-result { color: var(--ok); }
+.tag.src-work { color: color-mix(in oklab, var(--accent) 65%, var(--ink-mute)); }
+.tag.src-talk { color: color-mix(in oklab, var(--rs-bronze) 65%, var(--ink-mute)); }
+.tag.src-result { color: color-mix(in oklab, var(--ok) 65%, var(--ink-mute)); }
 /* The clock keeps to the right edge so every row shares one shape. */
 .cf-meta .when { margin-left: auto; }
 .cf-meta a, .notif-list a { text-decoration: none; }
@@ -632,8 +632,9 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 /* Quoted comment text reads as a quote, not a chromed well: chrome frames
    content, it never sits under paragraphs. */
 .cf-quote {
-  margin: .35rem 0 0; padding: 0 0 0 .75rem; color: var(--ink-soft);
-  border-left: 2px solid var(--line); font-style: italic;
+  margin: .35rem 0 0; padding: 0 0 0 .75rem; color: #FFFFFF;
+  border-left: 2px solid var(--line);
+  font-style: italic; font-size: .98rem;
 }
 .comment-feed li { padding: .85rem 0; }
 
@@ -884,6 +885,8 @@ a.rs-slot { text-decoration: none; }
 
 /* --- §2 the skills panel: the old-RS stats tab --- */
 .rs-skills { padding: .6rem; }
+/* The heading sits off the grid at the same distance the other panels use. */
+.rs-skills > h2 { margin-bottom: .9rem; }
 .rs-skill-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
 .rs-skill-cell {
   display: flex; align-items: center; gap: .2rem; height: 34px; padding: 0 .25rem; min-width: 0;
@@ -921,7 +924,8 @@ a.rs-slot { text-decoration: none; }
 
 /* Quoted comment text is itself the way in: same quiet color as before,
    underline only on hover, block display preserved. */
-a.notif-snippet, a.cf-quote { display: block; color: var(--ink-mute); text-decoration: none; }
+a.notif-snippet { display: block; color: var(--ink-mute); text-decoration: none; }
+a.cf-quote { display: block; color: #FFFFFF; text-decoration: none; }
 a.notif-snippet:hover, a.cf-quote:hover { color: var(--ink); text-decoration: underline; }
 
 /* A deep-linked comment announces itself: the gold outline, standing, no
