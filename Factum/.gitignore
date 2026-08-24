@@ -1,0 +1,40 @@
+# Factum lives inside the robokyle repo, and GitHub Pages publishes everything
+# tracked in that repo at robokyle.org/<path>. Anything below is either a build
+# artifact, a secret, or data that must never become a public URL by accident.
+
+# Node — the frontend/backend added for factum.robokyle.org
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build output: nginx serves frontend/dist straight off the disk, so unlike the
+# robokyle React bundle (which Pages must serve, hence committed) this is local
+# only. Committing it would publish a second copy at robokyle.org/Factum/... and
+# guarantee the two drift apart.
+frontend/dist/
+frontend/.vite/
+
+# Secrets. Never commit these.
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime output
+logs/
+*.log
+
+# Wearer data. Body measurements and calibration models are personal data about
+# a real person; on Pages a tracked profile becomes a public URL with nobody
+# having chosen to publish it. Keep max-debug (the developer's own, already
+# committed) out of this by tracking it explicitly if you want it public.
+profiles/
+armband/profiles/

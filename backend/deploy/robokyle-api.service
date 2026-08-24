@@ -1,0 +1,41 @@
+# Runs the robokyle API as a service so it survives reboots and crashes.
+# A tmux window works for poking at it by hand, but nothing restarts it when
+# the machine reboots -- use this once you're actually serving robokyle.org.
+#
+#   install:  sudo cp backend/deploy/robokyle-api.service /etc/systemd/system/
+#             sudo systemctl daemon-reload
+#             sudo systemctl enable --now robokyle-api
+#   logs:     journalctl -u robokyle-api -f
+
+[Unit]
+Description=Robo Kyle API (Express + MongoDB)
+After=network-online.target mongod.service
+Wants=network-online.target
+Requires=mongod.service
+
+[Service]
+Type=simple
+User=tabor
+Group=tabor
+WorkingDirectory=/home/tabor/github/robokyle/backend
+# NOTE: this is the nvm-managed node, so the path is pinned to v24.5.0 and will
+# break the next time you nvm-install a newer node. If that bites, either
+# symlink a stable path (sudo ln -s <this> /usr/local/bin/node) and use that, or
+# update this line after upgrading.
+ExecStart=/home/tabor/.nvm/versions/node/v24.5.0/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+# The .env in WorkingDirectory is read by dotenv; keep secrets there, not here.
+# uploads/ lives under the working dir, so the service needs write access to it.
+ReadWritePaths=/home/tabor/github/robokyle/backend/uploads
+
+# Basic hardening -- the process only needs its own directory and Mongo's socket.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
