@@ -12,7 +12,7 @@ import PortsEditor from '../PortsEditor.jsx';
 
 const STAGES = ['What is it?', 'How is it made?', 'Ship it'];
 
-const blankStep = () => ({ title: '', body: '', duration: '', attachments: [], workRef: { work: null, version: null } });
+const blankStep = () => ({ title: '', body: '', duration: '', attachments: [], links: [], workRef: { work: null, version: null } });
 
 /* Stage 3 suggests a starting declaration from what the steps contain.
    A convenience only; the declaration is the author's. */
@@ -137,7 +137,7 @@ export default function WorkWizard() {
   const stage = draft.stage || 1;
   const cats = (config?.xp?.categories || []).filter(c => !c.hidden);
   const catSum = (draft.categories || []).reduce((a, c) => a + c.weight, 0);
-  const hasContent = draft.files.length || draft.steps.some(s => s.title || s.body || s.attachments?.length || s.workRef?.work);
+  const hasContent = draft.files.length || draft.steps.some(s => s.title || s.body || s.attachments?.length || s.links?.length || s.workRef?.work);
   const canUpload = !config?.uploadsAdminOnly || user?.role === 'admin';
   const portNameOk = draft.type !== 'standard' || /^[a-z0-9][a-z0-9-]{0,39}$/.test(draft.standard?.portName || '');
   const readyToPublish = draft.title.trim() && hasContent && draft.categories?.length > 0 && catSum === 100
@@ -275,6 +275,8 @@ export default function WorkWizard() {
                                     <input type="file" multiple
                          onChange={e => { uploadFiles(e.target.files, fs => patch({ steps: draft.steps.map((x, j) => j === i ? { ...x, attachments: [...x.attachments, ...fs] } : x) })); e.target.value = ''; }} />
                   )}
+                  <StepLinks links={st.links || []}
+                             onChange={links => patch({ steps: draft.steps.map((x, j) => j === i ? { ...x, links } : x) })} />
                   {(draft.requires?.equipment || []).length > 0 && (
                     <div className="step-needs">
                       <span className="stat">Needed for this step: </span>
@@ -353,7 +355,7 @@ export default function WorkWizard() {
               {(draft.files || []).filter(f => f.kind === 'image').length > 0 && <p className="stat">{draft.files.filter(f => f.kind === 'image').length} overview image(s)</p>}
               <ol className="preview-steps">
                 {draft.steps.filter(s => s.title || s.body || s.workRef?.work).map((s, i) => (
-                  <li key={i}>{s.workRef?.work ? <em>→ {s.title || 'another work'}</em> : <><strong>{s.title}</strong>{s.body && <>: {s.body.slice(0, 120)}</>}{s.attachments?.length > 0 && <span className="stat"> · {s.attachments.length} file(s)</span>}</>}</li>
+                  <li key={i}>{s.workRef?.work ? <em>→ {s.title || 'another work'}</em> : <><strong>{s.title}</strong>{s.body && <>: {s.body.slice(0, 120)}</>}{s.attachments?.length > 0 && <span className="stat"> · {s.attachments.length} file(s)</span>}{s.links?.length > 0 && <span className="stat"> · {s.links.length} link(s)</span>}</>}</li>
                 ))}
               </ol>
             </div>
@@ -487,6 +489,48 @@ function StandardDefEditor({ standard, onChange }) {
         {fields.length < 12 &&
           <button type="button" className="link-btn" onClick={() => onChange({ ...standard, fields: [...fields, { name: '', unit: '', required: false }] })}>+ Add a field</button>}
       </div>
+    </div>
+  );
+}
+
+/* Per-step external links: the STL on Printables, the wiring photo, the
+   walkthrough video — attached to the step that uses them. While uploads are
+   admin-only, this is how most members attach anything at all. */
+function StepLinks({ links, onChange }) {
+  const [url, setUrl] = useState('');
+  const [label, setLabel] = useState('');
+
+  function add() {
+    const u = url.trim();
+    if (!u) return;
+    onChange([...links, { label: label.trim(), url: /^https?:\/\//i.test(u) ? u : `https://${u}`, kind: 'other', note: '' }]);
+    setUrl(''); setLabel('');
+  }
+
+  return (
+    <div className="step-links">
+      {links.length > 0 && (
+        <div className="wizard-files">
+          {links.map((l, i) => (
+            <span key={l.url + i} className="wizard-file" title={l.url}>
+              {l.label || l.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40)}
+              <button type="button" aria-label={`Remove ${l.label || l.url}`}
+                      onClick={() => onChange(links.filter((_, j) => j !== i))}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {links.length < 8 && (
+        <div className="step-link-row">
+          <input placeholder="Link a file, image or video (https://…)" value={url}
+                 onChange={e => setUrl(e.target.value)}
+                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+          <input placeholder="label (optional)" value={label} maxLength={120}
+                 onChange={e => setLabel(e.target.value)}
+                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+          <button type="button" className="btn btn-ghost btn-sm" onClick={add} disabled={!url.trim()}>Add link</button>
+        </div>
+      )}
     </div>
   );
 }

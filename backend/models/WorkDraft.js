@@ -20,6 +20,7 @@ const draftStepSchema = new mongoose.Schema({
   title: { type: String, trim: true, maxlength: 160, default: '' },
   body: { type: String, trim: true, maxlength: 8000, default: '' },
   attachments: { type: [draftFileSchema], default: [] },
+  links: { type: [{ label: String, url: String, kind: String, note: String }], default: [] },
   workRef: {
     work: { type: mongoose.Schema.Types.ObjectId, ref: 'Design', default: null },
     version: { type: Number, default: null },

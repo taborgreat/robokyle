@@ -13,6 +13,7 @@ const { ALLOWED_EXT, kindFor } = require('../lib/files');
 const { UPLOAD_DIR, IS_HASH, ingest } = require('../lib/storage');
 const xp = require('../lib/xp');
 const ports = require('../lib/ports');
+const { sanitizeLinks } = require('../lib/links');
 
 const router = express.Router();
 router.use(requireAuth, requireVerified);
@@ -180,7 +181,8 @@ router.post('/:id/publish', async (req, res, next) => {
 
     // The two hard requirements; everything else was a soft checklist warning.
     if (!draft.title.trim()) return res.status(400).json({ error: 'The work needs a name' });
-    const hasContent = draft.files.length || draft.steps.some(st => st.title || st.body || st.attachments.length || (st.workRef && st.workRef.work));
+    const hasContent = draft.files.length || draft.steps.some(st =>
+      st.title || st.body || st.attachments.length || (st.links || []).length || (st.workRef && st.workRef.work));
     if (!hasContent) return res.status(400).json({ error: 'Add at least one file or one step' });
 
     const declaration = (draft.categories || []).filter(c => xp.config.categoryIds.includes(c.id) && c.id !== 'innov' && c.weight > 0);
@@ -223,6 +225,7 @@ router.post('/:id/publish', async (req, res, next) => {
       title: st.title, body: st.body, duration: st.duration,
       needs: (st.needs || []).filter(n => xp.config.equipmentItems.includes(n)),
       attachments: (st.attachments || []).map(strip),
+      links: sanitizeLinks(st.links || [], { max: 8 }),
       workRef: { work: (st.workRef && st.workRef.work) || null, version: (st.workRef && st.workRef.version) ?? null },
     }));
 

@@ -632,3 +632,10 @@ select:focus { outline: 3px solid color-mix(in oklab, var(--brand) 40%, transpar
   border-radius: var(--radius); padding: .6rem .9rem;
   box-shadow: var(--shadow-sm);
 }
+
+/* Per-step link editor in the wizard. */
+.step-links { margin-top: .5rem; }
+.step-link-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-top: .3rem; }
+.step-link-row input { flex: 1; min-width: 10rem; padding: .4rem .6rem; font: inherit;
+  color: var(--ink); background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.step-link-row input:last-of-type { flex: 0 1 11rem; }

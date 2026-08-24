@@ -13,6 +13,7 @@ const xp = require('../lib/xp');
 const social = require('../lib/social');
 const ports = require('../lib/ports');
 const { parseRequires, effectiveRequires, readiness } = require('../lib/requires');
+const { sanitizeLinks, isImageUrl } = require('../lib/links');
 const User = require('../models/User');
 const Comment = require('../models/Comment');
 
@@ -146,20 +147,7 @@ const clean = (v, max) => String(v ?? '').trim().slice(0, max);
 function parseLinks(raw) {
   const items = parseJson(raw, null);
   if (!Array.isArray(items)) return null;
-  return items.slice(0, MAX_LINKS).map(l => {
-    const url = clean(l.url, 2000);
-    let parsed;
-    try { parsed = new URL(url); } catch { throw Object.assign(new Error(`"${url}" is not a valid URL`), { status: 400 }); }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw Object.assign(new Error('Links must start with http:// or https://'), { status: 400 });
-    }
-    return {
-      label: clean(l.label, 120) || parsed.hostname.replace(/^www\./, ''),
-      url,
-      kind: ['files', 'video', 'docs', 'parts', 'other'].includes(l.kind) ? l.kind : 'other',
-      note: clean(l.note, 300),
-    };
-  }).filter(l => l.url);
+  return sanitizeLinks(items, { max: MAX_LINKS });
 }
 
 /* §2A: the uploader chooses 1–3 categories with integer weights summing to
@@ -242,12 +230,13 @@ function parseSteps(raw, ownedByName) {
       }),
     needs: (Array.isArray(st.needs) ? st.needs : []).slice(0, 8)
       .map(String).filter(n => xp.config.equipmentItems.includes(n)),
+    links: sanitizeLinks(Array.isArray(st.links) ? st.links : [], { max: 8 }),
     workRef: {
       work: /^[a-f0-9]{24}$/i.test(String(st.workRef && st.workRef.work || '')) ? String(st.workRef.work) : null,
       version: st.workRef && st.workRef.version != null && st.workRef.version !== ''
         ? Math.max(1, parseInt(st.workRef.version, 10) || 1) : null,
     },
-  })).filter(st => st.title || st.body || st.attachments.length || st.workRef.work);
+  })).filter(st => st.title || st.body || st.attachments.length || st.links.length || st.workRef.work);
 }
 
 /* Which stored files may this request attach to steps? Its own draft's, and
@@ -364,6 +353,8 @@ function serialize(design, user) {
     return {
       id: st._id, title: st.title, body: st.body, duration: st.duration, needs: st.needs || [],
       attachments: withUrls(obj._id, st.attachments || []),
+      // A link that is itself an image renders inline in the step, like a photo.
+      links: (st.links || []).map(l => ({ ...l, image: isImageUrl(l.url) })),
       workRef: resolved,
     };
   });
@@ -570,6 +561,7 @@ router.post('/:id/fork', requireAuth, requireVerified, async (req, res, next) =>
       steps: parent.steps.map(st => ({
         title: st.title, body: st.body, duration: st.duration,
         attachments: (st.attachments || []).map(stripIds),
+        links: (st.links || []).map(l => ({ label: l.label, url: l.url, kind: l.kind, note: l.note })),
         workRef: { work: st.workRef && st.workRef.work, version: st.workRef && st.workRef.version },
       })),
       categories: parent.categories.map(c => ({ id: c.id, weight: c.weight })),

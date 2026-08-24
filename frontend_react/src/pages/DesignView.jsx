@@ -489,6 +489,21 @@ export default function DesignView() {
                             ))}
                           </ul>
                         )}
+                        {(st.links || []).filter(l => l.image).map((l, k) => (
+                          <a key={l.url + k} href={l.url} target="_blank" rel="noreferrer nofollow">
+                            <img className="step-photo" src={l.url} alt={l.label || st.title || `Step ${i + 1}`} loading="lazy" />
+                          </a>
+                        ))}
+                        {(st.links || []).filter(l => !l.image).length > 0 && (
+                          <ul className="step-files">
+                            {(st.links || []).filter(l => !l.image).map((l, k) => (
+                              <li key={l.url + k}>
+                                <a href={l.url} target="_blank" rel="noreferrer nofollow">{l.label}</a>
+                                <span className="stat"> {host(l.url)}{l.note ? ` · ${l.note}` : ''} ↗</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </>
                     )}
                   </li>

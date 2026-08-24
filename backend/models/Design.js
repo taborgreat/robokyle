@@ -42,6 +42,10 @@ const stepSchema = new mongoose.Schema({
      on the printing step. The work's overall file list is the union of these
      plus the overview files — assembled at read time, never kept by hand. */
   attachments: { type: [fileSchema], default: [] },
+  /* External links, per step: the STL on Printables, the wiring photo, the
+     walkthrough video — attached to the step that uses them. While uploads
+     are admin-only this is how most members attach anything at all. */
+  links: { type: [linkSchema], default: [] },
   /* A step can BE another work: "Step 3: build the Quick-Release Connector".
      version null follows latest; a number pins (the default in the UI). */
   workRef: {
