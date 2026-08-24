@@ -541,15 +541,7 @@ a.ts-counter:hover { color: var(--ink); }
 /* Latest works as inventory slots (§3 chrome): items, not brochures. */
 /* A real break between the counters strip and the content panels: the strip
    caps the menu block; Latest works starts the world below it. */
-.ts-latest { margin-top: 4.4rem; position: relative; }
-/* A thin divider floats mid-gap: the title block ends, the world begins. */
-.ts-latest::before {
-    content: "";
-    position: absolute; top: -2.2rem; left: 0; right: 0;
-    margin: 0 auto;
-    width: min(320px, 60%); height: 1px;
-    background: var(--line);
-}
+.ts-latest { margin-top: 4.4rem; }
 .ts-slots { display: flex; flex-wrap: wrap; gap: .5rem; }
 
 .ts-slot {
