@@ -67,228 +67,252 @@ body.hub-body::before {
     border-radius: 4px;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .hub-shell {
     position: relative;
     z-index: 1;
-    max-width: 1140px;
+    max-width: 1080px;
     margin: 0 auto;
-    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 2.5rem) 3rem;
+    padding: clamp(1.8rem, 4vw, 3.5rem) clamp(1.1rem, 4vw, 2.5rem) 3rem;
 }
 
 /* ---------- Masthead ---------- */
 .hub-head {
-    text-align: center;
-    margin-bottom: clamp(2.5rem, 6vw, 4rem);
+    margin-bottom: clamp(1.8rem, 4vw, 2.8rem);
+    padding-bottom: 1.4rem;
+    border-bottom: 1px solid var(--gm-line-soft);
 }
 
 .hub-logo {
     font-family: 'Black Ops One', 'Fraunces', Impact, sans-serif;
-    font-size: clamp(2.4rem, 7.5vw, 5rem);
-    line-height: .9;
+    font-size: clamp(1.9rem, 5.5vw, 3.1rem);
+    line-height: .95;
     letter-spacing: .01em;
-    margin: 0 0 .35em;
+    margin: 0 0 .3rem;
     text-transform: uppercase;
     display: inline-flex;
-    gap: .12em;
-    filter: drop-shadow(0 6px 12px rgba(0,0,0,.5));
+    gap: .1em;
+    filter: drop-shadow(0 5px 10px rgba(0,0,0,.5));
 }
 .hub-logo .robo {
     color: #F4EADA;
-    -webkit-text-stroke: 2px #000;
-    text-shadow: 0 3px 0 #000, 0 0 24px rgba(255,255,255,.18);
+    -webkit-text-stroke: 1.5px #000;
+    text-shadow: 0 2px 0 #000;
     transform: skew(-6deg);
 }
 .hub-logo .kyle {
     color: var(--gm-orange);
-    -webkit-text-stroke: 2px #000;
-    text-shadow:
-        0 3px 0 #000,
-        0 0 26px rgba(227,85,43,.6),
-        0 0 60px rgba(180,35,28,.4);
+    -webkit-text-stroke: 1.5px #000;
+    text-shadow: 0 2px 0 #000, 0 0 24px rgba(227,85,43,.55);
     transform: skew(-6deg);
-    animation: emberFlicker 3.5s ease-in-out infinite;
 }
-@keyframes emberFlicker {
-    0%, 100% { filter: brightness(1); }
-    45%      { filter: brightness(1.14); }
-    55%      { filter: brightness(.94); }
+.hub-logo .arcade {
+    color: var(--gm-ink-mute);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    transform: skew(-6deg);
 }
-
-.hub-kicker {
-    font-family: 'Black Ops One', Impact, sans-serif;
-    color: var(--gm-ink-soft);
-    letter-spacing: .3em;
-    font-size: .82rem;
-    text-transform: uppercase;
-    margin: 0 0 1.1rem;
-    position: relative;
-    display: inline-block;
-}
-.hub-kicker::before,
-.hub-kicker::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: clamp(20px, 8vw, 70px);
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gm-orange));
-}
-.hub-kicker::before { right: calc(100% + 14px); }
-.hub-kicker::after  { left: calc(100% + 14px); transform: scaleX(-1); }
 
 .hub-blurb {
     color: var(--gm-ink-soft);
-    max-width: 54ch;
-    margin: 0 auto;
-    font-size: clamp(.95rem, 2vw, 1.05rem);
-    line-height: 1.65;
+    max-width: 60ch;
+    margin: 0;
+    font-size: clamp(.9rem, 2vw, 1rem);
+    line-height: 1.6;
 }
 
-/* ---------- Card grid ---------- */
-.game-grid {
+/* ---------- Scrolling card list ---------- */
+.game-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: clamp(1.1rem, 2.5vw, 1.8rem);
-    align-items: stretch;
+    grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+    gap: clamp(.9rem, 2vw, 1.4rem);
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 .game-card {
     position: relative;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, var(--gm-panel-2), var(--gm-panel));
-    border: 1px solid var(--gm-line);
-    border-radius: 14px;
+    height: 100%;
+    background: var(--gm-panel);
+    border: 1px solid var(--gm-line-soft);
+    border-radius: 12px;
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
 
-/* Only real, playable cards lift on hover. */
 a.game-card:hover,
 a.game-card:focus-visible {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
     border-color: var(--gm-orange);
-    box-shadow:
-        0 14px 34px rgba(0,0,0,.55),
-        0 0 0 1px rgba(227,85,43,.35),
-        0 0 44px rgba(180,35,28,.22);
+    box-shadow: 0 12px 28px rgba(0,0,0,.55), 0 0 30px rgba(180,35,28,.2);
 }
 
-.card-art {
-    display: block;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background: #0C0A0E;
+/* ---------- Thumbnail: a mini version of the game's title screen ---------- */
+.card-thumb {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    overflow: hidden;
+    background: #07060A;
     border-bottom: 1px solid var(--gm-line-soft);
 }
-
-.card-body {
-    padding: 1.15rem 1.25rem 1.35rem;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    gap: .55rem;
+/* Each game's own title-screen backdrop. */
+.card-thumb.thumb-undead {
+    background:
+        radial-gradient(70% 55% at 50% 112%, rgba(180,35,28,.55) 0%, transparent 66%),
+        radial-gradient(50% 40% at 15% -10%, rgba(227,85,43,.22) 0%, transparent 60%),
+        #07060A;
+}
+.card-thumb.thumb-tba {
+    background:
+        repeating-linear-gradient(45deg, #100B10 0 10px, #0C080C 10px 20px);
 }
 
-.card-title {
+.thumb-inner { padding: .5rem; }
+
+.thumb-logo {
     font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: 1.32rem;
-    line-height: 1.15;
-    margin: 0;
+    font-size: clamp(1.35rem, 3.6vw, 1.85rem);
+    line-height: .9;
     text-transform: uppercase;
-    letter-spacing: .02em;
-}
-.card-title .sub {
-    display: block;
-    color: var(--gm-orange);
-    font-size: .82em;
-    margin-top: .18em;
-    text-shadow: 0 0 18px rgba(227,85,43,.45);
-}
-
-.card-desc {
-    color: var(--gm-ink-soft);
-    font-size: .93rem;
-    line-height: 1.6;
-    margin: 0;
-    flex: 1;
-}
-
-.card-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .4rem;
-    margin-top: .2rem;
-}
-.tag {
-    font-size: .7rem;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: var(--gm-ink-mute);
-    border: 1px solid var(--gm-line);
-    border-radius: 999px;
-    padding: .25rem .6rem;
-    white-space: nowrap;
-}
-
-.card-cta {
     display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    align-self: flex-start;
-    margin-top: .7rem;
+    gap: .08em;
+    margin: 0;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,.6));
+}
+.thumb-logo .robo {
+    color: #F4EADA;
+    -webkit-text-stroke: 1px #000;
+    text-shadow: 0 2px 0 #000;
+    transform: skew(-6deg);
+}
+.thumb-logo .kyle {
+    color: var(--gm-orange);
+    -webkit-text-stroke: 1px #000;
+    text-shadow: 0 2px 0 #000, 0 0 16px rgba(227,85,43,.6);
+    transform: skew(-6deg);
+}
+
+.thumb-sub {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: .62rem;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+    color: var(--gm-ink);
+    margin: .3rem 0 0;
+    opacity: .9;
+    text-shadow: 0 1px 0 #000, 0 0 12px rgba(142,15,20,.7);
+}
+
+.thumb-tagline {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: .5rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--gm-ink-mute);
+    margin: .5rem 0 0;
+}
+
+.thumb-q {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: 2.4rem;
+    color: var(--gm-line);
+    margin: 0;
+}
+
+/* Play overlay, revealed on hover/focus. */
+.thumb-play {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(7,6,10,.62);
+    opacity: 0;
+    transition: opacity .16s ease;
+}
+a.game-card:hover .thumb-play,
+a.game-card:focus-visible .thumb-play { opacity: 1; }
+.thumb-play span {
     font-family: 'Black Ops One', Impact, sans-serif;
     text-transform: uppercase;
-    letter-spacing: .08em;
-    font-size: .92rem;
+    letter-spacing: .1em;
+    font-size: .82rem;
     color: var(--gm-bg);
     background: var(--gm-orange);
-    border-radius: 8px;
-    padding: .6rem 1.1rem;
-    transition: background .18s ease, transform .18s ease;
+    border-radius: 7px;
+    padding: .5rem 1rem;
 }
-a.game-card:hover .card-cta { background: var(--gm-orange-hot); }
-.card-cta .arrow { transition: transform .18s ease; }
-a.game-card:hover .card-cta .arrow { transform: translateX(3px); }
 
-/* Status ribbon, top-right of the art. */
+/* Status flag */
 .card-flag {
     position: absolute;
-    top: .8rem;
-    right: .8rem;
+    top: .55rem;
+    left: .55rem;
     z-index: 2;
-    font-size: .66rem;
+    font-size: .6rem;
     font-weight: 700;
-    letter-spacing: .14em;
+    letter-spacing: .12em;
     text-transform: uppercase;
-    padding: .3rem .6rem;
+    padding: .24rem .5rem;
     border-radius: 999px;
-    backdrop-filter: blur(4px);
 }
 .card-flag.is-live {
     color: var(--gm-green);
-    background: rgba(18,40,28,.72);
-    border: 1px solid rgba(123,197,154,.45);
+    background: rgba(12,30,20,.85);
+    border: 1px solid rgba(123,197,154,.4);
 }
 .card-flag.is-soon {
     color: var(--gm-ink-mute);
-    background: rgba(28,20,18,.72);
+    background: rgba(22,16,15,.85);
     border: 1px solid var(--gm-line);
 }
 
-/* ---------- Placeholder card for an unreleased game ---------- */
+/* ---------- Card text ---------- */
+.card-body {
+    padding: .75rem .85rem .9rem;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    flex: 1;
+}
+
+.card-title {
+    font-size: .97rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0;
+    color: var(--gm-ink);
+}
+
+.card-desc {
+    color: var(--gm-ink-mute);
+    font-size: .78rem;
+    line-height: 1.45;
+    margin: 0;
+}
+
+/* ---------- Placeholder card ---------- */
 .game-card.is-placeholder {
     border-style: dashed;
-    border-color: var(--gm-line-soft);
-    background: linear-gradient(180deg, rgba(30,23,21,.5), rgba(20,16,15,.5));
+    opacity: .72;
 }
-.game-card.is-placeholder .card-title,
-.game-card.is-placeholder .card-desc { color: var(--gm-ink-mute); }
-.game-card.is-placeholder .card-title .sub { color: var(--gm-ink-mute); text-shadow: none; }
-.game-card.is-placeholder .card-art { opacity: .5; }
+.game-card.is-placeholder .card-title { color: var(--gm-ink-mute); }
 
 /* ---------- Footer nav ---------- */
 .back-strip {
@@ -296,21 +320,19 @@ a.game-card:hover .card-cta .arrow { transform: translateX(3px); }
     flex-wrap: wrap;
     justify-content: center;
     gap: clamp(1rem, 4vw, 2.2rem);
-    margin-top: clamp(2.5rem, 6vw, 4rem);
-    padding-top: 1.6rem;
+    margin-top: clamp(2.2rem, 5vw, 3.2rem);
+    padding-top: 1.5rem;
     border-top: 1px solid var(--gm-line-soft);
 }
 .back-strip a {
     color: var(--gm-ink-soft);
     text-decoration: none;
-    font-size: .88rem;
-    letter-spacing: .04em;
+    font-size: .85rem;
     transition: color .15s ease;
 }
 .back-strip a:hover { color: var(--gm-orange); }
 
 @media (prefers-reduced-motion: reduce) {
-    .hub-logo .kyle { animation: none; }
-    .game-card, .card-cta, .card-cta .arrow { transition: none; }
+    .game-card, .thumb-play { transition: none; }
     a.game-card:hover, a.game-card:focus-visible { transform: none; }
 }
