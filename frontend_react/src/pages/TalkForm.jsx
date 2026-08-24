@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import NeedTagPicker from '../NeedTagPicker.jsx';
+import { useTitle } from '../lib/title.js';
 
 /* The composer. Three types, no free-form fourth: everything worth saying is
    about a work, toward a work, or a question (Talk Spec §2). */
@@ -20,6 +21,7 @@ export default function TalkForm() {
   const [boards, setBoards] = useState([]);
   const [error, setError] = useState('');
   const [posting, setPosting] = useState(false);
+  useTitle('New thread');
 
   const [type, setType] = useState(params.get('type') || (params.get('work') ? 'linked' : 'plan'));
   const [board, setBoard] = useState(params.get('board') || '');

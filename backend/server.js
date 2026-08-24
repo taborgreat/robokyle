@@ -5,7 +5,6 @@ const cors = require('cors');
 const path = require('path');
 
 const Design = require('./models/Design');
-const Comment = require('./models/Comment');
 const { ALLOWED_EXT } = require('./lib/files');
 const mail = require('./lib/mail');
 const { purgeUnverified, purgeExpiredDrafts, archiveIdleTalk,
@@ -119,8 +118,6 @@ app.use((err, req, res, next) => {
 mongoose.connect(MONGO_URI)
   .then(async () => {
 
-    // One-time: comments used to live embedded on designs. No-op once done.
-    await Comment.migrateEmbedded().catch(err => console.error('[migrate]', err.message));
     /* One-time cleanup of auto-"(revision)" title pollution from the era when
        Build on this published instantly: where a remix's title is exactly its
        parent's plus "(revision)" runs, the suffixes go. Idempotent: once no

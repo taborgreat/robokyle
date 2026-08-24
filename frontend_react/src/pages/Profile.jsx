@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api, fileUrl, avatarUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { SkillIcon, ToolIcon, LevelFraction } from '../rs.jsx';
+import { useTitle } from '../lib/title.js';
 
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 const fmtWhen = (d) => new Date(d).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -159,7 +160,7 @@ function Inventory({ p, isSelf, config }) {
     <div className="panel rs-inv-panel">
       <div className="produced-head">
         <h2>{isSelf ? 'Your works' : `Works by ${p.username}`} <span className="rs-num">{total}</span></h2>
-        {isSelf && <Link className="btn btn-build btn-sm" to="/works/new">New</Link>}
+        {isSelf && <Link className="btn btn-build btn-sm" to="/works/new">Create</Link>}
       </div>
       {total === 0 && (
         <p className="stat">
@@ -366,6 +367,7 @@ function NotifList({ items }) {
 
 export default function Profile() {
   const { username } = useParams();
+  useTitle(username);
   const { logout, refresh } = useAuth();
   const [p, setP] = useState(null);
   const [error, setError] = useState('');

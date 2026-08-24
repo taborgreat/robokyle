@@ -4,6 +4,7 @@ const User = require('../models/User');
 const TalkPost = require('../models/TalkPost');
 const ProducedEntry = require('../models/ProducedEntry');
 const XP = require('../config/xp');
+const xpLib = require('../lib/xp');
 
 const router = express.Router();
 
@@ -28,9 +29,9 @@ router.get('/', async (req, res, next) => {
       User.countDocuments({}),
       TalkPost.countDocuments({ type: 'plan', 'plan.status': { $in: ['open', 'in-progress'] } }),
       Design.find({}).sort({ createdAt: -1 }).limit(12)
-        .select('title author createdAt depth').populate('author', 'username'),
+        .select('title author createdAt depth parent').populate('author', 'username xp').populate('parent', 'title'),
       ProducedEntry.find({ cachedState: 'verified' }).sort({ createdAt: -1 }).limit(8)
-        .select('work poster createdAt type').populate('poster', 'username').populate('work', 'title'),
+        .select('work poster createdAt type').populate('poster', 'username xp').populate('work', 'title'),
     ]);
 
     const events = [];
@@ -49,7 +50,10 @@ router.get('/', async (req, res, next) => {
         at: w.createdAt,
         amount: derived ? XP.amounts.publishDerived : XP.amounts.publishOriginal,
         who: w.author.username,
-        what: derived ? 'built on a work as' : 'published',
+        level: xpLib.levelsOf(w.author).totalLevel,
+        what: derived
+          ? `remixed ${w.parent && w.parent.title ? w.parent.title : 'a work'} into`
+          : 'published',
         title: w.title,
         workId: w._id,
       });
@@ -61,6 +65,7 @@ router.get('/', async (req, res, next) => {
         at: e.createdAt,
         amount: e.type === 'usage' ? XP.amounts.fitReport : XP.amounts.buildBuilder,
         who: e.poster.username,
+        level: xpLib.levelsOf(e.poster).totalLevel,
         what: e.type === 'usage' ? 'reported using' : 'built',
         title: e.work.title,
         workId: e.work._id,

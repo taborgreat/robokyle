@@ -18,7 +18,7 @@ export default function ModQueue() {
   useEffect(() => { if (isModUser(user)) load(); }, [user]);
 
   if (ready && !isModUser(user)) return <Navigate to="/works" replace />;
-  if (error) return <div className="form-error" role="alert">{error}</div>;
+  if (error && !data) return <div className="form-error" role="alert">{error}</div>;
   if (!data) return <p className="empty">Loading…</p>;
 
   async function resolve(id) {
@@ -46,6 +46,7 @@ export default function ModQueue() {
         </div>
       </div>
 
+      {error && <div className="form-error" role="alert">{error}</div>}
       <div className="rs-below">
         <div className="panel">
           <h2>Open flags <span className="rs-num">{open.length}</span></h2>

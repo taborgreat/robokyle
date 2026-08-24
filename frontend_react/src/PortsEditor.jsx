@@ -95,7 +95,7 @@ export default function PortsEditor({ ports, onChange }) {
                 <div className="port-fields">
                   <label className="port-field">
                     <span>which side it fits</span>
-                    <select value={a.laterality || 'either'} onChange={e => setA({ laterality: e.target.value })}>
+                    <select aria-label="Laterality" value={a.laterality || 'either'} onChange={e => setA({ laterality: e.target.value })}>
                       <option value="either">either</option>
                       <option value="left">left</option>
                       <option value="right">right</option>

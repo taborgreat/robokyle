@@ -28,7 +28,7 @@ export default function Verify() {
         <>
           <h1>You are all set</h1>
           <p>Your email is confirmed and you are signed in. You can post works and comment now.</p>
-          <p><Link className="btn btn-primary" to="/works">Browse the works <span className="arrow" aria-hidden="true">&rarr;</span></Link></p>
+          <p><Link className="btn btn-primary" to="/works">Browse the works</Link></p>
         </>
       )}
       {state === 'bad' && (

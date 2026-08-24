@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
+import { useTitle } from '../lib/title.js';
 
 /* Talk: the work incubator with a comment section. Boards are the nine skill
    categories; the default sort is usefulness (weighted votes), never "hot". */
@@ -16,6 +17,7 @@ export default function Talk() {
   const [boards, setBoards] = useState([]);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  useTitle('Talk');
 
   const board = params.get('board') || '';
   const type = params.get('type') || '';

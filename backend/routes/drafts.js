@@ -41,7 +41,7 @@ async function myDraft(req, res) {
 }
 
 const shape = (d) => ({
-  id: d._id, stage: d.stage, fromWork: d.fromWork, fromTalkPost: d.fromTalkPost,
+  id: d._id, fromWork: d.fromWork, fromTalkPost: d.fromTalkPost,
   forkOf: d.forkOf && d.forkOf.work ? { work: d.forkOf.work, version: d.forkOf.version } : null,
   remixNote: d.remixNote,
   title: d.title, description: d.description,
@@ -55,7 +55,7 @@ const shape = (d) => ({
 router.get('/', async (req, res, next) => {
   try {
     const drafts = await WorkDraft.find({ author: req.user._id }).sort({ updatedAt: -1 });
-    res.json({ items: drafts.map(d => ({ id: d._id, title: d.title, stage: d.stage, fromWork: d.fromWork,
+    res.json({ items: drafts.map(d => ({ id: d._id, title: d.title, fromWork: d.fromWork,
       forkOf: d.forkOf && d.forkOf.work ? d.forkOf.work : null, updatedAt: d.updatedAt })) });
   } catch (err) { next(err); }
 });
@@ -184,7 +184,6 @@ router.put('/:id', async (req, res, next) => {
     if (b.ports !== undefined) {
       try { draft.ports = ports.parsePorts(b.ports); } catch { /* malformed autosave: keep the last good one */ }
     }
-    if (b.stage) draft.stage = Math.max(1, Math.min(3, Number(b.stage) || 1));
     await draft.save();
     res.json(shape(draft));
   } catch (err) {

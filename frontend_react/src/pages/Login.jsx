@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import { useTitle } from '../lib/title.js';
 import { useConfig } from '../lib/config.js';
 import GoogleButton from '../components/GoogleButton.jsx';
 
 export default function Login() {
+  useTitle('Log in');
   const { login, google } = useAuth();
   const config = useConfig();
   const nav = useNavigate();

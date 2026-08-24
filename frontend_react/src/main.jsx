@@ -28,7 +28,9 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   const navType = useNavigationType();
   useEffect(() => {
-    if (navType !== 'POP') window.scrollTo(0, 0);
+    // A #c-… deep link owns its own scroll; jumping to the top first
+    // would just fight it.
+    if (navType !== 'POP' && !window.location.hash) window.scrollTo(0, 0);
   }, [pathname]);
   return null;
 }

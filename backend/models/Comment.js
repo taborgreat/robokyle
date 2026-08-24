@@ -28,29 +28,4 @@ commentSchema.index({ targetType: 1, target: 1, createdAt: 1 });
 commentSchema.index({ author: 1, createdAt: -1 });
 commentSchema.index({ parent: 1 });
 
-/* One-time move of the comments that used to live embedded on Design.
-   The field is gone from the Design schema, so this reads the raw collection;
-   inserts go through the raw collection too, to keep the original timestamps.
-   Idempotent: run on every boot, does nothing once the arrays are gone. */
-commentSchema.statics.migrateEmbedded = async function () {
-  const designs = mongoose.connection.collection('designs');
-  let moved = 0;
-  for await (const d of designs.find({ 'comments.0': { $exists: true } }, { projection: { comments: 1 } })) {
-    // A crash between insert and unset would re-run this design; skip the insert then.
-    if (!(await this.exists({ targetType: 'design', target: d._id }))) {
-      await this.collection.insertMany(d.comments.map(c => ({
-        targetType: 'design', target: d._id, parent: null,
-        author: c.author, body: c.body,
-        upvotes: [], downvotes: [], downvoteReasons: [],
-        forkedTo: null, deletedAt: null,
-        createdAt: c.createdAt || new Date(), updatedAt: c.updatedAt || c.createdAt || new Date(),
-      })));
-      moved += d.comments.length;
-    }
-    await designs.updateOne({ _id: d._id }, { $unset: { comments: '' } });
-  }
-  if (moved) console.log(`[migrate] moved ${moved} embedded work comment(s) into the comments collection`);
-  return moved;
-};
-
 module.exports = mongoose.model('Comment', commentSchema);

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, avatarUrl, getConfig } from '../lib/api.js';
+import { useTitle } from '../lib/title.js';
 
 /* Everyone, ranked by RoboXP (verified value produced, works weighted over
    chat) or by one skill for the specialty view. The way to find the most
    useful accounts and their works at a glance. */
 export default function Creators() {
+  useTitle('Creators');
   const [params, setParams] = useSearchParams();
   const category = params.get('category') || '';
   const sort = params.get('sort') || '';

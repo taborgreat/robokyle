@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, fileUrl, avatarUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import ErrorBar from '../ErrorBar.jsx';
+import { useTitle } from '../lib/title.js';
 import { useHashTarget } from '../rs.jsx';
 
 /* One Talk thread. Drift mechanics live here: replies at depth ≥ 2 collapse
@@ -79,6 +80,7 @@ export default function TalkPostView() {
   const catName = (cid) => (config?.xp?.categories || []).find(c => c.id === cid)?.name || cid;
 
   const load = () => api(`/talk/${id}`).then(setP).catch(e => setError(e.message));
+  useTitle(p?.title);
   useHashTarget(!!p);
   useEffect(() => { load(); }, [id]);
 
@@ -285,7 +287,7 @@ export default function TalkPostView() {
                 {user && !plan.joined && <button className="btn btn-ghost btn-sm" title="Signals commitment and earns no XP" onClick={join}>Join</button>}
                 {user && plan.joined && !p.canEdit && <button className="btn btn-ghost btn-sm" onClick={leave}>Leave</button>}
                 {p.canPromote
-                  ? <button className="btn btn-build btn-sm" onClick={promote} title="Opens the creation wizard pre-filled from this plan">Promote to Work →</button>
+                  ? <button className="btn btn-build btn-sm" onClick={promote} title="Opens the creation wizard pre-filled from this plan">Promote to Work</button>
                   : user && plan.joined && !plan.promotion && <button className="btn btn-ghost btn-sm" onClick={requestPromote}>Ask to promote this</button>}
                 {p.promoteWhy && plan.joined && <span className="stat">{p.promoteWhy}</span>}
                 {p.canEdit && plan.promotion && !plan.promotion.approved &&

@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import NeedTagPicker from '../NeedTagPicker.jsx';
 import RequiresEditor from '../RequiresEditor.jsx';
 import PortsEditor from '../PortsEditor.jsx';
+import { useTitle } from '../lib/title.js';
 
 /* The three-stage wizard. Everything autosaves as a draft, per change,
    debounced, so closing the tab mid-step loses nothing. Nothing is public
@@ -32,6 +33,7 @@ export default function WorkWizard() {
   const { user, ready } = useAuth();
 
   const [draft, setDraft] = useState(null);
+  useTitle(editWorkId ? 'Edit the work' : 'Create Work');
   const [config, setConfig] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -276,7 +278,7 @@ export default function WorkWizard() {
           </div>
 
           <div className="toolbar" style={{ marginTop: '1.5rem' }}>
-            <button className="btn btn-primary" onClick={() => setStage(2)}>Next: the steps →</button>
+            <button className="btn btn-primary" onClick={() => setStage(2)}>Next: the steps</button>
           </div>
         </section>
       )}
@@ -393,7 +395,7 @@ export default function WorkWizard() {
 
           <div className="toolbar" style={{ marginTop: '1.5rem' }}>
             <button className="btn btn-ghost" onClick={() => setStage(1)}>← Back</button>
-            <button className="btn btn-primary" onClick={() => { if (!draft.categories?.length) patch({ categories: suggestDeclaration(draft.files, draft.steps), stage: 3 }); else setStage(3); }}>Next: ship it →</button>
+            <button className="btn btn-primary" onClick={() => { if (!draft.categories?.length) patch({ categories: suggestDeclaration(draft.files, draft.steps), stage: 3 }); else setStage(3); }}>Next: ship it</button>
           </div>
         </section>
       )}

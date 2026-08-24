@@ -177,7 +177,7 @@ const designSchema = new mongoose.Schema({
      so there is nothing to stuff. */
   needTags: { type: [String], default: [] },
   // Comments live in the site-wide comments collection (models/Comment.js,
-  // targetType 'design'); Comment.migrateEmbedded moved the old arrays out.
+  // targetType 'design').
 }, { timestamps: true });
 
 designSchema.index({ title: 'text', description: 'text', tags: 'text', needTags: 'text' });
@@ -332,3 +332,6 @@ designSchema.statics.blobsOf = function (design) {
 };
 
 module.exports = mongoose.model('Design', designSchema);
+// The draft reuses the same file shape, so a published file is byte-for-byte
+// the draft's row and there is exactly one definition to drift.
+module.exports.fileSchema = fileSchema;

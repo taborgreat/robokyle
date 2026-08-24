@@ -242,6 +242,9 @@ router.post('/:username/suspend', requireAuth, requireMod, async (req, res, next
     if (!user) return res.status(404).json({ error: 'No such member' });
     if (user._id.equals(req.user._id)) return res.status(400).json({ error: 'Not on yourself' });
     if (user.role === 'admin') return res.status(400).json({ error: 'Admins cannot be suspended' });
+    if ((user.roles || []).includes('mod') && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Suspending a mod takes an admin' });
+    }
     const days = Math.min(365, Math.max(1, parseInt(req.body.days, 10) || 7));
     user.suspendedUntil = new Date(Date.now() + days * 86400e3);
     user.suspendedReason = String(req.body.reason || '').trim().slice(0, 300);
@@ -503,6 +506,13 @@ router.post('/:username/role', requireAuth, async (req, res, next) => {
     }
 
     user.role = role;
+    // A promotion is a statement of trust: it lifts any active suspension,
+    // since admins cannot be suspended and a suspended admin is a paradox.
+    if (role === 'admin' && user.isSuspended()) {
+      user.suspendedUntil = null;
+      user.suspendedReason = '';
+      user.suspendedBy = null;
+    }
     await user.save();
     res.json({ user: user.toPublic(), changed: true });
   } catch (err) { next(err); }

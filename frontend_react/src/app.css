@@ -648,10 +648,12 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   letter-spacing: .09em; text-transform: uppercase;
 }
 .tag.src-work { color: var(--brand); }
-.tag.src-talk { color: var(--accent); }
+.tag.src-talk { color: var(--ink-mute); }
 .tag.src-result { color: var(--ok); }
 /* The clock keeps to the right edge so every row shares one shape. */
 .cf-meta .when { margin-left: auto; }
+.cf-meta a, .notif-list a { text-decoration: none; }
+.cf-meta a:hover, .notif-list a:hover { text-decoration: underline; }
 
 /* Quoted comment text reads as a quote, not a chromed well: chrome frames
    content, it never sits under paragraphs. */

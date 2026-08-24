@@ -103,7 +103,7 @@ function RevisionForm({ workId, steps, onDone, onCancel }) {
     <form className="panel produced-form" onSubmit={submit}>
       {error && <div className="form-error" role="alert">{error}</div>}
       <div className="field"><label>What are you improving?</label>
-        <select value={target === 'step' ? step : 'description'}
+        <select aria-label="What to revise" value={target === 'step' ? step : 'description'}
                 onChange={e => { const v = e.target.value; if (v === 'description') { setTarget('description'); setStep(''); } else { setTarget('step'); setStep(v); } }}>
           <option value="description">The description</option>
           {editableSteps.map((s, i) => <option key={s.id} value={s.id}>Step {i + 1}: {s.title || '(untitled)'}</option>)}

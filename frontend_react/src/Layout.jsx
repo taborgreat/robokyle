@@ -121,31 +121,20 @@ export default function Layout() {
           from about.html into the app. */}
       <footer className="site-footer">
         <div className="wrap">
-          <div className="footer-grid">
-            <div className="footer-brand">
-              <a className="site-logo" href="/" aria-label="Robo Kyle home">
-                <span className="logo-mark" aria-hidden="true"></span>
-                <span className="logo-word">Robo Kyle</span>
-              </a>
-              <p>Free designs for adaptive gear anyone can build, shared by the people who made them.</p>
-            </div>
-            <div>
-              <h4>Site</h4>
-              <ul>
-                <li><Link to="/works">Works</Link></li>
-                <li><Link to="/talk">Talk</Link></li>
-                <li><Link to="/creators">Creators</Link></li>
-                <li><a href="/about.html">About</a></li>
-                <li><a href="/guide.html">Guide</a></li>
-                <li><a href="/public/game/game.html">Game</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4>Get in touch</h4>
-              <ul>
-                <li><a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a></li>
-              </ul>
-            </div>
+          <div className="footer-row">
+            <a className="site-logo" href="/" aria-label="Robo Kyle home">
+              <span className="logo-mark" aria-hidden="true"></span>
+              <span className="logo-word">Robo Kyle</span>
+            </a>
+            <nav className="footer-links" aria-label="Footer">
+              <Link to="/works">Works</Link>
+              <Link to="/talk">Talk</Link>
+              <Link to="/creators">Creators</Link>
+              <a href="/about.html">About</a>
+              <a href="/guide.html">Guide</a>
+              <a href="/public/game/game.html">Game</a>
+              <a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a>
+            </nav>
           </div>
           <div className="footer-bottom">
             <span>&copy; {new Date().getFullYear()} Robo Kyle</span>

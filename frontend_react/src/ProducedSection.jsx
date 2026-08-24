@@ -256,13 +256,13 @@ function EntryForm({ workId, onDone, onCancel }) {
       {error && <div className="form-error" role="alert">{error}</div>}
       <div className="field-row">
         <div className="field"><label>What happened?</label>
-          <select value={type} onChange={e => setType(e.target.value)}>
+          <select aria-label="Kind of result" value={type} onChange={e => setType(e.target.value)}>
             <option value="physical">I built / printed it</option>
             <option value="deployment">I deployed it (software)</option>
             <option value="usage">It is in real use (fit report)</option>
           </select></div>
         <div className="field"><label>Outcome</label>
-          <select value={outcome} onChange={e => setOutcome(e.target.value)}>
+          <select aria-label="How it went" value={outcome} onChange={e => setOutcome(e.target.value)}>
             <option value="success">Worked</option>
             <option value="modified">Worked after changes</option>
             <option value="failed">Failed</option>

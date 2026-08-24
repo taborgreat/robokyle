@@ -239,8 +239,13 @@
           var li = el("li");
           li.appendChild(el("span", "rs-num", "+" + ev.amount));
           var text = el("span");
-          var who = el("a", null, ev.who);
+          /* Names wear their standing: total level decides the shade, from
+             newcomer grey up to gold. The homepage is a highscores preview. */
+          var lvl = Number(ev.level || 0);
+          var tier = lvl >= 450 ? "lvl-gold" : lvl >= 150 ? "lvl-high" : lvl >= 20 ? "lvl-mid" : "lvl-new";
+          var who = el("a", tier, ev.who);
           who.href = "/user/" + encodeURIComponent(ev.who);
+          who.title = "Total level " + lvl;
           text.appendChild(who);
           text.appendChild(document.createTextNode(" " + ev.what + " "));
           var w = el("a", null, ev.title);

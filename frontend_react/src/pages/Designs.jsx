@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api, fileUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import NeedTagPicker from '../NeedTagPicker.jsx';
+import { useTitle } from '../lib/title.js';
 import { SkillIcon } from '../rs.jsx';
 
 const SORTS = [
@@ -29,6 +30,7 @@ export default function Designs() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState(q);
+  useTitle('Works');
   const [config, setConfig] = useState(null);
   useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
 
@@ -62,10 +64,10 @@ export default function Designs() {
       <div className="app-head">
         <div>
           <h1>Works</h1>
-          <p className="stat">Files, photos and a build guide for each one. Free to download and change. <Link to="/creators">Creators &rarr;</Link></p>
+          <p className="stat">Files, photos and a build guide for each one. Free to download and change. <Link to="/creators">Creators</Link></p>
         </div>
         <Link className="btn btn-build" to={user ? '/works/new' : '/login'} state={{ from: '/works/new' }}>
-          Create Work <span className="arrow" aria-hidden="true">&rarr;</span>
+          Create
         </Link>
       </div>
 
@@ -210,7 +212,7 @@ export default function Designs() {
         <div className="toolbar" style={{ justifyContent: 'center', marginTop: '2rem' }}>
           <button className="btn btn-ghost" disabled={page <= 1} onClick={() => update({ page: page - 1 })}>&larr; Prev</button>
           <span className="stat" style={{ alignSelf: 'center' }}>Page {page} of {pages}</span>
-          <button className="btn btn-ghost" disabled={page >= pages} onClick={() => update({ page: page + 1 })}>Next &rarr;</button>
+          <button className="btn btn-ghost" disabled={page >= pages} onClick={() => update({ page: page + 1 })}>Next</button>
         </div>
       )}
     </>

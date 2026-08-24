@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import { useTitle } from '../lib/title.js';
 import { useConfig } from '../lib/config.js';
 import GoogleButton from '../components/GoogleButton.jsx';
 
 export default function Register() {
+  useTitle('Join');
   const { register, google } = useAuth();
   const config = useConfig();
   const nav = useNavigate();

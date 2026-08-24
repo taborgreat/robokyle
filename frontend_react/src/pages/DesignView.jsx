@@ -6,6 +6,7 @@ import ProducedSection from '../ProducedSection.jsx';
 import DocRevisions from '../DocRevisions.jsx';
 import ErrorBar from '../ErrorBar.jsx';
 import { SkillIcon, useHashTarget } from '../rs.jsx';
+import { useTitle } from '../lib/title.js';
 
 const fmtSize = (n) => n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -55,6 +56,7 @@ export default function DesignView() {
   const [builtSignal, setBuiltSignal] = useState(0);   // Actions' "I built one" opens the Produced form
 
   const load = () => api(`/designs/${id}`).then(setD).catch(e => setError(e.message));
+  useTitle(d?.title);
   useHashTarget(!!d);
   useEffect(() => { load(); }, [id]);
   useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
@@ -332,7 +334,7 @@ export default function DesignView() {
                   ))}
                 </ul>
               )}
-              <Link className="btn btn-primary btn-sm" to={`/works/${id}/hub`}>Open the port hub →</Link>
+              <Link className="btn btn-primary btn-sm" to={`/works/${id}/hub`}>Open the port hub</Link>
             </div>
           )}
 
@@ -380,7 +382,7 @@ export default function DesignView() {
                       st.workRef.missing
                         ? <p className="stat"><em>This step referenced a work that has since been removed.</em></p>
                         : <div className="ref-step-card">
-                            <h3><Link to={`/works/${st.workRef.id}`}>{st.title || `Build the ${st.workRef.title}`} &rarr;</Link></h3>
+                            <h3><Link to={`/works/${st.workRef.id}`}>{st.title || `Build the ${st.workRef.title}`}</Link></h3>
                             <span className="stat">
                               {st.workRef.title} by <Link to={`/user/${st.workRef.author}`}>{st.workRef.author}</Link>
                               {st.workRef.follows
