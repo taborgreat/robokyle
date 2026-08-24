@@ -282,14 +282,14 @@ export default function TalkPostView() {
             <span className="stat">{plan.participants.length} in: {plan.participants.map(x => x.username).join(', ')}</span>
             {!p.archived && plan.status !== 'became-work' && plan.status !== 'abandoned' && (
               <>
-                {user && !plan.joined && <button className="btn btn-ghost btn-sm" title="Signals commitment. No XP." onClick={join}>Join</button>}
+                {user && !plan.joined && <button className="btn btn-ghost btn-sm" title="Signals commitment and earns no XP" onClick={join}>Join</button>}
                 {user && plan.joined && !p.canEdit && <button className="btn btn-ghost btn-sm" onClick={leave}>Leave</button>}
                 {p.canPromote
-                  ? <button className="btn btn-primary btn-sm" onClick={promote} title="Opens the creation wizard pre-filled from this plan">Promote to Work →</button>
+                  ? <button className="btn btn-build btn-sm" onClick={promote} title="Opens the creation wizard pre-filled from this plan">Promote to Work →</button>
                   : user && plan.joined && !plan.promotion && <button className="btn btn-ghost btn-sm" onClick={requestPromote}>Ask to promote this</button>}
                 {p.promoteWhy && plan.joined && <span className="stat">{p.promoteWhy}</span>}
                 {p.canEdit && plan.promotion && !plan.promotion.approved &&
-                  <button className="btn btn-primary btn-sm" onClick={approvePromote}>Approve the promotion request</button>}
+                  <button className="btn btn-ghost btn-sm" onClick={approvePromote}>Approve promotion</button>}
               </>
             )}
           </div>

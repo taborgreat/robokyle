@@ -50,7 +50,7 @@ export default function Creators() {
               {/* A wall of colored bursts: the eye finds the deep specialists instantly. */}
               <img className="avatar-sm" src={avatarUrl(u.username, 28)} alt="" width="28" height="28" loading="lazy" />
               <span className="creator-who">
-                <Link to={`/user/${u.username}`}>{u.username}</Link>
+                <Link className={i < 3 ? `rank-${i + 1}` : ''} to={`/user/${u.username}`}>{u.username}</Link>
                 {u.bio && <small>{u.bio.length > 90 ? u.bio.slice(0, 90) + '…' : u.bio}</small>}
               </span>
               <span className="creator-nums">

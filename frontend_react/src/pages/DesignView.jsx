@@ -49,6 +49,8 @@ export default function DesignView() {
   const [reportDone, setReportDone] = useState(false);
   const [cWhyFor, setCWhyFor] = useState(null);   // comment id awaiting a downvote reason
   const [cWhy, setCWhy] = useState('');
+  const [replyToC, setReplyToC] = useState(null); // comment id being replied to
+  const [replyText, setReplyText] = useState('');
   const [config, setConfig] = useState(null);
   const [builtSignal, setBuiltSignal] = useState(0);   // Actions' "I built one" opens the Produced form
 
@@ -125,11 +127,23 @@ export default function DesignView() {
       setD({ ...d, comments: [...d.comments, c] }); setComment('');
     } catch (err) { setError(err.message); }
   }
+  async function postReply(e) {
+    e.preventDefault();
+    if (!user) return nav('/login', { state: { from: `/works/${id}` } });
+    try {
+      setError('');
+      const c = await api(`/designs/${id}/comments`, { method: 'POST', body: { body: replyText, parent: replyToC } });
+      setD({ ...d, comments: [...d.comments, c] });
+      setReplyText(''); setReplyToC(null);
+    } catch (err) { setError(err.message); }
+  }
   async function delComment(cid) {
     try {
       setError('');
       await api(`/designs/${id}/comments/${cid}`, { method: 'DELETE' });
-      setD({ ...d, comments: d.comments.filter(c => c._id !== cid) });
+      // A parent with replies blanks rather than vanishing; reload to show
+      // whichever the server decided.
+      await load();
     } catch (err) { setError(err.message); }
   }
   async function voteWorkComment(c, dir, reason) {
@@ -211,8 +225,10 @@ export default function DesignView() {
       <div className="app-head" style={{ marginBottom: 0 }}>
         <div>
           <h1>{d.title}</h1>
-          <span className="stat">by <Link to={`/user/${d.author.username}`}><strong>{d.author.username}</strong></Link>{d.author.roboXp > 0 && <span className="roboxp" title="RoboXP: verified value produced"> <span className="rs-num">{Math.round(d.author.roboXp).toLocaleString()}</span> RoboXP</span>} · v{d.version} · updated {fmtDate(d.updatedAt)} · <span className="rs-num">{d.downloadCount}</span> downloads
-            {' · '}{lin.isOriginal
+          <span className="stat">by <Link to={`/user/${d.author.username}`}><strong>{d.author.username}</strong></Link>{d.author.roboXp > 0 && <span className="roboxp" title="Verified value this member has produced"> <span className="rs-num">{Math.round(d.author.roboXp).toLocaleString()}</span> RoboXP</span>} · v{d.version} · updated {fmtDate(d.updatedAt)} · <span className="rs-num">{d.downloadCount}</span> downloads</span>
+          {/* Lineage on its own line: what this IS, not one more crumb. */}
+          <span className="stat lineage-line">
+            {lin.isOriginal
               ? <>original work</>
               : <>remix of {lin.parent
                   ? <><Link to={`/works/${lin.parent.id}`}>{lin.parent.title}</Link> by <Link to={`/user/${lin.parent.author}`}>{lin.parent.author}</Link></>
@@ -418,9 +434,11 @@ export default function DesignView() {
           <ProducedSection workId={id} workVersion={d.version} user={user} openSignal={builtSignal}
                            onNeedLogin={() => nav('/login', { state: { from: `/works/${id}` } })} />
 
-          <DocRevisions workId={id} steps={d.steps} user={user} isAuthor={mine}
+          {/* Signed-out visitors are reading, not editing: the propose-better-
+              words machinery only renders once someone could actually use it. */}
+          {user && <DocRevisions workId={id} steps={d.steps} user={user} isAuthor={mine}
                         onApplied={load}
-                        onNeedLogin={() => nav('/login', { state: { from: `/works/${id}` } })} />
+                        onNeedLogin={() => nav('/login', { state: { from: `/works/${id}` } })} />}
 
           <div className="panel" style={{ marginTop: '1.5rem' }}>
             <h2>Comments ({d.comments.length + (d.reasonCards?.length || 0)})</h2>
@@ -466,8 +484,11 @@ export default function DesignView() {
                 </span>
               </div>
             ))}
-            {d.comments.map(c => (
+            {(() => {
+            const repliesOf = (pid) => d.comments.filter(x => String(x.parent || '') === String(pid));
+            const renderComment = (c, isReply) => (
               <div className="comment" key={c._id} id={`c-${c._id}`}>
+                {c.deleted ? <p className="stat"><em>deleted</em></p> : <>
                 <span className="who">{c.author?.username
                   ? <>
                       <img className="avatar-sm" src={avatarUrl(c.author.username, 22)} alt="" width="22" height="22" loading="lazy" />
@@ -483,10 +504,15 @@ export default function DesignView() {
                   <button className="btn btn-ghost btn-sm" style={{ float: 'right' }} onClick={() => delComment(c._id)}>Delete</button>}
                 <p>{c.body}</p>
                 {/* Part III: comments are accountability targets — votable at
-                    display stakes, downvotes carry reason cards, zero XP. */}
+                    display stakes, downvotes carry reason cards, zero XP.
+                    One reply level keeps an answer under its question; anything
+                    deeper is what Talk is for. */}
                 <span className="toolbar talk-comment-tools">
                   <button className={'link-btn' + (c.upvoted ? ' on' : '')} onClick={() => voteWorkComment(c, 'up')}>▲ <span className="rs-num">{c.upvoteCount || 0}</span></button>
                   <button className={'link-btn' + (c.downvoted ? ' on' : '')} onClick={() => voteWorkComment(c, 'down')}>▼ <span className="rs-num">{c.downvoteCount || 0}</span></button>
+                  {!isReply && <button className="link-btn" onClick={() => user
+                    ? setReplyToC(replyToC === c._id ? null : c._id)
+                    : nav('/login', { state: { from: `/works/${id}` } })}>Reply</button>}
                 </span>
                 {cWhyFor === c._id && (
                   <form className="panel why-box" onSubmit={e => { e.preventDefault(); voteWorkComment(c, 'down', cWhy); }}>
@@ -518,12 +544,30 @@ export default function DesignView() {
                     </span>
                   </div>
                 ))}
+                </>}
+                {!isReply && replyToC === c._id && (
+                  <form className="talk-composer" style={{ margin: '.4rem 0 .2rem' }} onSubmit={postReply}>
+                    <textarea required autoFocus value={replyText}
+                              placeholder={`Reply to ${c.author?.username || 'this comment'}`}
+                              onChange={e => setReplyText(e.target.value)} />
+                    <div className="talk-composer-row">
+                      <button className="btn btn-primary btn-sm">Reply</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setReplyToC(null); setReplyText(''); }}>Cancel</button>
+                    </div>
+                  </form>
+                )}
+                {!isReply && repliesOf(c._id).length > 0 && (
+                  <div className="talk-replies">{repliesOf(c._id).map(r => renderComment(r, true))}</div>
+                )}
               </div>
-            ))}
+            );
+            return d.comments.filter(c => !c.parent).map(c => renderComment(c, false));
+            })()}
             <form onSubmit={postComment} style={{ marginTop: '1rem' }}>
               <div className="field">
                 <label htmlFor="c">{user ? 'Add a comment' : 'Log in to comment'}</label>
                 <textarea id="c" required disabled={!user} style={{ minHeight: '5rem' }} value={comment} onChange={e => setComment(e.target.value)} />
+                <small>Use <Link to={`/talk?work=${id}`}>Talk</Link> for plans, questions, and deeper conversations.</small>
               </div>
               <button className="btn btn-primary btn-sm" disabled={!user}>Post</button>
             </form>
@@ -543,18 +587,18 @@ export default function DesignView() {
                   Edit this page, which versions this page in place. */}
               <button className="btn btn-sm btn-build" onClick={buildOnThis}
                       title={mine
-                        ? 'A variant with its own page beside this one. Should the old one still be recommended? Yes: build on it.'
-                        : 'Start a remix: your own copy to change, linked to the original'}>Build on this</button>
+                        ? 'Make a variant with its own page beside this one'
+                        : 'Get your own copy of this work to change'}>Build on this</button>
               <button className="btn btn-primary btn-sm" onClick={() => user ? setBuiltSignal(n => n + 1) : nav('/login', { state: { from: `/works/${id}` } })}>I built one</button>
               <Link className="btn btn-ghost btn-sm" to={`/talk?work=${id}`}>Talk</Link>
               <Link className="btn btn-build btn-sm" to={`/talk/new?work=${id}`}>+ Thread</Link>
               <Link className="btn btn-ghost btn-sm" to={`/works/${id}/tree`}
-                    title="Back to the original and out to every remix; branches sort by verified builds">
+                    title="See the original and every remix">
                 Remixes{lin.familyCount > 1 && <> <span className="rs-num">{lin.familyCount}</span></>}</Link>
               {/* Distinct colors carry the distinction: teal edits in place,
                   green coexists (Build on this, above). */}
               {mine && <Link className="btn btn-sm btn-update" to={`/works/${id}/edit`}
-                      title="A new version of this page; the old one drops into history. Should the old one still be recommended? No: edit.">Edit this page</Link>}
+                      title="Publish a new version of this page">Edit this page</Link>}
               {canModerate && <button className="btn btn-danger btn-sm" onClick={delDesign}>Delete</button>}
               {/* One flag for everything wrong: red while armed. Categories
                   route to the community-judged dispute beside the chips; the
@@ -562,7 +606,7 @@ export default function DesignView() {
               <button type="button" className={'btn btn-ghost btn-sm flag-btn' + ((flagMenu || flagOpen || reportKind) ? ' is-armed' : '')}
                       aria-expanded={flagMenu}
                       onClick={() => { setFlagMenu(o => !o); setFlagOpen(false); setReportKind(null); }}
-                      title="Something wrong with this work?">
+                      title="Report something wrong with this work">
                 ⚑ Flag
               </button>
             </div>
@@ -574,10 +618,10 @@ export default function DesignView() {
                   <button type="button" className={'tag need-chip' + (d.canDispute ? '' : ' is-disabled')}
                           aria-disabled={!d.canDispute}
                           title={d.canDispute
-                            ? 'Propose a correction; the community judges it.'
+                            ? 'Propose a correction for the community to judge'
                             : mine
-                              ? 'Your work. Edit the categories instead.'
-                              : `Takes level ${config?.xp?.disputeMinLevel ?? 10} in one of this work's declared skills.`}
+                              ? 'Edit your own categories instead'
+                              : `Takes level ${config?.xp?.disputeMinLevel ?? 10} in one of this work's declared skills`}
                           onClick={() => { if (d.canDispute) { setFlagMenu(false); setFlagOpen(true); } }}>
                     Wrong skill categories
                   </button>
@@ -667,7 +711,7 @@ export default function DesignView() {
                         ? <span className="stat">a standard that has since been removed</span>
                         : <>
                             <Link className="tag port-chip" to={`/works/${p.standard}/hub`}
-                                  title={`${p.title}: open the hub`}>
+                                  title={`Open the hub for ${p.title}`}>
                               {p.portName || p.title} {p.status === 'verified' ? '✓' : ''}
                             </Link>
                             <span className="stat">
@@ -675,7 +719,7 @@ export default function DesignView() {
                               {p.pinnedVersion ? ` · pinned to v${p.pinnedVersion}` : ''}
                               {Object.entries(p.fieldValues || {}).map(([k, v]) => ` · ${k}: ${v}`).join('')}
                             </span>
-                            {p.canVerify && <button className="link-btn" title="You have standing in this field: does the work really offer this interface?"
+                            {p.canVerify && <button className="link-btn" title="Confirm this work really offers this interface"
                                                     onClick={() => verifyPort(p.id, false)}>verify</button>}
                             {p.canUnverify && <button className="link-btn" onClick={() => verifyPort(p.id, true)}>withdraw verification</button>}
                           </>}
@@ -690,7 +734,7 @@ export default function DesignView() {
                     a.missing
                       ? <span key={a.id} className="stat">a standard that has since been removed</span>
                       : <Link key={a.id} className="tag port-chip" to={`/works/${a.standard}/hub`}
-                              title={`${a.title}: open the hub`}>{a.portName || a.title}</Link>
+                              title={`Open the hub for ${a.title}`}>{a.portName || a.title}</Link>
                   ))}
                 </div>
               )}
@@ -753,7 +797,7 @@ export default function DesignView() {
             <div className="produced-head">
               <h2>Version history</h2>
               <Link className="link-btn" to={`/works/${id}/tree`}
-                    title="Versions replace; remixes coexist. The tree shows everything that coexists.">Remixes</Link>
+                    title="See every remix of this work">Remixes</Link>
             </div>
             <ol className="history">
               {timeline.map(v => (

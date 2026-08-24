@@ -30,6 +30,15 @@ async function loadUser(req) {
 async function requireAuth(req, res, next) {
   const user = await loadUser(req);
   if (!user) return res.status(401).json({ error: 'Authentication required' });
+  /* A suspension is partial on purpose: browsing and reading stay open,
+     every action returns until the clock runs out. */
+  if (req.method !== 'GET' && user.isSuspended && user.isSuspended()) {
+    const until = user.suspendedUntil.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return res.status(403).json({
+      error: `Your account is suspended until ${until}` + (user.suspendedReason ? ` — ${user.suspendedReason}` : ''),
+      code: 'SUSPENDED',
+    });
+  }
   req.user = user;
   next();
 }

@@ -381,6 +381,37 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .creator-list .avatar-sm { width: 28px; height: 28px; margin: 0; vertical-align: middle; }
 .creator-list li:first-child { border-top: 0; }
 .creator-rank { font-family: var(--font-display); font-weight: 700; color: var(--ink-mute); text-align: center; }
+/* Creator names are item names too: ink, no underline, gold on hover. */
+.creator-who > a {
+  font-weight: 600; font-family: var(--font-panel); font-size: 1.05rem;
+  color: var(--ink-soft); text-decoration: none;
+}
+.creator-who > a:hover, .creator-who > a:focus-visible { color: var(--rs-gold); }
+/* The podium wears its metal: names 1-3 in gold, silver, bronze; the field
+   in light grey. */
+/* Metallic text: a static sheen via gradient-clipped glyphs — the shine is
+   in the metal, not in motion. */
+.creator-who > a.rank-1, .creator-who > a.rank-2, .creator-who > a.rank-3 {
+  font-weight: 800;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(1px 1px 0 rgba(0,0,0,.45));
+}
+.creator-who > a.rank-1 {
+  font-size: 1.6rem;
+  background-image: linear-gradient(165deg, #F8E48C 10%, #E2BE55 38%, #A97F24 62%, #F3D96E 90%);
+}
+.creator-who > a.rank-2 {
+  font-size: 1.45rem;
+  background-image: linear-gradient(165deg, #E8EDF4 10%, #AEB6C4 40%, #7C8595 64%, #D7DEE8 90%);
+}
+.creator-who > a.rank-3 {
+  font-size: 1.32rem;
+  background-image: linear-gradient(165deg, #D9A268 10%, #B0763F 42%, #7E4F22 64%, #CE9455 90%);
+}
+.creator-who > a.rank-1:hover, .creator-who > a.rank-2:hover, .creator-who > a.rank-3:hover {
+  background-image: none; color: var(--rs-gold);
+}
+
 /* The podium: highscores ranks 1-3 in gold, silver, bronze. */
 .creator-rank.rank-1 { color: var(--rs-gold); text-shadow: 1px 1px 0 var(--rs-shadow); }
 .creator-rank.rank-2 { color: #AEB6C4; text-shadow: 1px 1px 0 var(--rs-shadow); }
@@ -470,7 +501,7 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 }
 .board-chip.on {
   color: var(--ink); font-weight: 600;
-  border-color: color-mix(in oklab, var(--cat, var(--brand)) 55%, var(--line));
+  border-color: var(--rs-gold);
   background: color-mix(in oklab, var(--cat, var(--brand)) 12%, var(--bg-elev));
 }
 .board-count {
@@ -485,7 +516,13 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .talk-row:first-child { border-top: 0; }
 .talk-row.is-archived { opacity: .6; }
 .talk-row-main { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
-.talk-title { font-weight: 600; }
+/* Thread titles are item names, not hyperlinks: ink at panel-header
+   weight, no underline, gold when pointed at. */
+.talk-title {
+  font-weight: 600; font-family: var(--font-panel); font-size: 1.08rem;
+  color: var(--ink); text-decoration: none;
+}
+.talk-title:hover, .talk-title:focus-visible { color: var(--rs-gold); }
 .talk-badges { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
 .talk-type { text-transform: none; }
 .talk-type-plan { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
@@ -499,8 +536,8 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   border: 1px solid var(--line); background: var(--bg-elev);
 }
 .talk-type-card strong { color: var(--ink); }
-.talk-type-card.on { background: var(--brand-soft); border-color: color-mix(in oklab, var(--brand) 40%, var(--line)); }
-.talk-type-card.on strong { color: var(--brand); }
+.talk-type-card.on { background: color-mix(in oklab, var(--rs-gold) 10%, var(--bg-elev)); border-color: var(--rs-gold); }
+.talk-type-card.on strong { color: var(--ink); }
 
 /* The pinned work card: context never leaves the room. */
 .talk-work-card {
@@ -591,6 +628,7 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .need-filter[open] summary { margin-bottom: .5rem; }
 
 /* --- remix lineage --- */
+.lineage-line { display: block; margin-top: .15rem; }
 .remix-note { display: block; font-style: italic; color: var(--ink-soft); font-size: .92rem; margin: .2rem 0 0; }
 .family-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .45rem; font-size: .92rem; }
 .branch-fold summary { cursor: pointer; color: var(--ink-mute); font-size: .82rem; padding: .15rem 0; user-select: none; }
@@ -755,6 +793,14 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   color: var(--ok);
 }
 .btn-build:hover:not(:disabled) { background: color-mix(in oklab, var(--ok) 24%, var(--bg-elev)); }
+/* Gold action: starting something the ledger will remember. */
+.btn-gold {
+  background: color-mix(in oklab, var(--rs-gold) 18%, var(--bg-elev));
+  color: var(--rs-gold); font-weight: 700;
+  border: 1px solid color-mix(in oklab, var(--rs-gold) 45%, var(--line));
+}
+.btn-gold:hover:not(:disabled) { background: color-mix(in oklab, var(--rs-gold) 26%, var(--bg-elev)); color: var(--rs-gold); }
+
 /* Update replaces in place: the brand teal, sibling to remix's green. */
 .btn-update {
   background: color-mix(in oklab, var(--brand) 16%, var(--bg-elev));
@@ -915,7 +961,7 @@ a.notif-snippet:hover, a.cf-quote:hover { color: var(--ink); text-decoration: un
   display: block; margin-bottom: .3rem; font-family: var(--font-panel); font-weight: 600;
   font-size: .8rem; color: var(--ink-soft);
 }
-.rs-bio .desc { margin: 0; font-size: .85rem; font-style: italic; color: var(--ink-mute); }
+.rs-bio .desc { margin: 0; font-size: .85rem; font-style: italic; color: color-mix(in oklab, var(--brand) 80%, var(--ink)); }
 .rs-bio .stat { font-style: italic; }
 .rs-bio .profile-bio .desc { margin-bottom: .5rem; }
 .rs-bio .field textarea { min-height: 5rem; }

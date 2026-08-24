@@ -19,6 +19,7 @@ import Talk from './pages/Talk.jsx';
 import TalkForm from './pages/TalkForm.jsx';
 import TalkPostView from './pages/TalkPostView.jsx';
 import PortHub from './pages/PortHub.jsx';
+import ModQueue from './pages/ModQueue.jsx';
 
 /* The router keeps scroll across navigations, so clicking through from a
    scrolled list would land mid-page. New navigations start at the top; the
@@ -61,6 +62,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/talk" element={<Talk />} />
             <Route path="/talk/new" element={<TalkForm />} />
             <Route path="/talk/:id" element={<TalkPostView />} />
+            <Route path="/whiteblacksit" element={<ModQueue />} />
             {/* The section used to live at /designs; keep those links working. */}
             <Route path="/designs" element={<Navigate to="/works" replace />} />
             <Route path="/designs/:id" element={<LegacyDesignLink />} />

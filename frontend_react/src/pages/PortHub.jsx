@@ -75,7 +75,7 @@ export default function PortHub() {
                   <Link to={`/works/${w.id}`}><strong>{w.title}</strong></Link>
                   {w.verified
                     ? <span className="tag endorsed-tag">✓ verified</span>
-                    : <span className="tag" title="Declared by the author; awaiting a qualified review">claimed</span>}
+                    : <span className="tag" title="Claimed by the author and not yet verified">claimed</span>}
                   <br />
                   <span className="stat">
                     by <Link to={`/user/${w.author}`}>{w.author}</Link> · v{w.version} · ▲ <span className="rs-num">{w.upvoteCount}</span> · <span className="rs-num">{w.downloadCount}</span> downloads

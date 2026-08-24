@@ -60,7 +60,7 @@ function SkillsPanel({ xpv, skillFocus, setSkillFocus, bio }) {
                 className={'rs-innov-strip' + (skillFocus === 'innov' ? ' on' : '')}
                 aria-pressed={skillFocus === 'innov'}
                 onClick={() => setSkillFocus(skillFocus === 'innov' ? null : 'innov')}
-                title="Real-world impact of your ideas. Tap for its receipts.">
+                title="The real-world impact of your ideas">
           Innovation: {xpv.innovation.tier}
         </button>
       )}
@@ -370,6 +370,9 @@ export default function Profile() {
   const [p, setP] = useState(null);
   const [error, setError] = useState('');
   const [roleBusy, setRoleBusy] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+  const [suspendDays, setSuspendDays] = useState('7');
+  const [suspendWhy, setSuspendWhy] = useState('');
   const [ledger, setLedger] = useState(null);
   const [config, setConfig] = useState(null);
   const [roleNote, setRoleNote] = useState('');
@@ -459,10 +462,12 @@ export default function Profile() {
             <div>
               <h1 className="profile-name">
                 {p.username}
-                <span className="total-level" title="Overall level: the sum of all nine skill levels">
+                <span className="total-level" title="The sum of all nine skill levels">
                   Lv <span className="rs-num">{p.xp?.totalLevel ?? 0}</span>
                 </span>
                 {p.role === 'admin' && <span className="tag admin-tag">admin</span>}
+                {p.suspended && <span className="tag miss-tag" title={p.suspended.reason || undefined}>
+                  suspended until {fmtDate(p.suspended.until)}</span>}
                 {p.isSelf && <span className="tag">you</span>}
               </h1>
               <span className="stat">
@@ -479,10 +484,53 @@ export default function Profile() {
           {p.canManageRole && (p.role === 'admin'
             ? <button className="btn btn-ghost" disabled={roleBusy} onClick={() => setRole('user')}>Demote to member</button>
             : <button className="btn btn-ghost" disabled={roleBusy} onClick={() => setRole('admin')}>Promote to admin</button>)}
+          {p.canManageRole && p.role !== 'admin' && (
+            <button className="btn btn-ghost" disabled={roleBusy} onClick={async () => {
+              setRoleBusy(true);
+              try {
+                await api(`/users/${encodeURIComponent(username)}/role`, { method: 'POST', body: { mod: !p.isMod } });
+                setP({ ...p, isMod: !p.isMod });
+              } catch (err) { setRoleNote(err.message); }
+              finally { setRoleBusy(false); }
+            }}>{p.isMod ? 'Remove mod' : 'Make mod'}</button>
+          )}
+          {p.canModerate && p.role !== 'admin' && (p.suspended
+            ? <button className="btn btn-ghost" disabled={roleBusy} onClick={async () => {
+                try { await api(`/users/${encodeURIComponent(username)}/unsuspend`, { method: 'POST', body: {} }); setP({ ...p, suspended: null }); }
+                catch (err) { setRoleNote(err.message); }
+              }}>Lift suspension</button>
+            : <button className="btn btn-ghost logout-btn" onClick={() => setSuspendOpen(o => !o)}>Suspend</button>)}
           {p.isSelf && <button className="btn btn-ghost logout-btn" onClick={signOut}>Log out</button>}
         </div>
       </div>
       {roleNote && <div className="notice" style={{ marginBottom: '1.5rem' }} role="status">{roleNote}</div>}
+      {suspendOpen && !p.suspended && (
+        <form className="panel" style={{ marginBottom: '1.5rem' }}
+              onSubmit={async e => {
+                e.preventDefault();
+                try {
+                  const r = await api(`/users/${encodeURIComponent(username)}/suspend`,
+                    { method: 'POST', body: { days: Number(suspendDays), reason: suspendWhy } });
+                  setP({ ...p, suspended: { until: r.until, reason: suspendWhy } });
+                  setSuspendOpen(false); setSuspendWhy('');
+                } catch (err) { setRoleNote(err.message); }
+              }}>
+          <div className="toolbar" style={{ margin: 0, alignItems: 'center' }}>
+            <span>Suspend for</span>
+            <select value={suspendDays} onChange={e => setSuspendDays(e.target.value)} aria-label="Days">
+              <option value="1">1 day</option>
+              <option value="7">7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+            </select>
+            <input style={{ flex: 1, minWidth: '12rem' }} required maxLength={300} placeholder="Why, in one line (they will see this)"
+                   value={suspendWhy} onChange={e => setSuspendWhy(e.target.value)} />
+            <button className="btn btn-danger btn-sm" disabled={suspendWhy.trim().length < 5}>Suspend</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSuspendOpen(false)}>Cancel</button>
+          </div>
+          <p className="stat" style={{ margin: '.5rem 0 0' }}>They keep reading, every action refuses until the date, and the suspension shows on this profile.</p>
+        </form>
+      )}
 
       {/* §5 composition: skills fixed left, the bag and the shelf right,
           ledger full-width beneath, conversation panels last. */}
@@ -587,7 +635,7 @@ export default function Profile() {
       <div className="rs-below">
         {p.talk?.posts?.length > 0 && (
           <div className="panel">
-            <h2>In Talk</h2>
+            <h2>Talk</h2>
             {p.talk.accepted > 0 && (
               <p className="stat">{p.talk.accepted} answer{p.talk.accepted === 1 ? '' : 's'} accepted by other people.</p>
             )}

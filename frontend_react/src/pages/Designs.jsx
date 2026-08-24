@@ -182,7 +182,7 @@ export default function Designs() {
                   return cat ? <SkillIcon id={cat.id} name={cat.name} color={cat.color} size={16} /> : null;
                 })()}
                 {d.title}
-                {d.familyCount > 1 && <span className="tag family-stack" title={`A family of ${d.familyCount}: the original and its remixes. This card is the member with the most verified builds.`}>⊞ <span className="rs-num">{d.familyCount}</span></span>}
+                {d.familyCount > 1 && <span className="tag family-stack" title={`A family of ${d.familyCount} works, showing the most built one`}>⊞ <span className="rs-num">{d.familyCount}</span></span>}
               </h3>
               {/* A remix leads with what it changed; the description mostly
                   restates its parent. */}

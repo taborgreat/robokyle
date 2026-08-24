@@ -134,6 +134,15 @@
     font-variant-numeric: tabular-nums; text-shadow: 1px 1px 0 var(--rs-shadow);
 }
 
+/* RS panel chrome, shared: the flat pages (the title screen) build from the
+   same bevel the app does. Its padding also overrides the generic section
+   spacing, which otherwise blows the title screen apart. */
+.panel {
+    background: var(--rs-panel); padding: 1.25rem; border-radius: 2px;
+    border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    box-shadow: var(--rs-step-out);
+}
+
 /* ---------- Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -317,10 +326,12 @@ hr {
     background: var(--bg-sunk);
     color: var(--ink);
 }
+/* The section you are in: a muted blue — clearly marked, and it leaves the
+   gold alone so earned numbers keep all the shine. */
 .site-nav a:not(.site-logo)[aria-current="page"] {
-    color: var(--ink);
-    background: var(--rs-well);
-    box-shadow: var(--rs-step-in);
+    color: color-mix(in oklab, var(--brand) 80%, var(--ink));
+    background: color-mix(in oklab, var(--brand) 12%, var(--rs-well));
+    box-shadow: var(--rs-step-in), inset 0 0 0 1px color-mix(in oklab, var(--brand) 32%, transparent);
     font-weight: 600;
 }
 
@@ -528,7 +539,19 @@ a.ts-counter:hover { color: var(--ink); }
 .ts-panel-head h2 { font-family: var(--font-panel); font-size: 1.15rem; margin: 0; }
 .ts-panel-head a { text-decoration: none; font-weight: 600; font-size: .9rem; }
 /* Latest works as inventory slots (§3 chrome): items, not brochures. */
+/* A real break between the counters strip and the content panels: the strip
+   caps the menu block; Latest works starts the world below it. */
+.ts-latest { margin-top: 4.4rem; position: relative; }
+/* A thin divider floats mid-gap: the title block ends, the world begins. */
+.ts-latest::before {
+    content: "";
+    position: absolute; top: -2.2rem; left: 0; right: 0;
+    margin: 0 auto;
+    width: min(320px, 60%); height: 1px;
+    background: var(--line);
+}
 .ts-slots { display: flex; flex-wrap: wrap; gap: .5rem; }
+
 .ts-slot {
     width: 44px; height: 44px; position: relative; display: grid; place-items: center;
     background: var(--rs-well); color: var(--ink-soft);
@@ -543,6 +566,7 @@ a.ts-slot:hover, a.ts-slot:focus-visible { outline: 1px solid var(--rs-gold); ou
 .ts-empty { background: color-mix(in oklab, var(--rs-well) 65%, var(--bg-elev)); box-shadow: none; }
 .ts-slots > .stat { margin: 0; align-self: center; }
 /* The ticker: the receipts culture, visible before a word about it. */
+.ts-activity { margin-top: .8rem; }
 .ts-activity ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; font-size: .9rem; }
 .ts-activity li { display: flex; gap: .6rem; align-items: baseline; }
 .ts-activity .rs-num { min-width: 3.4ch; text-align: right; flex: none; }
@@ -732,6 +756,7 @@ ul.checks {
 .cta .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; }
 
 /* ---------- Footer ---------- */
+main.title-screen + .site-footer,
 main:has(.title-screen) + .site-footer { margin-top: 0; }
 .site-footer {
     margin-top: 4rem;
@@ -826,6 +851,25 @@ main.page > h1 {
 .about-doc h2 {
     font-family: var(--font-panel); font-weight: 600;
     font-size: 1.3rem; margin: 2.4rem 0 .7rem;
+    border-top: 1px solid var(--line); padding-top: 1.4rem;
+}
+.about-doc h2:first-of-type { border-top: 0; padding-top: 0; }
+/* The story panel's own heading never takes the section rule. */
+.about-doc .story-panel h2 { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* The document pages share the title screen's ground: the same quiet
+   vignette, and a small centered mark so the top is not just bare type. */
+.page-vignette {
+    background: radial-gradient(130% 100% at 50% 0%,
+        transparent 55%, color-mix(in oklab, var(--ink) 10%, transparent) 100%);
+}
+.doc-head { text-align: center; }
+.doc-head .lede { margin-left: auto; margin-right: auto; }
+.doc-mark {
+    width: 56px; height: 56px; margin: 0 auto .7rem; display: block;
+    background-color: var(--ink);
+    -webkit-mask: url("/public/logo.png") center / contain no-repeat;
+    mask: url("/public/logo.png") center / contain no-repeat;
 }
 .about-doc h3 {
     font-family: var(--font-panel); font-weight: 600;
@@ -852,12 +896,13 @@ main.page > h1 {
 .guide h2:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
 
 .guide-toc {
-    background: var(--bg-elev);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
+    background: var(--rs-panel);
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px;
     padding: 1.25rem 1.5rem;
     margin-top: 1.75rem;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--rs-step-out);
 }
 .guide-toc strong {
     display: block;
@@ -880,14 +925,15 @@ main.page > h1 {
 @media (max-width: 560px) { .guide-toc ol { columns: 1; } }
 
 .skill-entry {
-    background: var(--bg-elev);
-    border: 1px solid var(--line-soft);
-    border-radius: var(--radius);
+    background: var(--rs-panel);
+    border: 2px solid;
+    border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
+    border-radius: 2px;
     padding: 1rem 1.25rem;
     margin: .9rem 0;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--rs-step-out);
 }
-.skill-entry h3 { margin: 0 0 .3rem; }
+.skill-entry h3 { margin: 0 0 .3rem; font-family: var(--font-panel); font-size: 1.1rem; }
 .skill-entry .skill-scope { color: var(--ink-mute); margin: 0 0 .45rem; }
 .skill-entry p:last-child { margin-bottom: 0; }
 
@@ -1033,10 +1079,13 @@ main.page > h1 {
     outline: 2px solid var(--rs-gold);
     outline-offset: 2px;
 }
-.filter-group input[type="radio"]:checked + .filter-pill {
-    background: var(--brand);
-    color: var(--brand-ink);
-    border-color: var(--brand);
+/* A selected pill wears the gold outline: chosen, like everything earned.
+   Covers radios and checkboxes alike. */
+.filter-group input:checked + .filter-pill {
+    background: color-mix(in oklab, var(--rs-gold) 14%, var(--bg-elev));
+    color: var(--ink);
+    border-color: var(--rs-gold);
+    font-weight: 600;
 }
 
 /* ---------- CSS-only filtering with :has() ----------

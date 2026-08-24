@@ -45,6 +45,11 @@ const userSchema = new mongoose.Schema({
   /* Cached XP totals: { cats: {mech: n, ...}, workXp, socialXp, updatedAt }.
      A pure cache — lib/xp.js recomputes it from the works themselves. */
   xp: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+  /* Temp bans: reading stays open, every action is refused until the date
+     passes. Expiry is implicit — no job needed, the comparison is the ban. */
+  suspendedUntil: { type: Date, default: null },
+  suspendedReason: { type: String, trim: true, maxlength: 300, default: '' },
+  suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   /* Granular capabilities on top of `role` — currently just 'mod'. Powers are
      expressed as capability checks in lib/permissions.js, never as role
@@ -143,6 +148,10 @@ userSchema.statics.availableUsername = async function (seed) {
   return `user${crypto.randomBytes(4).toString('hex')}`;
 };
 
+userSchema.methods.isSuspended = function () {
+  return !!(this.suspendedUntil && this.suspendedUntil > new Date());
+};
+
 userSchema.methods.toPublic = function () {
   const { levelsOf, chipFor } = require('../lib/xp');
   return {
@@ -158,6 +167,9 @@ userSchema.methods.toPublic = function () {
     hasPassword: !!this.passwordHash,
     google: !!this.googleId,
     createdAt: this.createdAt,
+    // Public accountability, like everything else: an active suspension shows.
+    suspendedUntil: this.isSuspended() ? this.suspendedUntil : null,
+    suspendedReason: this.isSuspended() ? this.suspendedReason : '',
   };
 };
 

@@ -161,9 +161,12 @@ router.post('/me/notifications/seen', requireAuth, async (req, res, next) => {
 
 const requireAdmin = (req, res, next) =>
   req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Admins only' });
+// Moderation surfaces open to admins and mods alike (lib/permissions decides).
+const requireMod = (req, res, next) =>
+  require('../lib/permissions').isMod(req.user) ? next() : res.status(403).json({ error: 'Not for you' });
 
 // GET /api/users/flags — the ring-detection case files (§8.3), open first.
-router.get('/flags', requireAuth, requireAdmin, async (req, res, next) => {
+router.get('/flags', requireAuth, requireMod, async (req, res, next) => {
   try {
     const Flag = require('../models/Flag');
     const flags = await Flag.find().sort({ resolvedAt: 1, createdAt: -1 }).limit(100)
@@ -177,7 +180,7 @@ router.get('/flags', requireAuth, requireAdmin, async (req, res, next) => {
 });
 
 // POST /api/users/flags/:id/resolve — reviewed; any voiding is a separate act.
-router.post('/flags/:id/resolve', requireAuth, requireAdmin, async (req, res, next) => {
+router.post('/flags/:id/resolve', requireAuth, requireMod, async (req, res, next) => {
   try {
     const Flag = require('../models/Flag');
     const flag = await Flag.findById(req.params.id);
@@ -202,6 +205,62 @@ router.post('/mod-actions/:id/overturn', requireAuth, requireAdmin, async (req, 
     await action.save();
     xp.recomputeUsers([action.mod]).catch(err => console.error('[xp]', err.message));
     res.json({ ok: true, changed: true });
+  } catch (err) { next(err); }
+});
+
+/* GET /api/users/mod/overview — the mod page's one fetch: the open flag
+   queue and every active suspension. */
+router.get('/mod/overview', requireAuth, requireMod, async (req, res, next) => {
+  try {
+    const Flag = require('../models/Flag');
+    const [flags, suspended] = await Promise.all([
+      Flag.find().sort({ resolvedAt: 1, createdAt: -1 }).limit(100).populate('accounts', 'username'),
+      User.find({ suspendedUntil: { $gt: new Date() } })
+        .select('username suspendedUntil suspendedReason suspendedBy')
+        .populate('suspendedBy', 'username'),
+    ]);
+    res.json({
+      flags: flags.map(f => ({
+        id: f._id, kind: f.kind, detail: f.detail, createdAt: f.createdAt,
+        accounts: f.accounts.map(a => a.username),
+        resolved: !!f.resolvedAt,
+      })),
+      suspensions: suspended.map(u => ({
+        username: u.username, until: u.suspendedUntil, reason: u.suspendedReason,
+        by: u.suspendedBy ? u.suspendedBy.username : null,
+      })),
+    });
+  } catch (err) { next(err); }
+});
+
+/* POST /api/users/:username/suspend  { days, reason } — a temp ban: the
+   member keeps reading, every action refuses until the date. Admins are
+   never suspendable, and nobody suspends themselves. */
+router.post('/:username/suspend', requireAuth, requireMod, async (req, res, next) => {
+  try {
+    const user = await User.findOne({ usernameLower: String(req.params.username).toLowerCase() });
+    if (!user) return res.status(404).json({ error: 'No such member' });
+    if (user._id.equals(req.user._id)) return res.status(400).json({ error: 'Not on yourself' });
+    if (user.role === 'admin') return res.status(400).json({ error: 'Admins cannot be suspended' });
+    const days = Math.min(365, Math.max(1, parseInt(req.body.days, 10) || 7));
+    user.suspendedUntil = new Date(Date.now() + days * 86400e3);
+    user.suspendedReason = String(req.body.reason || '').trim().slice(0, 300);
+    user.suspendedBy = req.user._id;
+    await user.save();
+    res.json({ ok: true, until: user.suspendedUntil });
+  } catch (err) { next(err); }
+});
+
+// POST /api/users/:username/unsuspend — lift it early.
+router.post('/:username/unsuspend', requireAuth, requireMod, async (req, res, next) => {
+  try {
+    const user = await User.findOne({ usernameLower: String(req.params.username).toLowerCase() });
+    if (!user) return res.status(404).json({ error: 'No such member' });
+    user.suspendedUntil = null;
+    user.suspendedReason = '';
+    user.suspendedBy = null;
+    await user.save();
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
@@ -350,6 +409,12 @@ router.get('/:username', optionalAuth, async (req, res, next) => {
       // Admins can change anyone's role but their own, which keeps them from
       // locking themselves out by accident.
       canManageRole: !!viewer && viewer.role === 'admin' && !isSelf,
+      // Mods see the suspend controls on other people's profiles.
+      canModerate: !!viewer && require('../lib/permissions').isMod(viewer) && !isSelf,
+      isMod: (user.roles || []).includes('mod'),
+      suspended: user.isSuspended()
+        ? { until: user.suspendedUntil, reason: user.suspendedReason }
+        : null,
       stats: {
         works: sum.works || 0,
         downloads: sum.downloads || 0,

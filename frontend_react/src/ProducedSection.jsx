@@ -125,7 +125,7 @@ export default function ProducedSection({ workId, workVersion, user, onNeedLogin
             {e.fitFindings && <p className="desc"><strong>Fit:</strong> {e.fitFindings}</p>}
 
             <span className="toolbar talk-comment-tools">
-              <button className={'link-btn' + (e.upvoted ? ' on' : '')} title="Was this result useful?"
+              <button className={'link-btn' + (e.upvoted ? ' on' : '')} title="Upvote a useful result"
                       onClick={() => vote(e, 'up')}>▲ <span className="rs-num">{e.upvoteCount}</span></button>
               <button className={'link-btn' + (e.downvoted ? ' on' : '')}
                       onClick={() => vote(e, 'down')}>▼ <span className="rs-num">{e.downvoteCount || 0}</span></button>

@@ -97,6 +97,9 @@ export default function Layout() {
             <li><NavLink className="nav-strong" to="/works">Works</NavLink></li>
             <li><NavLink to="/creators">Creators</NavLink></li>
             <li><NavLink to="/talk">Talk</NavLink></li>
+            {user && (user.role === 'admin' || (user.roles || []).includes('mod')) && (
+              <li><NavLink to="/whiteblacksit">Mod</NavLink></li>
+            )}
             {/* One slot either way, so the nav does not change shape when you sign in. */}
             {user
               ? <li><NavLink to={`/user/${user.username}`}>Profile</NavLink></li>
@@ -104,6 +107,12 @@ export default function Layout() {
           </ul>
         </nav>
       </header>
+      {user?.suspendedUntil && new Date(user.suspendedUntil) > new Date() && (
+        <div className="notice" role="status" style={{ margin: 0, borderRadius: 0, textAlign: 'center' }}>
+          Your account is suspended until {new Date(user.suspendedUntil).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}.
+          You can read everything, actions are paused.{user.suspendedReason ? ` Reason: ${user.suspendedReason}` : ''}
+        </div>
+      )}
       <LevelToasts user={user} />
       <main id="main" className="app-main">
         <div className="wrap"><VerifyBanner /><Outlet /></div>

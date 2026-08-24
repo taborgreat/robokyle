@@ -115,19 +115,26 @@ function canVerifyPort(user, design, decl) {
    payload stays lean and the client renders without thinking. Part III makes
    these accountability targets: votable at display-level stakes, downvotes
    with reason cards — and zero XP, since the ledger never reads them. */
+/* Work comments allow one level of replies, so an answer sits under its
+   question. A deleted parent with live replies stays as a blank stub, the
+   Talk convention, so answers never orphan. */
 async function commentsFor(designId, user) {
-  const comments = await Comment.find({ targetType: 'design', target: designId, deletedAt: null })
+  const all = await Comment.find({ targetType: 'design', target: designId })
     .sort({ createdAt: 1 })
     .populate('author', 'username xp createdAt');
-  return comments.map(c => ({
-    _id: c._id, body: c.body, createdAt: c.createdAt,
-    author: c.author ? { _id: c.author._id, username: c.author.username, chip: xp.chipFor(c.author) } : null,
-    upvoteCount: (c.upvotes || []).length,
-    downvoteCount: (c.downvotes || []).length,
-    upvoted: social.voted(c, user, 'upvotes'),
-    downvoted: social.voted(c, user, 'downvotes'),
-    reasonCards: social.serializeReasons(c, user),
-  }));
+  const liveParents = new Set(all.filter(c => !c.deletedAt && c.parent).map(c => String(c.parent)));
+  return all
+    .filter(c => !c.deletedAt || liveParents.has(String(c._id)))
+    .map(c => ({
+      _id: c._id, parent: c.parent || null, deleted: !!c.deletedAt,
+      body: c.deletedAt ? '' : c.body, createdAt: c.createdAt,
+      author: !c.deletedAt && c.author ? { _id: c.author._id, username: c.author.username, chip: xp.chipFor(c.author) } : null,
+      upvoteCount: (c.upvotes || []).length,
+      downvoteCount: (c.downvotes || []).length,
+      upvoted: social.voted(c, user, 'upvotes'),
+      downvoted: social.voted(c, user, 'downvotes'),
+      reasonCards: c.deletedAt ? [] : social.serializeReasons(c, user),
+    }));
 }
 
 function parseTags(raw) {
@@ -1170,11 +1177,20 @@ router.post('/:id/comments', requireAuth, requireVerified, commentLimit, async (
     const body = (req.body.body || '').trim();
     if (!body) return res.status(400).json({ error: 'Comment body is required' });
     if (!(await Design.exists({ _id: req.params.id }))) return res.status(404).json({ error: 'Design not found' });
+    // One level of replies: an answer sits under its question; anything
+    // deeper belongs in Talk.
+    let parent = null;
+    if (req.body.parent) {
+      parent = await Comment.findOne({ _id: req.body.parent, targetType: 'design', target: req.params.id, deletedAt: null });
+      if (!parent) return res.status(404).json({ error: 'No such comment to reply to' });
+      if (parent.parent) return res.status(400).json({ error: 'Replies go one level deep here. Take it to Talk.' });
+    }
     const comment = await Comment.create({
       targetType: 'design', target: req.params.id, author: req.user._id, body,
+      parent: parent ? parent._id : null,
     });
     res.status(201).json({
-      _id: comment._id, body: comment.body, createdAt: comment.createdAt,
+      _id: comment._id, parent: comment.parent || null, body: comment.body, createdAt: comment.createdAt,
       author: { _id: req.user._id, username: req.user.username, chip: xp.chipFor(req.user) },
     });
   } catch (err) {
@@ -1201,7 +1217,15 @@ router.delete('/:id/comments/:commentId', requireAuth, async (req, res, next) =>
       await ModAction.create({ mod: req.user._id, action: 'delete-comment', targetType: 'comment',
                                target: comment._id, summary: comment.body.slice(0, 200) });
     }
-    await comment.deleteOne();
+    // A parent with live replies blanks instead of vanishing (the Talk
+    // convention), so the answers under it keep their place.
+    if (await Comment.exists({ parent: comment._id, deletedAt: null })) {
+      comment.deletedAt = new Date();
+      comment.body = '';
+      await comment.save();
+    } else {
+      await comment.deleteOne();
+    }
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

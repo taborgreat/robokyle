@@ -50,7 +50,7 @@ export default function Talk() {
           </span>
         </div>
         <div className="toolbar" style={{ margin: 0 }}>
-          <button className="btn btn-primary" onClick={() => nav(user ? '/talk/new' + (board ? `?board=${board}` : '') : '/login')}>
+          <button className="btn btn-gold" onClick={() => nav(user ? '/talk/new' + (board ? `?board=${board}` : '') : '/login')}>
             New thread
           </button>
         </div>
