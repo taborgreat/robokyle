@@ -364,6 +364,9 @@ function serialize(design, user) {
   obj.history = obj.history.map(h => ({ ...h, files: withUrls(obj._id, h.files || []), steps: undefined }));
   obj.canUpload = canUpload(user);
   obj.canEdit = canEdit(user, design);
+  // Authorship and moderation are different powers: an admin can delete
+  // anything, but "update this page" belongs to the author alone.
+  obj.isAuthor = !!(user && (design.author._id || design.author).equals(user._id));
   // Components, resolved: a pinned one says whether the part has moved on since.
   obj.uses = (design.uses || []).map(c => {
     const w = c.work;

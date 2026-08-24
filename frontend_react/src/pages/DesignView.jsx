@@ -76,7 +76,8 @@ export default function DesignView() {
   if (error && !d) return <div className="form-error" role="alert">{error}</div>;
   if (!d) return <p className="empty">Loading…</p>;
 
-  const mine = d.canEdit;
+  const mine = d.isAuthor;        // authorship: update, remix-as-owner
+  const canModerate = d.canEdit;  // author or admin: delete, comment cleanup
   const lin = d.lineage || { isOriginal: true, familyCount: 1, children: [] };
   const hero = images[Math.min(shot, images.length - 1)];
 
@@ -354,7 +355,7 @@ export default function DesignView() {
 
           {d.steps?.length > 0 && (
             <div className="panel guide" style={{ marginTop: '1.5rem' }}>
-              <h2>Guide <span className="stat">{d.steps.length} {d.steps.length === 1 ? 'step' : 'steps'}</span></h2>
+              <h2 className="guide-head">Guide <span className="stat">{d.steps.length} {d.steps.length === 1 ? 'step' : 'steps'}</span></h2>
               <ol className="guide-steps">
                 {d.steps.map((st, i) => (
                   <li key={st.id || i}>
@@ -477,7 +478,7 @@ export default function DesignView() {
                           </span>)}
                     </>
                   : 'deleted'}</span><span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
-                {user && (user.id === c.author?._id || mine) &&
+                {user && (user.id === c.author?._id || canModerate) &&
                   <button className="btn btn-ghost btn-sm" style={{ float: 'right' }} onClick={() => delComment(c._id)}>Delete</button>}
                 <p>{c.body}</p>
                 {/* Part III: comments are accountability targets — votable at
@@ -553,7 +554,7 @@ export default function DesignView() {
                       title="A new version of this page; the old one drops into history. Should the old one still be recommended? No: update.">Update this page</Link>}
               {mine && <button className="btn btn-sm btn-build" onClick={buildOnThis}
                       title="A variant with its own page beside this one. Should the old one still be recommended? Yes: remix.">Remix this work</button>}
-              {mine && <button className="btn btn-danger btn-sm" onClick={delDesign}>Delete</button>}
+              {canModerate && <button className="btn btn-danger btn-sm" onClick={delDesign}>Delete</button>}
               {/* One flag for everything wrong: red while armed. Categories
                   route to the community-judged dispute beside the chips; the
                   rest files a case for a moderator. */}

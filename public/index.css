@@ -300,10 +300,13 @@ hr {
     margin: 0;
     padding: 0;
 }
+/* Nav links speak the chrome language: square-shouldered, quiet text, and
+   the page you are on sits pressed IN like the active tab of a game client.
+   No filled pills, no glow; weight and the well carry all the hierarchy. */
 .site-nav a:not(.site-logo) {
     display: inline-block;
-    padding: .5rem .85rem;
-    border-radius: 8px;
+    padding: .45rem .85rem;
+    border-radius: 2px;
     color: var(--ink-soft);
     text-decoration: none;
     font-weight: 500;
@@ -314,42 +317,21 @@ hr {
     background: var(--bg-sunk);
     color: var(--ink);
 }
-/* You-are-here marker: a brand bar down the left edge and a small nudge of the
-   label. Both are drawn inside the box, so nothing shifts as you move pages,
-   and it reads the same in the desktop row and the mobile drop-down. */
 .site-nav a:not(.site-logo)[aria-current="page"] {
     color: var(--ink);
-    background: var(--bg-sunk);
-    box-shadow: inset 3px 0 0 var(--brand);
-    text-indent: 3px;
+    background: var(--rs-well);
+    box-shadow: var(--rs-step-in);
     font-weight: 600;
 }
 
-/* On the home page the logo is the current page, marked with a ring on the mark
-   rather than a bar, since it is a wordmark and not a nav button. */
+/* On the home page the logo is the current page, marked with an underline on
+   the wordmark, since it is a wordmark and not a nav button. */
 .site-logo[aria-current="page"] .logo-word {
     box-shadow: inset 0 -2px 0 var(--brand);
 }
 
-/* Works is the point of the site, so it gets a filled pill instead of a link. */
-.site-nav a.nav-strong,
-.site-nav a.nav-strong[aria-current="page"] {
-    background: var(--brand);
-    color: var(--brand-ink);
-    font-weight: 600;
-    box-shadow: var(--shadow-sm);
-}
-/* The pill is already filled, so it marks itself with an inner ring instead. */
-.site-nav a.nav-strong[aria-current="page"] {
-    background: color-mix(in oklab, var(--brand) 84%, black);
-    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--brand-ink) 55%, transparent);
-    text-indent: 0;
-}
-.site-nav a.nav-strong { padding-inline: 1rem; }
-.site-nav a.nav-strong:hover {
-    background: color-mix(in oklab, var(--brand) 88%, black);
-    color: var(--brand-ink);
-}
+/* Works is the point of the site: full ink and full weight, nothing louder. */
+.site-nav a.nav-strong { color: var(--ink); font-weight: 700; }
 
 /* ---------- Mobile nav (hamburger) ----------
    The toggle is hidden on desktop; below 860px the link list becomes a

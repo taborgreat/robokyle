@@ -141,6 +141,7 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 /* The guide is the main event: each step its own clearly bounded section.
    The number sits in a recessed slot well in gold, the RS way of saying
    "earned position in a sequence"; content hangs off it in one column. */
+.guide-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: 1.1rem; }
 .guide-steps {
   margin: .5rem 0 0; padding: 0; list-style: none;
   counter-reset: step;
