@@ -8,11 +8,20 @@ const { UNVERIFIED_TTL_HOURS } = require('../lib/limits');
 const VERIFY_TTL_HOURS = UNVERIFIED_TTL_HOURS;
 const VERIFY_TTL_MS = VERIFY_TTL_HOURS * 3600 * 1000;
 
+// bcrypt silently ignores anything past 72 bytes, so two different long
+// passwords would hash the same. Refuse them instead of pretending.
+const MIN_PASSWORD = 8;
+const MAX_PASSWORD_BYTES = 72;
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String, required: true, unique: true, trim: true,
     minlength: 3, maxlength: 32, match: /^[a-zA-Z0-9_\-]+$/,
   },
+  // Names are compared case-insensitively: "Kyle" must not be able to sit
+  // alongside "kyle" and be mistaken for them. This is the field that is
+  // actually unique; `username` keeps whatever capitalisation was chosen.
+  usernameLower: { type: String, required: true, unique: true, lowercase: true, index: true },
   email: { type: String, required: true, unique: true, trim: true, lowercase: true },
   // Google-only accounts never set a password, so this cannot be required outright.
   passwordHash: { type: String },
@@ -28,6 +37,7 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 userSchema.pre('validate', function (next) {
+  if (this.username) this.usernameLower = this.username.toLowerCase();
   if (!this.passwordHash && !this.googleId) {
     const err = new Error('A password or a Google account is required');
     err.name = 'ValidationError';   // routes map this to a 400
@@ -37,7 +47,38 @@ userSchema.pre('validate', function (next) {
 });
 
 userSchema.methods.setPassword = async function (password) {
-  this.passwordHash = await bcrypt.hash(password, 12);
+  const err = this.constructor.checkPasswordRules(password);
+  if (err) {
+    const e = new Error(err);
+    e.name = 'ValidationError';
+    throw e;
+  }
+  this.passwordHash = await bcrypt.hash(String(password), 12);
+};
+
+/* Returns an error message, or null when the password is usable. */
+userSchema.statics.checkPasswordRules = function (password) {
+  if (typeof password !== 'string') return 'Password must be text';
+  if (password.length < MIN_PASSWORD) return `Password must be at least ${MIN_PASSWORD} characters`;
+  if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
+    return `Password must be at most ${MAX_PASSWORD_BYTES} characters`;
+  }
+  return null;
+};
+
+/* Spends about as long as a real check would, so a wrong username and a wrong
+   password take the same time to answer and neither can be told apart. */
+const DUMMY_HASH = bcrypt.hashSync('robokyle-no-such-account', 12);
+userSchema.statics.burnPasswordTime = async function () {
+  await bcrypt.compare('x', DUMMY_HASH);
+  return false;
+};
+
+/* One place that knows how a sign-in name is matched: either form, any case. */
+userSchema.statics.findByLogin = function (identifier) {
+  const id = String(identifier || '').trim().toLowerCase();
+  if (!id) return Promise.resolve(null);
+  return this.findOne(id.includes('@') ? { email: id } : { usernameLower: id });
 };
 
 userSchema.methods.checkPassword = function (password) {
@@ -79,7 +120,7 @@ userSchema.statics.availableUsername = async function (seed) {
   if (base.length < 3) base = `user${base}`.slice(0, 28);
   for (let n = 0; n < 200; n++) {
     const candidate = n === 0 ? base : `${base}${n + 1}`;
-    if (!(await this.exists({ username: candidate }))) return candidate;
+    if (!(await this.exists({ usernameLower: candidate.toLowerCase() }))) return candidate;
   }
   return `user${crypto.randomBytes(4).toString('hex')}`;
 };
@@ -95,6 +136,15 @@ userSchema.methods.toPublic = function () {
     google: !!this.googleId,
     createdAt: this.createdAt,
   };
+};
+
+/* Rows written before usernameLower existed get it filled in at boot. */
+userSchema.statics.backfillUsernameLower = async function () {
+  const stale = await this.find({ usernameLower: { $exists: false } }).select('username');
+  for (const u of stale) {
+    await this.updateOne({ _id: u._id }, { $set: { usernameLower: u.username.toLowerCase() } });
+  }
+  return stale.length;
 };
 
 module.exports = mongoose.model('User', userSchema);

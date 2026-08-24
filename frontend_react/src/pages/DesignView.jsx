@@ -5,6 +5,8 @@ import { useAuth } from '../lib/auth.jsx';
 
 const fmtSize = (n) => n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+const fmtWhen = (d) => new Date(d).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const fmtExact = (d) => new Date(d).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' });
 
 const FILE_GROUPS = [
   ['model', '3D files'],
@@ -157,7 +159,7 @@ export default function DesignView() {
               <div className="comment" key={c._id}>
                 <span className="who">{c.author?.username
                   ? <Link to={`/user/${c.author.username}`}>{c.author.username}</Link>
-                  : 'deleted'}</span><span className="when">{fmtDate(c.createdAt)}</span>
+                  : 'deleted'}</span><span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
                 {user && (user.id === c.author?._id || mine) &&
                   <button className="btn btn-ghost btn-sm" style={{ float: 'right' }} onClick={() => delComment(c._id)}>Delete</button>}
                 <p>{c.body}</p>
@@ -234,7 +236,7 @@ export default function DesignView() {
                   <div className="history-head">
                     <strong>v{v.version}</strong>
                     {v.version === d.version && <span className="tag">current</span>}
-                    <span className="stat">{fmtDate(v.at)}{v.by ? ` · ${v.by}` : ''}</span>
+                    <span className="stat" title={fmtExact(v.at)}>{fmtWhen(v.at)}{v.by ? ` · ${v.by}` : ''}</span>
                   </div>
                   {v.changes.length > 0 && <ul className="history-changes">{v.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>}
                   {v.note && <p className="history-note">“{v.note}”</p>}

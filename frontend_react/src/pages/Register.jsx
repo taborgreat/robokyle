@@ -10,6 +10,7 @@ export default function Register() {
   const nav = useNavigate();
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [suggestion, setSuggestion] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);   // set once the account exists
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -54,7 +55,18 @@ export default function Register() {
     <form className="form-card" onSubmit={submit}>
       <h1>Create an account</h1>
       <p className="form-intro">You only need one to post a work or leave a comment. Browsing and downloading are open to everyone.</p>
-      {error && <div className="form-error" role="alert">{error}</div>}
+      {error && (
+        <div className="form-error" role="alert">
+          {error}
+          {suggestion && <>
+            {' '}
+            <button type="button" className="link-btn"
+                    onClick={() => { setForm({ ...form, username: suggestion }); setError(''); setSuggestion(''); }}>
+              Use {suggestion} instead
+            </button>
+          </>}
+        </div>
+      )}
       <GoogleButton clientId={config?.googleClientId} onCredential={withGoogle} onError={setError} />
       <div className="field"><label htmlFor="u">Username</label>
         <input id="u" required minLength={3} maxLength={32} pattern="[A-Za-z0-9_\-]+" autoComplete="username"

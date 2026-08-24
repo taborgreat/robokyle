@@ -3,27 +3,47 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const mail = require('../lib/mail');
 const { signToken, requireAuth } = require('../middleware/auth');
+const { rateLimit } = require('../lib/ratelimit');
+const { purgeUnverified } = require('../lib/cleanup');
 
 const router = express.Router();
+
+/* Every field arrives from the network, so it is coerced to a string before it
+   is used. Without this a body like {"username":{"$ne":null}} reaches Mongo as
+   a query operator instead of a name. */
+const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
+// Guessing a password and flooding sign-ups are the two things worth slowing.
+const signInLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many sign-in attempts. Try again in a few minutes.' });
+const signUpLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: 'Too many accounts from here. Try again later.' });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 
 // POST /api/auth/register  { username, email, password }
-router.post('/register', async (req, res, next) => {
+router.post('/register', signUpLimit, async (req, res, next) => {
   try {
-    const { username, email, password } = req.body || {};
-    if (!username || !email || !password) {
+    const username = str(req.body && req.body.username);
+    const email = str(req.body && req.body.email).toLowerCase();
+    const password = (req.body || {}).password;
+
+    if (!username || !email || typeof password !== 'string') {
       return res.status(400).json({ error: 'username, email and password are required' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const badPassword = User.checkPasswordRules(password);
+    if (badPassword) return res.status(400).json({ error: badPassword });
+
+    // An abandoned sign-up must not hold a name for ever. If the clash is with
+    // an unverified account that is already past its window, clear it out now
+    // rather than waiting for the next sweep.
+    const clash = await User.findOne({ $or: [{ usernameLower: username.toLowerCase() }, { email }] });
+    if (clash) {
+      await purgeUnverified();
+      const stillThere = await User.findOne({ _id: clash._id });
+      if (stillThere) return res.status(409).json(await takenResponse(stillThere, username, email));
     }
-    const existing = await User.findOne({ $or: [{ username }, { email: email.toLowerCase() }] });
-    if (existing) {
-      return res.status(409).json({ error: 'Username or email already in use' });
-    }
+
     const user = new User({ username, email });
     await user.setPassword(password);
     const token = user.startEmailVerification();
@@ -37,20 +57,39 @@ router.post('/register', async (req, res, next) => {
       verification: { sent: delivery.sent, link: delivery.link },
     });
   } catch (err) {
+    // Two people registering the same name at the same moment both pass the
+    // check above; the unique index is what actually decides it.
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0] || '';
+      return res.status(409).json(field === 'email'
+        ? { error: 'That email already has an account. Log in instead.' }
+        : { error: 'That username is taken', suggestion: await User.availableUsername(str(req.body.username)) });
+    }
     if (err.name === 'ValidationError') return res.status(400).json({ error: err.message });
     next(err);
   }
 });
 
+/* Says which half clashed, and offers a free name when it was the username. */
+async function takenResponse(existing, username, email) {
+  if (existing.email === email) {
+    return { error: 'That email already has an account. Log in instead.' };
+  }
+  return { error: `The name "${username}" is taken`, suggestion: await User.availableUsername(username) };
+}
+
 // POST /api/auth/login  { username | email, password }
-router.post('/login', async (req, res, next) => {
+router.post('/login', signInLimit, async (req, res, next) => {
   try {
-    const { username, email, password } = req.body || {};
-    if ((!username && !email) || !password) {
+    const identifier = str(req.body && req.body.username) || str(req.body && req.body.email);
+    const password = (req.body || {}).password;
+    if (!identifier || typeof password !== 'string') {
       return res.status(400).json({ error: 'username/email and password are required' });
     }
-    const user = await User.findOne(username ? { username } : { email: String(email).toLowerCase() });
-    if (!user || !(await user.checkPassword(password))) {
+
+    const user = await User.findByLogin(identifier);
+    const ok = user ? await user.checkPassword(password) : await User.burnPasswordTime();
+    if (!user || !ok) {
       // A Google-only account has no password to check, so say what to do next.
       if (user && user.googleId && !user.passwordHash) {
         return res.status(401).json({ error: 'This account uses Google sign-in' });

@@ -4,6 +4,8 @@ import { api, fileUrl } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+const fmtWhen = (d) => new Date(d).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const fmtExact = (d) => new Date(d).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' });
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function Stat({ n, label }) {
@@ -175,7 +177,7 @@ export default function Profile() {
                 {p.comments.map(c => (
                   <li key={c.id}>
                     <Link to={`/works/${c.work.id}`}>{c.work.title}</Link>
-                    <span className="when">{fmtDate(c.createdAt)}</span>
+                    <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
                     <p>{c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body}</p>
                   </li>
                 ))}

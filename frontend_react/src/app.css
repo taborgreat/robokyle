@@ -188,3 +188,4 @@
 }
 /* A long unbroken title or username should wrap rather than widen the page. */
 .design-card h3, .app-head h1, .profile-name { overflow-wrap: break-word; }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }

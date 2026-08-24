@@ -30,6 +30,11 @@ export async function api(path, { method = 'GET', body, form } = {}) {
   });
   let data = null;
   try { data = await res.json(); } catch {}
-  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error(data?.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.data = data;          // e.g. the free username offered on a name clash
+    throw err;
+  }
   return data;
 }

@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 
 const Design = require('./models/Design');
+const User = require('./models/User');
 const { ALLOWED_EXT } = require('./lib/files');
 const mail = require('./lib/mail');
 const { purgeUnverified } = require('./lib/cleanup');
@@ -90,6 +91,12 @@ app.use((err, req, res, next) => {
 
 mongoose.connect(MONGO_URI)
   .then(async () => {
+    const named = await User.backfillUsernameLower();
+    if (named) console.log(`Backfilled case-insensitive names on ${named} account(s)`);
+    // Only after every row has the field can the unique index over it build;
+    // attempted earlier it fails on the rows that are still missing it.
+    await User.syncIndexes();
+
     const patched = await Design.backfillFileKinds();
     if (patched) console.log(`Backfilled file kinds on ${patched} design(s)`);
 
