@@ -54,6 +54,7 @@ app.get('/api/config', (req, res) => res.json({
     levelCap: xp.config.levelCurve.cap,
     needVocabulary: xp.config.needVocabulary,
     introBioMinChars: xp.config.intro.bioMinChars,
+    disputeMinLevel: xp.config.accountability.disputeMinLevel,
     equipmentItems: xp.config.equipmentItems,
     materialItems: xp.config.materialItems,
     materialUnits: xp.config.materialUnits,
@@ -120,6 +121,22 @@ mongoose.connect(MONGO_URI)
 
     // One-time: comments used to live embedded on designs. No-op once done.
     await Comment.migrateEmbedded().catch(err => console.error('[migrate]', err.message));
+    /* One-time cleanup of auto-"(revision)" title pollution from the era when
+       Build on this published instantly: where a remix's title is exactly its
+       parent's plus "(revision)" runs, the suffixes go. Idempotent: once no
+       title matches the pattern, this does nothing. */
+    await (async () => {
+      const Design = require('./models/Design');
+      const polluted = await Design.find({ depth: { $gt: 0 }, title: / \(revision\)$/ }).select('title parent');
+      for (const w of polluted) {
+        const base = w.title.replace(/( \(revision\))+$/, '');
+        const parent = w.parent && await Design.findById(w.parent).select('title');
+        if (parent && parent.title === base) {
+          await Design.updateOne({ _id: w._id }, { title: base });
+          console.log(`[migrate] title "${w.title}" -> "${base}"`);
+        }
+      }
+    })().catch(err => console.error('[migrate]', err.message));
 
     // Sweep abandoned sign-ups now and then keep sweeping while we are up.
     // The same cycle keeps Produced states warm (the 48h window crosses on the

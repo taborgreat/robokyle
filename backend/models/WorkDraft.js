@@ -36,6 +36,15 @@ const workDraftSchema = new mongoose.Schema({
   /* A promoted Talk plan: the wizard opened pre-filled from the plan post.
      On publish the plan flips to became-work and pins the work (Talk Spec §2). */
   fromTalkPost: { type: mongoose.Schema.Types.ObjectId, ref: 'TalkPost', default: null },
+  /* Build on this: the wizard opened pre-filled from someone else's work.
+     Nothing publishes until the builder ships; publish stamps the lineage
+     (parent, root, depth) from here. Abandoning the draft leaves no work. */
+  forkOf: {
+    work: { type: mongoose.Schema.Types.ObjectId, ref: 'Design', default: null },
+    version: { type: Number, default: null },
+  },
+  // The remix's "what are you changing?" line; required to publish a fork.
+  remixNote: { type: String, trim: true, maxlength: 200, default: '' },
   stage: { type: Number, default: 1, min: 1, max: 3 },
   title: { type: String, trim: true, maxlength: 120, default: '' },
   description: { type: String, trim: true, maxlength: 20000, default: '' },

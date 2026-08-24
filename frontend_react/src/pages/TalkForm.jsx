@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { api, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import NeedTagPicker from '../NeedTagPicker.jsx';
 
@@ -8,7 +8,7 @@ import NeedTagPicker from '../NeedTagPicker.jsx';
    about a work, toward a work, or a question (Talk Spec §2). */
 
 const TYPES = [
-  { id: 'plan', name: 'Plan', blurb: 'An idea or collaboration call, the incubator. Promote it to a work when it is ready.' },
+  { id: 'plan', name: 'Plan', blurb: 'An idea or a call for collaborators. Promote it to a work when it is ready.' },
   { id: 'question', name: 'Question', blurb: 'Q&A with an acceptable answer. The accepted answer is the only XP in Talk.' },
   { id: 'linked', name: 'About a work', blurb: 'Showcase, help request, critique. The work\'s card pins at the top.' },
 ];
@@ -37,7 +37,7 @@ export default function TalkForm() {
       .catch(() => setBoardsError('Could not load the boards. If the site was just updated, the server needs a restart.'));
   }, []);
   useEffect(() => { if (ready && !user) nav('/login', { state: { from: '/talk/new' } }); }, [ready, user]);
-  useEffect(() => { api('/config').then(setConfig).catch(() => {}); }, []);
+  useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
   // Arrived from a work page: resolve the work id in the URL into its card.
   useEffect(() => {
     const id = params.get('work');
@@ -64,7 +64,7 @@ export default function TalkForm() {
   return (
     <>
       <p className="back-link"><Link to="/talk">&larr; Talk</Link></p>
-      <h1>New post</h1>
+      <h1>New thread</h1>
       <form className="panel wizard-panel" onSubmit={submit}>
         <div className="field">
           <label>What kind of post?</label>

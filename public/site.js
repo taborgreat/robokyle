@@ -218,14 +218,15 @@
       .then(function (s) {
         counters.replaceChildren();
         [
-          ["works", s.works],
-          ["produced", s.produced],
-          ["creators", s.creators],
-          ["open plans", s.openPlans],
-        ].forEach(function (pair) {
-          var span = el("span", "ts-counter");
-          span.appendChild(document.createTextNode(pair[0] + " "));
-          span.appendChild(el("span", "rs-num", Number(pair[1] || 0).toLocaleString()));
+          ["works", s.works, "/works"],
+          ["produced", s.produced, null],
+          ["creators", s.creators, "/creators"],
+          ["open plans", s.openPlans, "/talk"],
+        ].forEach(function (row) {
+          var span = el(row[2] ? "a" : "span", "ts-counter");
+          if (row[2]) span.href = row[2];
+          span.appendChild(document.createTextNode(row[0] + " "));
+          span.appendChild(el("span", "rs-num", Number(row[1] || 0).toLocaleString()));
           counters.appendChild(span);
         });
         counters.hidden = false;

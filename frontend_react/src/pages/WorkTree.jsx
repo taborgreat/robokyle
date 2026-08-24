@@ -15,6 +15,11 @@ function toTree(items) {
     if (parent) parent.children.push(node);
     else roots.push(node);
   }
+  /* Siblings sort by verified builds, so the page answers "which branch won"
+     at a glance. The numbers decide, publicly, like everywhere else. */
+  const rank = (a, b) => (b.producedCount - a.producedCount) || (new Date(a.createdAt) - new Date(b.createdAt));
+  const sortDeep = (nodes) => { nodes.sort(rank); nodes.forEach(n => sortDeep(n.children)); };
+  sortDeep(roots);
   return roots;
 }
 
@@ -27,16 +32,21 @@ function Branch({ node, currentId }) {
         <span className="stat">
           by <Link to={`/user/${node.author.username}`}>{node.author.username}</Link>
           {' · '}v{node.version}
-          {node.parentVersion ? ` · from v${node.parentVersion}` : ' · original'}
+          {node.parentVersion ? ` · remix of v${node.parentVersion}` : ' · original'}
+          {node.producedCount > 0 && <> · produced <span className="rs-num">{node.producedCount}</span>×</>}
           {' · '}▲ <span className="rs-num">{node.upvoteCount}</span>
           {' · '}{fmtDate(node.createdAt)}
         </span>
         {isCurrent && <span className="tag">you are here</span>}
+        {node.remixNote && <em className="remix-note">{node.remixNote}</em>}
       </div>
       {node.children.length > 0 && (
-        <ul className="branches">
-          {node.children.map(child => <Branch key={child.id} node={child} currentId={currentId} />)}
-        </ul>
+        <details className="branch-fold" open>
+          <summary>{node.children.length} {node.children.length === 1 ? 'remix' : 'remixes'}</summary>
+          <ul className="branches">
+            {node.children.map(child => <Branch key={child.id} node={child} currentId={currentId} />)}
+          </ul>
+        </details>
       )}
     </li>
   );
@@ -65,8 +75,8 @@ export default function WorkTree() {
         <div>
           <h1>How this work grew</h1>
           <span className="stat">
-            {data.count} {data.count === 1 ? 'version' : 'versions'} by {builders.size}{' '}
-            {builders.size === 1 ? 'person' : 'people'}. Every branch is someone building on the one above it.
+            {data.count === 1 ? '1 work' : `${data.count} works`} by {builders.size}{' '}
+            {builders.size === 1 ? 'person' : 'people'}. Every branch is a remix of the one above it; branches sort by verified builds.
           </span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api, avatarUrl } from '../lib/api.js';
+import { api, avatarUrl, getConfig } from '../lib/api.js';
 
 /* Everyone, ranked by RoboXP (verified value produced, works weighted over
    chat) or by one skill for the specialty view. The way to find the most
@@ -13,7 +13,7 @@ export default function Creators() {
   const [config, setConfig] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => { api('/config').then(setConfig).catch(() => {}); }, []);
+  useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
   useEffect(() => {
     setData(null);
     api(`/users?limit=50${category ? `&category=${category}` : ''}${sort ? `&sort=${sort}` : ''}`)
@@ -46,7 +46,7 @@ export default function Creators() {
         <ol className="creator-list">
           {data.items.map((u, i) => (
             <li key={u.username}>
-              <span className="creator-rank">{i + 1}</span>
+              <span className={"creator-rank" + (i < 3 ? ` rank-${i + 1}` : "")}>{i + 1}</span>
               {/* A wall of colored bursts: the eye finds the deep specialists instantly. */}
               <img className="avatar-sm" src={avatarUrl(u.username, 28)} alt="" width="28" height="28" loading="lazy" />
               <span className="creator-who">

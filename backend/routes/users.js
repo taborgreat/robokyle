@@ -72,6 +72,90 @@ router.patch('/me', requireAuth, async (req, res, next) => {
   }
 });
 
+/* ---------------- notifications ----------------
+   Derived, not stored: the recent events that touched your things, assembled
+   from the domain data on request. `notifSeenAt` is the only state; anything
+   newer than it shows as new. Deleting a comment deletes the notification by
+   construction. */
+router.get('/me/notifications', requireAuth, async (req, res, next) => {
+  try {
+    const ProducedEntry = require('../models/ProducedEntry');
+    const DocRevision = require('../models/DocRevision');
+    const me = req.user._id;
+
+    const [myDesigns, myTalkPosts, myTalkComments] = await Promise.all([
+      Design.find({ author: me }).select('title').lean(),
+      TalkPost.find({ author: me }).select('title').lean(),
+      Comment.find({ author: me, targetType: 'talk' }).select('target').lean(),
+    ]);
+    const dIds = myDesigns.map(d => d._id);
+    const dTitle = new Map(myDesigns.map(d => [String(d._id), d.title]));
+    const tIds = myTalkPosts.map(t => t._id);
+    const tTitle = new Map(myTalkPosts.map(t => [String(t._id), t.title]));
+    const myCommentIds = myTalkComments.map(c => c._id);
+
+    const [workComments, talkComments, replies, produced, revisions, forks] = await Promise.all([
+      Comment.find({ targetType: 'design', target: { $in: dIds }, author: { $ne: me }, deletedAt: null })
+        .sort({ createdAt: -1 }).limit(15).populate('author', 'username').lean(),
+      Comment.find({ targetType: 'talk', target: { $in: tIds }, parent: null, author: { $ne: me }, deletedAt: null })
+        .sort({ createdAt: -1 }).limit(15).populate('author', 'username').lean(),
+      Comment.find({ parent: { $in: myCommentIds }, author: { $ne: me }, deletedAt: null })
+        .sort({ createdAt: -1 }).limit(15).populate('author', 'username').lean(),
+      ProducedEntry.find({ work: { $in: dIds }, poster: { $ne: me } })
+        .sort({ createdAt: -1 }).limit(15).populate('poster', 'username').populate('work', 'title').lean(),
+      DocRevision.find({ work: { $in: dIds }, author: { $ne: me } })
+        .sort({ createdAt: -1 }).limit(15).populate('author', 'username').populate('work', 'title').lean(),
+      Design.find({ parent: { $in: dIds }, author: { $ne: me } })
+        .sort({ createdAt: -1 }).limit(15).populate('author', 'username').select('title parent author createdAt').lean(),
+    ]);
+
+    const events = [];
+    for (const c of workComments) events.push({
+      at: c.createdAt, kind: 'comment', who: c.author && c.author.username,
+      verb: 'commented on', about: dTitle.get(String(c.target)) || 'your work',
+      link: `/works/${c.target}`, snippet: (c.body || '').slice(0, 90),
+    });
+    for (const c of talkComments) events.push({
+      at: c.createdAt, kind: 'comment', who: c.author && c.author.username,
+      verb: 'replied on', about: tTitle.get(String(c.target)) || 'your post',
+      link: `/talk/${c.target}`, snippet: (c.body || '').slice(0, 90),
+    });
+    for (const c of replies) events.push({
+      at: c.createdAt, kind: 'reply', who: c.author && c.author.username,
+      verb: 'replied to you on', about: tTitle.get(String(c.target)) || 'a thread',
+      link: `/talk/${c.target}`, snippet: (c.body || '').slice(0, 90),
+    });
+    for (const e of produced) events.push({
+      at: e.createdAt, kind: 'produced', who: e.poster && e.poster.username,
+      verb: e.type === 'usage' ? 'posted a fit report on' : e.type === 'deployment' ? 'deployed' : 'built',
+      about: e.work ? e.work.title : 'your work', link: e.work ? `/works/${e.work._id}` : null,
+    });
+    for (const r of revisions) events.push({
+      at: r.createdAt, kind: 'doc-revision', who: r.author && r.author.username,
+      verb: 'proposed a doc revision on', about: r.work ? r.work.title : 'your work',
+      link: r.work ? `/works/${r.work._id}` : null,
+    });
+    for (const w of forks) events.push({
+      at: w.createdAt, kind: 'fork', who: w.author && w.author.username,
+      verb: 'built on', about: dTitle.get(String(w.parent)) || 'your work',
+      link: `/works/${w._id}`,
+    });
+
+    events.sort((a, b) => new Date(b.at) - new Date(a.at));
+    const seenAt = req.user.notifSeenAt || new Date(0);
+    const items = events.slice(0, 20).map(e => ({ ...e, isNew: new Date(e.at) > seenAt }));
+    res.json({ items, unseen: items.filter(i => i.isNew).length });
+  } catch (err) { next(err); }
+});
+
+// POST /api/users/me/notifications/seen — opening the panel clears the news.
+router.post('/me/notifications/seen', requireAuth, async (req, res, next) => {
+  try {
+    await User.updateOne({ _id: req.user._id }, { notifSeenAt: new Date() });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 /* ---------------- moderation visibility (admins) ----------------
    Defined before the /:username routes so the paths never shadow. */
 
@@ -187,14 +271,20 @@ router.get('/:username', optionalAuth, async (req, res, next) => {
           const ProducedEntry = require('../models/ProducedEntry');
           const producedWorks = new Map((await ProducedEntry.find({ _id: { $in: of('produced') } })
             .select('work')).map(e => [String(e._id), e.work]));
-          const [workTitles, talkTitles] = await Promise.all([
+          const talkCommentIds = recent.filter(c => c.targetType === 'talk').map(c => c._id);
+          const [workTitles, talkTitles, acceptedOn] = await Promise.all([
             titles(Design, [...of('design'), ...producedWorks.values()]), titles(TalkPost, of('talk')),
+            TalkPost.find({ acceptedAnswer: { $in: talkCommentIds } }).select('acceptedAnswer'),
           ]);
+          const acceptedSet = new Set(acceptedOn.map(t => String(t.acceptedAnswer)));
           return recent.map(c => {
             const workId = c.targetType === 'design' ? c.target
               : c.targetType === 'produced' ? producedWorks.get(String(c.target)) : null;
             return {
               id: c._id, body: c.body, createdAt: c.createdAt,
+              kind: c.targetType,
+              upvoteCount: (c.upvotes || []).length,
+              accepted: acceptedSet.has(String(c._id)),
               work: workId ? { id: workId, title: workTitles.get(String(workId)) || 'a removed work' } : null,
               post: c.targetType === 'talk'
                 ? { id: c.target, title: talkTitles.get(String(c.target)) || 'a removed thread' } : null,

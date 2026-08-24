@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
 
-/* Ring-detection findings (§8.3). A flag is a case file for a human, never a
-   punishment: the nightly job writes them, admins read them, and voiding is a
-   deliberate act afterwards. `key` makes each finding idempotent, so a ring
-   that persists shows up once, not once per night. */
+/* Case files for a human, never a punishment. Ring-detection findings (§8.3)
+   arrive from the nightly job; member reports ('report') arrive from the
+   work page's flag button. Admins read them; any voiding is a deliberate act
+   afterwards. `key` makes each finding idempotent, so a ring that persists
+   shows up once, not once per night, and one member flags one work once. */
 const flagSchema = new mongoose.Schema({
-  kind: { type: String, enum: ['reciprocity', 'cluster', 'burst'], required: true },
+  kind: { type: String, enum: ['reciprocity', 'cluster', 'burst', 'report'], required: true },
   key: { type: String, required: true, unique: true },
   accounts: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
   detail: { type: String, trim: true, maxlength: 500, default: '' },

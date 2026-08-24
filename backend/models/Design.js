@@ -147,6 +147,10 @@ const designSchema = new mongoose.Schema({
   parentVersion: { type: Number, default: null },
   root: { type: mongoose.Schema.Types.ObjectId, ref: 'Design', index: true },
   depth: { type: Number, default: 0 },
+  /* A remix's one-line answer to "what are you changing?", captured at remix
+     time (the only moment the author certainly knows) and shown as the
+     subtitle wherever the lineage appears. Empty on originals. */
+  remixNote: { type: String, trim: true, maxlength: 200, default: '' },
   downloadCount: { type: Number, default: 0 },
   // Weighted votes + reason cards, shared with Talk (lib/social.js). Here they
   // feed the XP recompute; the accountability rules are identical everywhere.

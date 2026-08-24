@@ -50,6 +50,8 @@ const userSchema = new mongoose.Schema({
      expressed as capability checks in lib/permissions.js, never as role
      checks in routes, so governance evolves without schema churn. */
   roles: { type: [String], default: [] },
+  // When they last opened their notifications; events after this show as new.
+  notifSeenAt: { type: Date, default: null },
 }, { timestamps: true });
 
 userSchema.pre('validate', function (next) {

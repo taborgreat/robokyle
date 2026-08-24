@@ -46,12 +46,12 @@ export default function Talk() {
         <div>
           <h1>Talk</h1>
           <span className="stat">
-            {active ? active.scope : 'Where the next work gestates: plans, questions, and threads about works.'}
+            {active ? active.scope : 'Plans, questions, and threads about works.'}
           </span>
         </div>
         <div className="toolbar" style={{ margin: 0 }}>
           <button className="btn btn-primary" onClick={() => nav(user ? '/talk/new' + (board ? `?board=${board}` : '') : '/login')}>
-            New post
+            New thread
           </button>
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function Talk() {
           {work && data?.related
             ? <>No threads about <strong>{data.related.current.title}</strong> yet. Its comment
                 section covers ordinary discussion; a thread is for something bigger.{' '}
-                <Link to={`/talk/new?type=linked&work=${work}`}>Start one</Link></>
+                <Link className="go-link" to={`/talk/new?type=linked&work=${work}`}>+ Thread</Link></>
             : <>Nothing here yet. {needed ? 'No open plans need that skill right now.' : 'Start a plan, ask a question, or open a thread about a work.'}</>}
         </p>
       ) : (

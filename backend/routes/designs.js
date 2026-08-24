@@ -8,7 +8,7 @@ const { requireAuth, optionalAuth, requireVerified } = require('../middleware/au
 const { rateLimit } = require('../lib/ratelimit');
 const { ALLOWED_EXT, kindFor, inlineMimeFor } = require('../lib/files');
 const { describeChanges } = require('../lib/changes');
-const { cardPipeline, shapeCards } = require('../lib/cards');
+const { cardPipeline, familyCardPipeline, shapeCards } = require('../lib/cards');
 const xp = require('../lib/xp');
 const social = require('../lib/social');
 const ports = require('../lib/ports');
@@ -451,16 +451,42 @@ router.get('/', optionalAuth, async (req, res, next) => {
     // The standard pickers (ports editor) browse standards only.
     if (req.query.type === 'standard' || req.query.type === 'design') filter.type = req.query.type;
     if (req.query.facet && xp.config.softwareFacets.includes(req.query.facet)) filter.facets = req.query.facet;
+    /* ?need=one-handed,feeding — exact needTags intersection. Structured,
+       unlike the text search: a work matches by declaring the need, not by
+       happening to mention the word. Custom tags filter like curated ones. */
+    if (req.query.need) {
+      const needs = String(req.query.need).split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => /^[a-z0-9][a-z0-9-]{0,39}$/.test(t))
+        .slice(0, 6);
+      if (needs.length) filter.needTags = { $all: needs };
+    }
     // Buildable with my equipment: the work's own list is a subset of what the
     // viewer owns. Composite-deep readiness lives on the work page.
     if (req.query.buildable === '1' && req.user) {
       filter.$expr = { $setIsSubset: [{ $ifNull: ['$requires.equipment.item', []] }, req.user.equipment || []] };
     }
+    /* Lineage modes. Default browse is family-aware: one card per family,
+       wearing the sibling count as a stack badge, so three remixes of one
+       spoon read as one spoon with depth, not three near-identical cards.
+       'roots' and 'remixes' filter flat; 'all' is the old flat everything.
+       Profile banks (?by=) and the standard pickers (?type=) list flat. */
+    const lineageMode = ['all', 'roots', 'remixes'].includes(req.query.lineage) ? req.query.lineage
+      : (req.query.by || req.query.type) ? 'all' : 'families';
+    if (lineageMode === 'roots') filter.depth = { $in: [0, null] };
+    if (lineageMode === 'remixes') filter.depth = { $gt: 0 };
+
+    const pipeline = lineageMode === 'families' ? familyCardPipeline : cardPipeline;
+    const countFamilies = () => Design.aggregate([
+      { $match: filter },
+      { $group: { _id: { $ifNull: ['$root', '$_id'] } } },
+      { $count: 'n' },
+    ]).then(r => (r[0] ? r[0].n : 0));
     const [items, total] = await Promise.all([
-      Design.aggregate(cardPipeline({
+      Design.aggregate(pipeline({
         match: filter, sort, skip: (page - 1) * limit, limit, viewerId: req.user ? req.user._id : null,
       })),
-      Design.countDocuments(filter),
+      lineageMode === 'families' ? countFamilies() : Design.countDocuments(filter),
     ]);
     const shaped = shapeCards(items).map(card => {
       const { requiredEquipment, ...rest } = card;
@@ -540,64 +566,43 @@ router.post('/', requireAuth, requireVerified, acceptUpload, async (req, res, ne
 });
 
 
+/* ---------------- general flag ----------------
+   The work page's flag button, beyond category disputes: spam, stolen work,
+   safety. Files a case for a human (models/Flag.js), shown in the admin flags
+   view. One open flag per member per work; resolving reopens the slot. */
+router.post('/:id/report', requireAuth, requireVerified, async (req, res, next) => {
+  try {
+    const Flag = require('../models/Flag');
+    const design = await Design.findById(req.params.id).select('title');
+    if (!design) return res.status(404).json({ error: 'Design not found' });
+    const kinds = ['spam', 'stolen', 'unsafe', 'other'];
+    const kind = kinds.includes(req.body && req.body.kind) ? req.body.kind : 'other';
+    const reason = String((req.body && req.body.reason) || '').trim();
+    if (reason.length < 10) return res.status(400).json({ error: 'Say what is wrong, in at least 10 characters' });
+    const key = `report:${design._id}:${req.user._id}`;
+    const detail = `[${kind}] "${design.title}" (/works/${design._id}): ${reason}`.slice(0, 500);
+    const existing = await Flag.findOne({ key });
+    if (existing && !existing.resolvedAt) {
+      return res.status(409).json({ error: 'You already have an open flag on this work' });
+    }
+    if (existing) {
+      existing.resolvedAt = null; existing.resolvedBy = null; existing.detail = detail;
+      await existing.save();
+    } else {
+      await Flag.create({ kind: 'report', key, accounts: [req.user._id], detail });
+    }
+    res.status(201).json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 /* ---------------- lineage ----------------
    A revision is a work of its own: its author owns it, edits it and versions it
    like any other. What ties it to the original is `parent`, and every work in a
    family carries the same `root`, so the whole tree is one query.            */
 
-// POST /api/designs/:id/fork  -- start a revision of someone else's work
-router.post('/:id/fork', requireAuth, requireVerified, async (req, res, next) => {
-  try {
-    const parent = await Design.findById(req.params.id);
-    if (!parent) return res.status(404).json({ error: 'Design not found' });
-
-    // The copy starts as a faithful duplicate. Files are shared, not copied:
-    // both works name the same blobs, and a revision only adds bytes for the
-    // parts it actually changes. Attachments live inside the steps they belong
-    // to, so copying the steps copies the whole guide, media and all.
-    const stripIds = (f) => ({ originalName: f.originalName, storedName: f.storedName,
-      mimeType: f.mimeType, size: f.size, kind: f.kind, caption: f.caption, order: f.order });
-    const child = new Design({
-      title: String(req.body.title || parent.title).slice(0, 120),
-      description: parent.description,
-      tags: [...parent.tags],
-      author: req.user._id,
-      links: parent.links.map(l => ({ label: l.label, url: l.url, kind: l.kind, note: l.note })),
-      files: parent.files.map(stripIds),
-      steps: parent.steps.map(st => ({
-        title: st.title, body: st.body, duration: st.duration,
-        attachments: (st.attachments || []).map(stripIds),
-        links: (st.links || []).map(l => ({ label: l.label, url: l.url, kind: l.kind, note: l.note })),
-        workRef: { work: st.workRef && st.workRef.work, version: st.workRef && st.workRef.version },
-      })),
-      categories: parent.categories.map(c => ({ id: c.id, weight: c.weight })),
-      needTags: [...parent.needTags],
-      // Interface declarations copy as fresh claims — verification never forks.
-      // Forking a standard is how a competing standard starts (Ports Spec §4).
-      type: parent.type,
-      standard: parent.type === 'standard'
-        ? { portName: parent.standard.portName, fields: parent.standard.fields.map(f => ({ name: f.name, unit: f.unit, required: f.required })) }
-        : undefined,
-      ports: {
-        provides: (parent.ports.provides || []).map(p => ({
-          standard: p.standard, version: p.version, fieldValues: p.fieldValues })),
-        accepts: (parent.ports.accepts || []).map(a => ({ standard: a.standard, version: a.version })),
-      },
-      parent: parent._id,
-      parentVersion: parent.version,
-      root: parent.root || parent._id,
-      depth: (parent.depth || 0) + 1,
-    });
-    child.syncUses();
-    await child.save();
-    refreshXp(child);
-    await child.populate(POPULATE);
-    res.status(201).json(serialize(child, req.user));
-  } catch (err) {
-    if (err.name === 'ValidationError') return res.status(400).json({ error: err.message });
-    next(err);
-  }
-});
+/* Starting a revision of someone else's work is a DRAFT operation: the wizard
+   opens on a copy (POST /api/drafts { forkOf }) and nothing publishes until
+   the builder ships. Publish stamps parent/root/depth from the draft. */
 
 // GET /api/designs/:id/lineage  -- every work in this family, flat
 router.get('/:id/lineage', async (req, res, next) => {
@@ -611,9 +616,19 @@ router.get('/:id/lineage', async (req, res, next) => {
       { $sort: { depth: 1, createdAt: 1 } },
       { $lookup: { from: 'users', localField: 'author', foreignField: '_id', as: 'author' } },
       { $unwind: '$author' },
+      // Verified builds per branch: the number that says which branch won.
+      { $lookup: {
+        from: 'producedentries', as: 'producedDocs',
+        let: { id: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $and: [{ $eq: ['$work', '$$id'] }, { $eq: ['$cachedState', 'verified'] }] } } },
+          { $count: 'n' },
+        ],
+      } },
       { $project: {
         id: '$_id', title: 1, parent: 1, parentVersion: 1, depth: 1, version: 1,
-        createdAt: 1, downloadCount: 1,
+        createdAt: 1, downloadCount: 1, remixNote: 1,
+        producedCount: { $ifNull: [{ $first: '$producedDocs.n' }, 0] },
         upvoteCount: { $size: '$upvotes' },
         author: { _id: 1, username: 1 },
       } },
@@ -634,7 +649,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     const rootId = design.root || design._id;
     const [children, familyCount, usedIn] = await Promise.all([
       Design.find({ parent: design._id })
-        .select('title author version createdAt upvotes')
+        .select('title author version createdAt upvotes remixNote')
         .populate('author', 'username')
         .sort({ createdAt: 1 })
         .limit(50),
@@ -655,10 +670,23 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       id: w._id, title: w.title, version: w.version, author: w.author && w.author.username,
     }));
     body.lineage.familyCount = familyCount;
+    /* The Family panel's branch scoreboard: each remix with its note and its
+       verified-build count, the number that says which branch is winning. */
+    const ProducedEntry = require('../models/ProducedEntry');
+    const childBuilds = children.length ? await ProducedEntry.aggregate([
+      { $match: { work: { $in: children.map(c => c._id) }, cachedState: 'verified' } },
+      { $group: { _id: '$work', n: { $sum: 1 } } },
+    ]) : [];
+    const buildsOf = new Map(childBuilds.map(x => [String(x._id), x.n]));
     body.lineage.children = children.map(c => ({
       id: c._id, title: c.title, version: c.version, createdAt: c.createdAt,
       upvoteCount: c.upvotes.length, author: c.author && c.author.username,
+      remixNote: c.remixNote || '', producedCount: buildsOf.get(String(c._id)) || 0,
     }));
+    if ((design.depth || 0) > 0 && String(rootId) !== String(design._id)) {
+      const rootDoc = await Design.findById(rootId).select('title');
+      if (rootDoc) body.lineage.rootTitle = rootDoc.title;
+    }
     res.json(body);
   } catch (err) { next(err); }
 });

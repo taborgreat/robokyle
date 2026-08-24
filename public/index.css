@@ -458,8 +458,7 @@ hr {
     font-size: .98rem;
     text-decoration: none;
     cursor: pointer;
-    transition: transform .1s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
-    box-shadow: var(--shadow-sm);
+    /* Pressed state is a swap, not a transition: bevels snap. */
     box-shadow: var(--rs-step-out);
 }
 .btn:hover { transform: none; }
@@ -541,6 +540,8 @@ hr {
     font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute);
 }
 .ts-counters .rs-num { font-size: 1rem; letter-spacing: 0; }
+a.ts-counter { color: var(--ink-mute); text-decoration: none; }
+a.ts-counter:hover { color: var(--ink); }
 .ts-panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .7rem; }
 .ts-panel-head h2 { font-family: var(--font-panel); font-size: 1.15rem; margin: 0; }
 .ts-panel-head a { text-decoration: none; font-weight: 600; font-size: .9rem; }
@@ -849,6 +850,7 @@ main.page > h1 {
     font-size: 1.05rem; margin: 1.4rem 0 .35rem;
 }
 .about-doc p { color: var(--ink-soft); line-height: 1.65; margin: 0 0 1rem; }
+.about-doc .about-intro { color: var(--ink-mute); font-size: .95rem; margin-bottom: 1.6rem; }
 .about-doc ul.checks { margin: .6rem 0 0; }
 
 .about-hero {
@@ -1091,7 +1093,6 @@ main.page > h1 {
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
     box-shadow: var(--rs-step-out);
 }
 .design-card:hover {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { api, fileUrl } from '../lib/api.js';
+import { api, fileUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import NeedTagPicker from '../NeedTagPicker.jsx';
 import RequiresEditor from '../RequiresEditor.jsx';
@@ -38,8 +38,15 @@ export default function WorkWizard() {
   const [publishing, setPublishing] = useState(false);
   const saveTimer = useRef(null);
   const draftId = useRef(null);
+  const [forkParent, setForkParent] = useState(null);   // {id, title} when remixing
 
-  useEffect(() => { api('/config').then(setConfig).catch(() => {}); }, []);
+  useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
+  // A remix draft knows its parent; the page shows what it is remixing.
+  useEffect(() => {
+    const w = draft?.forkOf?.work;
+    if (!w) { setForkParent(null); return; }
+    api(`/designs/${w}`).then(p => setForkParent({ id: p.id, title: p.title })).catch(() => {});
+  }, [draft?.forkOf?.work]);
 
   /* Find or create the draft: an edit reopens the same wizard prefilled. */
   useEffect(() => {
@@ -50,11 +57,13 @@ export default function WorkWizard() {
         let d;
         if (editWorkId) {
           d = await api('/drafts', { method: 'POST', body: { fromWork: editWorkId } });
+        } else if (params.get('forkOf')) {
+          d = await api('/drafts', { method: 'POST', body: { forkOf: params.get('forkOf') } });
         } else if (params.get('draft')) {
           d = await api(`/drafts/${params.get('draft')}`);
         } else {
           const mine = await api('/drafts');
-          const resumable = mine.items.find(x => !x.fromWork);
+          const resumable = mine.items.find(x => !x.fromWork && !x.forkOf);
           d = resumable ? await api(`/drafts/${resumable.id}`) : await api('/drafts', { method: 'POST', body: {} });
         }
         draftId.current = d.id;
@@ -148,7 +157,7 @@ export default function WorkWizard() {
     <div className="wizard">
       <div className="app-head">
         <div>
-          <h1>{draft.fromWork ? 'Edit the work' : 'Add a work'}</h1>
+          <h1>{draft.fromWork ? 'Edit the work' : 'Create Work'}</h1>
           <span className="stat">{saving ? 'Saving…' : 'Draft saved automatically. Come back any time.'}</span>
         </div>
         <div className="toolbar" style={{ margin: 0 }}>
@@ -175,6 +184,24 @@ export default function WorkWizard() {
               ))}
             </ol>
           </div>
+          {/* Editing an existing work: the update lives in the rail so a
+              one-field change publishes from any stage, no forced walk to
+              the end. */}
+          {draft.fromWork && (
+            <div className="panel">
+              <h2>Update</h2>
+              <div className="field" style={{ marginBottom: '.6rem' }}>
+                <label htmlFor="chlog">What changed? (one line, required)</label>
+                <input id="chlog" maxLength={300} value={draft.editNote} placeholder="Stronger detent spring"
+                       onChange={e => patch({ editNote: e.target.value })} />
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={publish} disabled={publishing || !readyToPublish}
+                      title={readyToPublish ? undefined : 'Finish the required items on the checklist first'}>
+                {publishing ? 'Publishing…' : 'Publish this version'}
+              </button>
+              {!readyToPublish && <p className="stat" style={{ marginTop: '.4rem' }}>Something required is missing; the stage 3 checklist names it.</p>}
+            </div>
+          )}
         </aside>
         <div className="rs-main">
       {error && <div className="form-error" role="alert">{error}</div>}
@@ -182,8 +209,25 @@ export default function WorkWizard() {
       {stage === 1 && (
         <section>
           <div className="panel wizard-panel">
+            {draft.forkOf && (
+              <p className="stat remix-banner">
+                Remixing {forkParent
+                  ? <Link to={`/works/${forkParent.id}`}>{forkParent.title}</Link>
+                  : 'a work'}. Your copy, your name on it; the family tree keeps the lineage.
+              </p>
+            )}
             <div className="field"><label htmlFor="wt">Name</label>
-              <input id="wt" maxLength={120} value={draft.title} onChange={e => patch({ title: e.target.value })} /></div>
+              <input id="wt" maxLength={120} value={draft.title}
+                     placeholder={draft.forkOf && forkParent ? `Name your remix of ${forkParent.title}` : undefined}
+                     onChange={e => patch({ title: e.target.value })} /></div>
+            {draft.forkOf && (
+              <div className="field"><label htmlFor="wrn">What are you changing?</label>
+                <input id="wrn" maxLength={200} required value={draft.remixNote || ''}
+                       placeholder="Longer handle, softer grip"
+                       onChange={e => patch({ remixNote: e.target.value })} />
+                <small>One line. It shows as this remix's subtitle wherever its family appears.</small>
+              </div>
+            )}
             <div className="field"><label htmlFor="wd">Description</label>
               <textarea id="wd" style={{ minHeight: '4.5rem' }} value={draft.description}
                         placeholder="The card blurb, not the manual. The steps are the manual."
@@ -440,17 +484,11 @@ export default function WorkWizard() {
               {draft.type === 'standard' && (
                 <li className={portNameOk ? 'done' : 'todo'}>A port name for the standard (required)</li>
               )}
-              <li className={draft.description ? 'done' : 'todo'}>A description</li>
-              {canUpload && <li className={draft.files.some(f => f.kind === 'image') ? 'done' : 'todo'}>An overview image</li>}
-              <li className={draft.steps.some(s => s.body) ? 'done' : 'todo'}>Instructions someone else can follow</li>
+              {draft.fromWork && <li className={draft.editNote.trim() ? 'done' : 'todo'}>What changed, in one line (required)</li>}
+              <li className={draft.description ? 'done' : 'todo'}>A description (optional)</li>
+              {canUpload && <li className={draft.files.some(f => f.kind === 'image') ? 'done' : 'todo'}>An overview image (optional)</li>}
+              <li className={draft.steps.some(s => s.body) ? 'done' : 'todo'}>Instructions someone else can follow (optional)</li>
             </ul>
-            {draft.fromWork && (
-              <div className="field" style={{ marginTop: '.75rem' }}>
-                <label htmlFor="chlog">What changed? (one line, required)</label>
-                <input id="chlog" maxLength={300} value={draft.editNote} placeholder="Stronger detent spring"
-                       onChange={e => patch({ editNote: e.target.value })} />
-              </div>
-            )}
             <div className="toolbar" style={{ marginTop: '1rem' }}>
               <button className="btn btn-ghost" onClick={() => setStage(2)}>← Back</button>
               <button className="btn btn-primary" onClick={publish} disabled={publishing || !readyToPublish}

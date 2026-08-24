@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, fileUrl, avatarUrl } from '../lib/api.js';
+import { api, fileUrl, avatarUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import ProducedSection from '../ProducedSection.jsx';
 import DocRevisions from '../DocRevisions.jsx';
@@ -38,12 +38,15 @@ export default function DesignView() {
   const [error, setError] = useState('');
   const [comment, setComment] = useState('');
   const [shot, setShot] = useState(0);
-  const [forking, setForking] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [why, setWhy] = useState('');
   const [flagOpen, setFlagOpen] = useState(false);
   const [flagWhy, setFlagWhy] = useState('');
   const [flagCats, setFlagCats] = useState([]);
+  const [flagMenu, setFlagMenu] = useState(false);     // the general flag: what is wrong?
+  const [reportKind, setReportKind] = useState(null);  // spam | stolen | unsafe | other
+  const [reportWhy, setReportWhy] = useState('');
+  const [reportDone, setReportDone] = useState(false);
   const [cWhyFor, setCWhyFor] = useState(null);   // comment id awaiting a downvote reason
   const [cWhy, setCWhy] = useState('');
   const [config, setConfig] = useState(null);
@@ -51,7 +54,7 @@ export default function DesignView() {
 
   const load = () => api(`/designs/${id}`).then(setD).catch(e => setError(e.message));
   useEffect(() => { load(); }, [id]);
-  useEffect(() => { api('/config').then(setConfig).catch(() => {}); }, []);
+  useEffect(() => { getConfig().then(setConfig).catch(() => {}); }, []);
 
   const images = useMemo(() => (d?.files || []).filter(f => f.viewUrl), [d]);
   // Version history reads newest-first: each entry is the edit that produced a version.
@@ -158,6 +161,15 @@ export default function DesignView() {
       setFlagOpen(false); setFlagWhy(''); setFlagCats([]);
     } catch (err) { setError(err.message); }
   }
+  async function submitReport(e) {
+    e.preventDefault();
+    if (!user) return nav('/login', { state: { from: `/works/${id}` } });
+    try {
+      setError('');
+      await api(`/designs/${id}/report`, { method: 'POST', body: { kind: reportKind, reason: reportWhy } });
+      setReportKind(null); setReportWhy(''); setFlagMenu(false); setReportDone(true);
+    } catch (err) { setError(err.message); }
+  }
   async function judgeDispute(did, dir) {
     if (!user) return nav('/login', { state: { from: `/works/${id}` } });
     try {
@@ -167,14 +179,11 @@ export default function DesignView() {
     } catch (err) { setError(err.message); }
   }
 
-  async function buildOnThis() {
+  /* Build on this opens the wizard on a draft copy. Nothing publishes and no
+     work exists until they ship it; walking away leaves nothing behind. */
+  function buildOnThis() {
     if (!user) return nav('/login', { state: { from: `/works/${id}` } });
-    setForking(true);
-    try {
-      const copy = await api(`/designs/${id}/fork`, { method: 'POST', body: { title: `${d.title} (revision)` } });
-      nav(`/works/${copy.id}/edit`);
-    } catch (err) { setError(err.message); }
-    finally { setForking(false); }
+    nav(`/works/new?forkOf=${id}`);
   }
 
   async function delDesign() {
@@ -203,10 +212,11 @@ export default function DesignView() {
           <span className="stat">by <Link to={`/user/${d.author.username}`}><strong>{d.author.username}</strong></Link>{d.author.roboXp > 0 && <span className="roboxp" title="RoboXP: verified value produced"> <span className="rs-num">{Math.round(d.author.roboXp).toLocaleString()}</span> RoboXP</span>} · v{d.version} · updated {fmtDate(d.updatedAt)} · <span className="rs-num">{d.downloadCount}</span> downloads
             {' · '}{lin.isOriginal
               ? <>original work</>
-              : <>built on {lin.parent
+              : <>remix of {lin.parent
                   ? <><Link to={`/works/${lin.parent.id}`}>{lin.parent.title}</Link> by <Link to={`/user/${lin.parent.author}`}>{lin.parent.author}</Link></>
                   : <em>a removed work</em>}</>}
           </span>
+          {d.remixNote && <p className="remix-note">{d.remixNote}</p>}
         </div>
       </div>
 
@@ -255,15 +265,10 @@ export default function DesignView() {
                   </span>
                 );
               })}
-              {(d.needTags || []).map(t => <Link key={t} className="tag need-tag" to={`/works?q=${encodeURIComponent(t)}`}>{t}</Link>)}
+              {(d.needTags || []).map(t => <Link key={t} className="tag need-tag" title={`Every work serving ${t}`}
+                    to={`/works?need=${encodeURIComponent(t)}`}>{t}</Link>)}
               {(d.facets || []).map(f => <Link key={f} className="tag" to={`/works?facet=${f}`}>{f}</Link>)}
               {d.tags.map(t => <Link key={t} className="tag" to={`/works?tag=${encodeURIComponent(t)}`}>{t}</Link>)}
-              {d.canDispute && (
-                <button type="button" className="link-btn flag-btn" onClick={() => setFlagOpen(o => !o)}
-                        title="Think these categories are wrong? Propose a correction; the community judges it.">
-                  flag categories
-                </button>
-              )}
             </div>
 
             {flagOpen && (
@@ -349,7 +354,7 @@ export default function DesignView() {
 
           {d.steps?.length > 0 && (
             <div className="panel guide" style={{ marginTop: '1.5rem' }}>
-              <h2>How it is made</h2>
+              <h2>Guide <span className="stat">{d.steps.length} {d.steps.length === 1 ? 'step' : 'steps'}</span></h2>
               <ol className="guide-steps">
                 {d.steps.map((st, i) => (
                   <li key={st.id || i}>
@@ -531,14 +536,69 @@ export default function DesignView() {
             <div className="rs-actions-row">
               <button className={'btn btn-ghost btn-sm vote' + (d.upvoted ? ' on' : '')} onClick={() => vote('upvote')} aria-pressed={d.upvoted}>▲ <span className="rs-num">{d.upvoteCount}</span></button>
               <button className={'btn btn-ghost btn-sm vote vote-down' + (d.downvoted ? ' on' : '')} onClick={() => vote('downvote')} aria-pressed={d.downvoted}>▼ <span className="rs-num">{d.downvoteCount || 0}</span></button>
-              <button className="btn btn-sm btn-build" onClick={buildOnThis} disabled={forking}>{forking ? 'Copying…' : 'Build on this'}</button>
+              {/* §1.5: the version/remix line is whether the old one should
+                  still be recommended afterward. Owners choose; everyone
+                  else's change is a remix by definition. */}
+              {!mine && <button className="btn btn-sm btn-build" onClick={buildOnThis}
+                      title="Start a remix: your own copy to change, linked to the original">Build on this</button>}
               <button className="btn btn-primary btn-sm" onClick={() => user ? setBuiltSignal(n => n + 1) : nav('/login', { state: { from: `/works/${id}` } })}>I built one</button>
-              {lin.familyCount > 1 && <Link className="btn btn-ghost btn-sm" to={`/works/${id}/tree`}>All {lin.familyCount} versions</Link>}
-              <Link className="btn btn-ghost btn-sm" to={`/talk?work=${id}`}>Threads</Link>
-              <Link className="btn btn-ghost btn-sm" to={`/talk/new?work=${id}`}>Start one</Link>
-              {mine && <Link className="btn btn-ghost btn-sm" to={`/works/${id}/edit`}>Edit</Link>}
+              <Link className="btn btn-ghost btn-sm" to={`/talk?work=${id}`}>Talk</Link>
+              <Link className="btn btn-build btn-sm" to={`/talk/new?work=${id}`}>+ Thread</Link>
+              <Link className="btn btn-ghost btn-sm" to={`/works/${id}/tree`}
+                    title="Back to the original and out to every remix; branches sort by verified builds">
+                Remixes{lin.familyCount > 1 && <> <span className="rs-num">{lin.familyCount}</span></>}</Link>
+              {/* Distinct colors carry the distinction: teal replaces (update),
+                  green coexists (remix, same color as Build on this). */}
+              {mine && <Link className="btn btn-sm btn-update" to={`/works/${id}/edit`}
+                      title="A new version of this page; the old one drops into history. Should the old one still be recommended? No: update.">Update this page</Link>}
+              {mine && <button className="btn btn-sm btn-build" onClick={buildOnThis}
+                      title="A variant with its own page beside this one. Should the old one still be recommended? Yes: remix.">Remix this work</button>}
               {mine && <button className="btn btn-danger btn-sm" onClick={delDesign}>Delete</button>}
+              {/* One flag for everything wrong: red while armed. Categories
+                  route to the community-judged dispute beside the chips; the
+                  rest files a case for a moderator. */}
+              <button type="button" className={'btn btn-ghost btn-sm flag-btn' + ((flagMenu || flagOpen || reportKind) ? ' is-armed' : '')}
+                      aria-expanded={flagMenu}
+                      onClick={() => { setFlagMenu(o => !o); setFlagOpen(false); setReportKind(null); }}
+                      title="Something wrong with this work?">
+                ⚑ Flag
+              </button>
             </div>
+
+            {flagMenu && (
+              <div className="flag-box">
+                <span className="stat">What is wrong?</span>
+                <div className="flag-options">
+                  <button type="button" className={'tag need-chip' + (d.canDispute ? '' : ' is-disabled')}
+                          aria-disabled={!d.canDispute}
+                          title={d.canDispute
+                            ? 'Propose a correction; the community judges it.'
+                            : mine
+                              ? 'Your work. Edit the categories instead.'
+                              : `Takes level ${config?.xp?.disputeMinLevel ?? 10} in one of this work's declared skills.`}
+                          onClick={() => { if (d.canDispute) { setFlagMenu(false); setFlagOpen(true); } }}>
+                    Wrong skill categories
+                  </button>
+                  {[['spam', 'Spam or junk'], ['stolen', 'Not their work'], ['unsafe', 'Unsafe'], ['other', 'Something else']].map(([k, label]) => (
+                    <button key={k} type="button" className={'tag need-chip' + (reportKind === k ? ' on' : '')}
+                            onClick={() => setReportKind(reportKind === k ? null : k)}>{label}</button>
+                  ))}
+                </div>
+                {reportKind && (
+                  <form onSubmit={submitReport}>
+                    <textarea required minLength={10} maxLength={500} value={reportWhy}
+                              placeholder="What should a moderator look at?"
+                              onChange={e => setReportWhy(e.target.value)} />
+                    {reasonHint(reportWhy)}
+                    <div className="toolbar" style={{ margin: 0 }}>
+                      <button className="btn btn-danger btn-sm" disabled={reportWhy.trim().length < 10}>Send to the moderators</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setReportKind(null); setReportWhy(''); }}>Cancel</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+            {reportDone && <div className="notice" role="status">Flagged. A moderator will take a look.</div>}
           </div>
 
           <div className="panel">
@@ -688,7 +748,11 @@ export default function DesignView() {
           )}
 
           <div className="panel">
-            <h2>Version history</h2>
+            <div className="produced-head">
+              <h2>Version history</h2>
+              <Link className="link-btn" to={`/works/${id}/tree`}
+                    title="Versions replace; remixes coexist. The tree shows everything that coexists.">Remixes</Link>
+            </div>
             <ol className="history">
               {timeline.map(v => (
                 <li key={v.version}>
@@ -716,6 +780,35 @@ export default function DesignView() {
               ))}
             </ol>
           </div>
+
+          {/* §3: the branch scoreboard. Versions above replace each other;
+              this panel is what coexists beside this work. */}
+          {(lin.familyCount > 1 || lin.children.length > 0) && (
+            <div className="panel">
+              <h2>Remixes</h2>
+              <p className="stat">
+                {lin.isOriginal
+                  ? 'This is the root.'
+                  : <>Remix of {lin.parent
+                      ? <Link to={`/works/${lin.parent.id}`}>{lin.parent.title}</Link>
+                      : <em>a removed work</em>}
+                      {lin.rootTitle && <> · root: <Link to={`/works/${lin.root}`}>{lin.rootTitle}</Link></>}</>}
+                {' '}<span className="rs-num">{lin.familyCount}</span> in the family, counting the original.
+              </p>
+              {lin.children.length > 0 && (
+                <ul className="family-list">
+                  {[...lin.children].sort((a, b) => (b.producedCount || 0) - (a.producedCount || 0)).map(c => (
+                    <li key={c.id}>
+                      <Link to={`/works/${c.id}`}>{c.title}</Link>
+                      <span className="stat"> by {c.author}{c.producedCount > 0 && <> · produced <span className="rs-num">{c.producedCount}</span>×</>}</span>
+                      {c.remixNote && <em className="remix-note">{c.remixNote}</em>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="stat" style={{ marginBottom: 0 }}><Link to={`/works/${id}/tree`}>Whole family tree</Link></p>
+            </div>
+          )}
         </aside>
         </div>
     </>

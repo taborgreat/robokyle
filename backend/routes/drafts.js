@@ -42,6 +42,8 @@ async function myDraft(req, res) {
 
 const shape = (d) => ({
   id: d._id, stage: d.stage, fromWork: d.fromWork, fromTalkPost: d.fromTalkPost,
+  forkOf: d.forkOf && d.forkOf.work ? { work: d.forkOf.work, version: d.forkOf.version } : null,
+  remixNote: d.remixNote,
   title: d.title, description: d.description,
   tags: d.tags, needTags: d.needTags,
   files: d.files, steps: d.steps, categories: d.categories, links: d.links,
@@ -53,7 +55,8 @@ const shape = (d) => ({
 router.get('/', async (req, res, next) => {
   try {
     const drafts = await WorkDraft.find({ author: req.user._id }).sort({ updatedAt: -1 });
-    res.json({ items: drafts.map(d => ({ id: d._id, title: d.title, stage: d.stage, fromWork: d.fromWork, updatedAt: d.updatedAt })) });
+    res.json({ items: drafts.map(d => ({ id: d._id, title: d.title, stage: d.stage, fromWork: d.fromWork,
+      forkOf: d.forkOf && d.forkOf.work ? d.forkOf.work : null, updatedAt: d.updatedAt })) });
   } catch (err) { next(err); }
 });
 
@@ -89,6 +92,47 @@ router.post('/', async (req, res, next) => {
       });
       return res.status(201).json(shape(draft));
     }
+    /* Build on this: a draft copy of someone else's work. The copy shares the
+       parent's blobs (a revision only adds bytes for what it changes) and
+       remembers where it came from; nothing publishes until the builder does. */
+    if (req.body && req.body.forkOf) {
+      const work = await Design.findById(req.body.forkOf);
+      if (!work) return res.status(404).json({ error: 'Design not found' });
+      const existing = await WorkDraft.findOne({ author: req.user._id, 'forkOf.work': work._id });
+      if (existing) return res.json(shape(existing));
+      const strip = (f) => ({ originalName: f.originalName, storedName: f.storedName,
+        mimeType: f.mimeType, size: f.size, kind: f.kind, caption: f.caption, order: f.order });
+      const draft = await WorkDraft.create({
+        author: req.user._id, stage: 1,
+        forkOf: { work: work._id, version: work.version },
+        // The parent's title is a placeholder in the wizard, never a value:
+        // a remix gets its own name or it does not publish.
+        title: '',
+        description: work.description,
+        tags: [...work.tags], needTags: [...work.needTags],
+        files: work.files.map(strip),
+        steps: work.steps.map(st => ({
+          title: st.title, body: st.body, duration: st.duration,
+          needs: [...(st.needs || [])],
+          attachments: (st.attachments || []).map(strip),
+          links: (st.links || []).map(l => ({ label: l.label, url: l.url, kind: l.kind, note: l.note })),
+          workRef: { work: (st.workRef && st.workRef.work) || null, version: (st.workRef && st.workRef.version) ?? null },
+        })),
+        categories: work.categories.map(c => ({ id: c.id, weight: c.weight })),
+        links: work.links.map(l => ({ label: l.label, url: l.url, kind: l.kind, note: l.note })),
+        type: work.type,
+        standard: work.type === 'standard'
+          ? { portName: work.standard.portName, fields: work.standard.fields.map(f => ({ name: f.name, unit: f.unit, required: f.required })) }
+          : null,
+        ports: {
+          provides: (work.ports.provides || []).map(p => ({ standard: p.standard, version: p.version, fieldValues: p.fieldValues })),
+          accepts: (work.ports.accepts || []).map(a => ({ standard: a.standard, version: a.version })),
+        },
+        requires: work.requires ? { equipment: [...(work.requires.equipment || [])], materials: (work.requires.materials || []).map(m => (m.toObject ? m.toObject() : m)) } : undefined,
+        facets: [...(work.facets || [])],
+      });
+      return res.status(201).json(shape(draft));
+    }
     const draft = await WorkDraft.create({ author: req.user._id });
     res.status(201).json(shape(draft));
   } catch (err) { next(err); }
@@ -114,7 +158,7 @@ router.put('/:id', async (req, res, next) => {
     const draft = await myDraft(req, res);
     if (!draft) return;
     const b = req.body || {};
-    for (const k of ['title', 'description', 'editNote']) if (b[k] !== undefined) draft[k] = String(b[k]);
+    for (const k of ['title', 'description', 'editNote', 'remixNote']) if (b[k] !== undefined) draft[k] = String(b[k]);
     for (const k of ['tags', 'needTags']) if (Array.isArray(b[k])) draft[k] = b[k].map(t => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 15);
     if (Array.isArray(b.steps)) {
       draft.steps = b.steps.slice(0, 60).map(st => ({ ...st, attachments: cleanFileRefs(st && st.attachments) }));
@@ -290,11 +334,30 @@ router.post('/:id/publish', async (req, res, next) => {
       });
       work.root = work._id;
       work.syncUses();
-      // Mostly someone else's bytes publishes as a version of their work (§8.1).
-      const match = await Design.noveltyMatch(Design.blobsOf(work));
-      if (match) {
-        work.parent = match._id; work.parentVersion = match.version;
-        work.root = match.root || match._id; work.depth = (match.depth || 0) + 1;
+      /* Lineage: an explicit fork (Build on this) links to the work it copied,
+         at the version it copied. Otherwise the novelty check catches quiet
+         re-uploads: mostly someone else's bytes publishes as a version of
+         their work (§8.1). */
+      const forkParent = draft.forkOf && draft.forkOf.work
+        ? await Design.findById(draft.forkOf.work) : null;
+      if (forkParent) {
+        if (!draft.remixNote.trim()) {
+          return res.status(400).json({ error: 'Say what you are changing. One line; it becomes the remix\'s subtitle.' });
+        }
+        if (draft.title.trim().toLowerCase() === forkParent.title.trim().toLowerCase()) {
+          return res.status(400).json({ error: 'Give the remix its own name' });
+        }
+        work.parent = forkParent._id;
+        work.parentVersion = draft.forkOf.version ?? forkParent.version;
+        work.root = forkParent.root || forkParent._id;
+        work.depth = (forkParent.depth || 0) + 1;
+        work.remixNote = draft.remixNote.trim();
+      } else {
+        const match = await Design.noveltyMatch(Design.blobsOf(work));
+        if (match) {
+          work.parent = match._id; work.parentVersion = match.version;
+          work.root = match.root || match._id; work.depth = (match.depth || 0) + 1;
+        }
       }
       await work.save();
     }

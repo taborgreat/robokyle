@@ -224,17 +224,36 @@ async function workEntries(userId, entries) {
      Innovation can come from. */
   const authoredIds = authored.map(w => w._id);
   if (authoredIds.length) {
-    const referencing = await Design.find({ 'uses.work': { $in: authoredIds } })
-      .select('title author uses createdAt upvotes downvotes');
     const mine = new Map(authored.map(w => [String(w._id), w]));
+    const [referencing, remixes] = await Promise.all([
+      Design.find({ 'uses.work': { $in: authoredIds } })
+        .select('title author uses createdAt upvotes downvotes'),
+      Design.find({ parent: { $in: authoredIds } })
+        .select('title author parent createdAt upvotes downvotes'),
+    ]);
+
+    /* The liveness bar (F4): net weighted votes past the threshold, OR one
+       verified Produced entry — a real build is proof of life no vote can
+       match. One aggregate covers every candidate this recompute will test. */
+    const candidateIds = [...referencing, ...remixes].map(w => w._id);
+    const { ProducedEntry } = models();
+    const liveBuilds = candidateIds.length ? await ProducedEntry.aggregate([
+      { $match: { work: { $in: candidateIds }, cachedState: 'verified' } },
+      { $group: { _id: '$work', n: { $sum: 1 } } },
+    ]) : [];
+    const verifiedOf = new Map(liveBuilds.map(x => [String(x._id), x.n]));
+    const isLive = (w) => {
+      const net = (w.upvotes || []).reduce((a, v) => a + (v.weight || XP.voteWeight.min), 0)
+                - (w.downvotes || []).reduce((a, v) => a + (v.weight || XP.voteWeight.min), 0);
+      return net >= XP.referenceLiveness.minNetVotes || (verifiedOf.get(String(w._id)) || 0) > 0;
+    };
+
     for (const ref of referencing) {
       if (String(ref.author) === String(userId)) continue;   // self-references earn 0
       /* F4: junk works referencing real ones emit nothing. The reference pays
          once the referencing work itself clears the liveness bar — and since
          XP is a recompute, "fires late but fires once" needs no machinery. */
-      const netVotes = (ref.upvotes || []).reduce((a, v) => a + (v.weight || XP.voteWeight.min), 0)
-                     - (ref.downvotes || []).reduce((a, v) => a + (v.weight || XP.voteWeight.min), 0);
-      if (netVotes < XP.referenceLiveness.minNetVotes) continue;
+      if (!isLive(ref)) continue;
       const distinct = new Set((ref.uses || []).map(u => String(u.work)).filter(id => mine.has(id)));
       for (const workId of distinct) {
         const target = mine.get(workId);
@@ -243,6 +262,22 @@ async function workEntries(userId, entries) {
                        vec: effectiveWeights(target), workId: target._id, workTitle: target.title,
                        who: ref.author, refTitle: ref.title, refId: ref._id });
       }
+    }
+
+    /* A live remix is an adoption: a derived work by someone else that clears
+       the same liveness bar pays this author once, exactly like a reference
+       (E7). One hop by construction — a remix pays its parent, never further
+       up; the grandparent was paid when the parent went live. Dead-on-arrival
+       remixes pay nothing, which is all the spam control this needs. */
+    for (const rx of remixes) {
+      if (String(rx.author) === String(userId)) continue;   // self-remixes earn 0
+      if (!isLive(rx)) continue;
+      const target = mine.get(String(rx.parent));
+      if (!target) continue;
+      entries.push({ at: rx.createdAt, kind: 'remixed',
+                     amount: XP.amounts.referenceSplit, innov: XP.amounts.referenceInnov,
+                     vec: effectiveWeights(target), workId: target._id, workTitle: target.title,
+                     who: rx.author, refTitle: rx.title, refId: rx._id });
     }
   }
 

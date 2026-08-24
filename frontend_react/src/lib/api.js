@@ -42,3 +42,14 @@ export async function api(path, { method = 'GET', body, form } = {}) {
   }
   return data;
 }
+
+/* /config is static per deploy: fetch it once and share the promise, so
+   pages render category names and vocab on first paint after the first
+   load instead of flashing ids while each page refetches. */
+let configPromise = null;
+export const getConfig = () => {
+  if (!configPromise) {
+    configPromise = api('/config').catch(err => { configPromise = null; throw err; });
+  }
+  return configPromise;
+};

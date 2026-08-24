@@ -14,33 +14,46 @@ import { useState } from 'react';
    collapse to S and D, so the ambiguous four get two letters. */
 const SKILL_CODE = { mech: 'M', fab: 'F', elec: 'E', soft: 'So', sys: 'Sy', abil: 'A', docs: 'Do', dsgn: 'De', comm: 'C' };
 
+/* Each icon URL is probed at most once per session: until it resolves the
+   fallback shows (no broken-image flash), and the verdict is cached so every
+   later mount renders the right thing on first paint with no request. */
+const iconState = new Map();   // url -> 'ok' | 'missing'
+
+function useIconProbe(url) {
+  const [state, setState] = useState(() => iconState.get(url) || 'probe');
+  const settle = (verdict) => { iconState.set(url, verdict); setState(verdict); };
+  return [state, settle];
+}
+
 export function SkillIcon({ id, name, color, size = 26 }) {
-  const [missing, setMissing] = useState(false);
-  if (missing) {
-    const code = SKILL_CODE[id] || (name || id || '?').slice(0, 1);
-    return (
-      <span className="rs-icon rs-icon-fallback" aria-hidden="true"
-            style={{ width: size, height: size, fontSize: size * (code.length > 1 ? 0.42 : 0.55), '--cat': color || 'var(--ink-mute)' }}>
-        {code}
-      </span>
-    );
-  }
-  return <img className="rs-icon" src={`/assets/icons/skill-${id}.svg`} alt="" width={size} height={size}
-              onError={() => setMissing(true)} />;
+  const url = `/assets/icons/skill-${id}.svg`;
+  const [state, settle] = useIconProbe(url);
+  if (state === 'ok') return <img className="rs-icon" src={url} alt="" width={size} height={size} />;
+  const code = SKILL_CODE[id] || (name || id || '?').slice(0, 1);
+  return (
+    <span className="rs-icon rs-icon-fallback" aria-hidden="true"
+          style={{ width: size, height: size, fontSize: size * (code.length > 1 ? 0.42 : 0.55), '--cat': color || 'var(--ink-mute)' }}>
+      {code}
+      {state === 'probe' && <img src={url} alt="" style={{ display: 'none' }}
+                                 onLoad={() => settle('ok')} onError={() => settle('missing')} />}
+    </span>
+  );
 }
 
 export function ToolIcon({ id, size = 26 }) {
-  const [missing, setMissing] = useState(false);
-  if (missing) {
-    return (
+  const url = `/assets/icons/tool-${id}.svg`;
+  const [state, settle] = useIconProbe(url);
+  if (state === 'ok') return <img className="rs-icon" src={url} alt="" width={size} height={size} />;
+  return (
+    <>
       <svg className="rs-icon" width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"
            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14.7 6.3a4.6 4.6 0 0 0-6.1 5.9L3 17.8 6.2 21l5.6-5.6a4.6 4.6 0 0 0 5.9-6.1l-3 3-2.1-2.1z" />
       </svg>
-    );
-  }
-  return <img className="rs-icon" src={`/assets/icons/tool-${id}.svg`} alt="" width={size} height={size}
-              onError={() => setMissing(true)} />;
+      {state === 'probe' && <img src={url} alt="" style={{ display: 'none' }}
+                                 onLoad={() => settle('ok')} onError={() => settle('missing')} />}
+    </>
+  );
 }
 
 /* The RS stacked fraction: current level over 99 with the diagonal divider.

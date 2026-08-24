@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, fileUrl, avatarUrl } from '../lib/api.js';
+import { api, fileUrl, avatarUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { SkillIcon, ToolIcon, LevelFraction } from '../rs.jsx';
 
@@ -159,11 +159,11 @@ function Inventory({ p, isSelf, config }) {
     <div className="panel rs-inv-panel">
       <div className="produced-head">
         <h2>{isSelf ? 'Your works' : `Works by ${p.username}`} <span className="rs-num">{total}</span></h2>
-        {isSelf && <Link className="btn btn-primary btn-sm" to="/works/new">Add a work</Link>}
+        {isSelf && <Link className="btn btn-build btn-sm" to="/works/new">New</Link>}
       </div>
       {total === 0 && (
         <p className="stat">
-          {isSelf ? <>Nothing in the bag yet. <Link to="/works/new">Add your first work</Link>.</> : 'Nothing posted yet.'}
+          {isSelf ? <>Nothing in the bag yet. <Link to="/works/new">Create your first work</Link>.</> : 'Nothing posted yet.'}
         </p>
       )}
       <div className="rs-inv" role="list">
@@ -312,8 +312,8 @@ function BioEditor({ bio, onSaved, introMinChars, hasIntroXp }) {
     return (
       <div className="profile-bio">
         {bio ? <p className="desc">{bio}</p> : <p className="stat">No bio yet. Say what you make, or what you are looking for.</p>}
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setText(bio); setEditing(true); }}>
-          {bio ? 'Edit bio' : 'Add a bio'}
+        <button type="button" className="link-btn" onClick={() => { setText(bio); setEditing(true); }}>
+          {bio ? 'edit' : 'add a bio'}
         </button>
       </div>
     );
@@ -342,6 +342,26 @@ function BioEditor({ bio, onSaved, introMinChars, hasIntroXp }) {
   );
 }
 
+/* What happened to your things since you last looked: comments, builds, doc
+   revisions, replies, forks. Derived server-side from the domain data; opening
+   the panel marks it seen, and new items glow until then. Own profile only. */
+/* One notification line, live or dead: who did what to which of your things. */
+function NotifList({ items }) {
+  return (
+    <ul className="notif-list">
+      {items.map((n, i) => (
+        <li key={i} className={n.isNew ? 'is-new' : ''}>
+          {n.who ? <Link to={`/user/${n.who}`}>{n.who}</Link> : 'someone'}{' '}
+          {n.verb}{' '}
+          {n.link ? <Link to={n.link}>{n.about}</Link> : n.about}
+          <span className="when">{fmtWhen(n.at)}</span>
+          {n.snippet && <span className="notif-snippet">{n.snippet}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function Profile() {
   const { username } = useParams();
   const { logout, refresh } = useAuth();
@@ -353,12 +373,27 @@ export default function Profile() {
   const [roleNote, setRoleNote] = useState('');
   const [skillFocus, setSkillFocus] = useState(null);   // a category id, or null for everything
   const [catLedger, setCatLedger] = useState(null);
+  const [notif, setNotif] = useState(null);             // own profile: {items, unseen}
+
+  /* Notifications split by life: new ones ride high in the side stack with
+     the green dot; once seen they fall to Dead notifications at the bottom.
+     Opening the page is what marks them seen. */
+  useEffect(() => {
+    if (!p?.isSelf) { setNotif(null); return; }
+    let live = true;
+    api('/users/me/notifications').then(r => {
+      if (!live) return;
+      setNotif(r);
+      if (r.unseen > 0) api('/users/me/notifications/seen', { method: 'POST' }).catch(() => {});
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [p?.isSelf, username]);
 
   useEffect(() => {
     setP(null); setError(''); setRoleNote(''); setSkillFocus(null); setCatLedger(null);
     api(`/users/${encodeURIComponent(username)}`).then(setP).catch(e => setError(e.message));
     api(`/users/${encodeURIComponent(username)}/ledger`).then(setLedger).catch(() => {});
-    api('/config').then(setConfig).catch(() => {});
+    getConfig().then(setConfig).catch(() => {});
   }, [username]);
 
   const reloadXp = () => {
@@ -397,6 +432,19 @@ export default function Profile() {
   }
 
   const s = p.stats;
+
+  /* The bio at the skills panel's foot: character-sheet flavor text. */
+  const bioBlock = (
+    <div className="rs-bio">
+      <span className="rs-bio-label">About</span>
+      {p.isSelf
+        ? <BioEditor bio={p.bio}
+                     introMinChars={config?.xp?.introBioMinChars || 0}
+                     hasIntroXp={(p.xp?.skills.find(x => x.id === 'comm')?.xp || 0) > 0}
+                     onSaved={bio => { setP({ ...p, bio }); refresh().catch(() => {}); reloadXp(); }} />
+        : (p.bio ? <p className="desc">{p.bio}</p> : <p className="stat">This member has not written a bio.</p>)}
+    </div>
+  );
 
   return (
     <>
@@ -438,28 +486,25 @@ export default function Profile() {
           ledger full-width beneath, conversation panels last. */}
       <div className="rs-layout">
         <div className="rs-left">
-          {/* The bio rides at the skills panel's foot: flavor text. */}
-          {(() => {
-            const bioBlock = (
-              <div className="rs-bio">
-                {p.isSelf
-                  ? <BioEditor bio={p.bio}
-                               introMinChars={config?.xp?.introBioMinChars || 0}
-                               hasIntroXp={(p.xp?.skills.find(x => x.id === 'comm')?.xp || 0) > 0}
-                               onSaved={bio => { setP({ ...p, bio }); refresh().catch(() => {}); reloadXp(); }} />
-                  : (p.bio ? <p className="desc">{p.bio}</p> : <p className="stat">This member has not written a bio.</p>)}
-              </div>
-            );
-            return p.xp
-              ? <SkillsPanel xpv={p.xp} skillFocus={skillFocus} setSkillFocus={setSkillFocus} bio={bioBlock} />
-              : <div className="panel rs-skills">{bioBlock}</div>;
-          })()}
+          {p.xp
+            ? <SkillsPanel xpv={p.xp} skillFocus={skillFocus} setSkillFocus={setSkillFocus} bio={bioBlock} />
+            : <div className="panel rs-skills">{bioBlock}</div>}
         </div>
 
         <div className="rs-mainCol">
           <div className="rs-row">
             <Inventory p={p} isSelf={p.isSelf} config={config} />
             <div className="rs-sideStack">
+              {/* Only exists while there is news; quiet days keep the stack clean.
+                  Everything already seen lives in Dead notifications below. */}
+              {p.isSelf && notif && notif.items.some(n => n.isNew) && (
+                <div className="panel">
+                  <h2><span className="notif-dot live" aria-hidden="true"></span>Notifications
+                    <span className="tag endorsed-tag"> {notif.items.filter(n => n.isNew).length} new</span>
+                  </h2>
+                  <NotifList items={notif.items.filter(n => n.isNew)} />
+                </div>
+              )}
               <ToolsPanel p={p} setP={setP} config={config} />
               <div className="panel">
                 <h2>Activity</h2>
@@ -502,7 +547,8 @@ export default function Profile() {
                         naming the work would unmask an anonymous downvote. */}
                     <span className="xl-what">
                       {e.kind === 'publish' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
-                      {e.kind === 'publish-derived' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> (revision)</>}
+                      {e.kind === 'publish-derived' && <>published <Link to={`/works/${e.workId}`}>{e.workTitle}</Link> (remix)</>}
+                      {e.kind === 'remixed' && <><Link to={`/works/${e.workId}`}>{e.workTitle}</Link> remixed as {e.refTitle ? <Link to={`/works/${e.refId}`}>{e.refTitle}</Link> : 'another work'}{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
                       {e.kind === 'version' && <>new version of <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
                       {e.kind === 'upvote' && <>upvote on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link>{e.by && <> by <Link to={`/user/${e.by}`}>@{e.by}</Link></>}</>}
                       {e.kind === 'downvote' && <>downvote on <Link to={`/works/${e.workId}`}>{e.workTitle}</Link></>}
@@ -561,18 +607,32 @@ export default function Profile() {
             <ul className="comment-feed">
               {p.comments.map(c => (
                 <li key={c.id}>
-                  {c.work
-                    ? <Link to={`/works/${c.work.id}`}>{c.work.title}</Link>
-                    : c.post
-                      ? <Link to={`/talk/${c.post.id}`}>Talk: {c.post.title}</Link>
-                      : <em>removed</em>}
-                  <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
-                  <p>{c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body}</p>
+                  <span className="cf-meta">
+                    <span className="tag">{c.post ? 'talk' : c.kind === 'produced' ? 'result' : 'work'}</span>
+                    {c.work
+                      ? <Link to={`/works/${c.work.id}`}>{c.work.title}</Link>
+                      : c.post
+                        ? <Link to={`/talk/${c.post.id}`}>{c.post.title}</Link>
+                        : <em>removed</em>}
+                    {c.accepted && <span className="tag endorsed-tag">✓ accepted answer</span>}
+                    {c.upvoteCount > 0 && <span className="stat">▲ <span className="rs-num">{c.upvoteCount}</span></span>}
+                    <span className="when" title={fmtExact(c.createdAt)}>{fmtWhen(c.createdAt)}</span>
+                  </span>
+                  <p className="cf-quote">{c.body.length > 180 ? c.body.slice(0, 180) + '…' : c.body}</p>
                 </li>
               ))}
             </ul>
           )}
         </div>
+
+        {/* The graveyard: already-seen notifications, visible only to you.
+            They fall here so the panel up top stays only what is new. */}
+        {p.isSelf && notif && notif.items.some(n => !n.isNew) && (
+          <div className="panel">
+            <h2><span className="notif-dot dead" aria-hidden="true"></span>Dead notifications</h2>
+            <NotifList items={notif.items.filter(n => !n.isNew)} />
+          </div>
+        )}
       </div>
     </>
   );

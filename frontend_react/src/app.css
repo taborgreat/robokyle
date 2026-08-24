@@ -52,8 +52,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 }
 .back-link a:hover { color: var(--brand); }
 
-.design-detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
-@media (max-width: 800px) { .design-detail-grid { grid-template-columns: 1fr; } }
 /* RS chrome tier 1 (RS Profile Spec §1/§8): every content region is a
    beveled panel — light top/left edge, dark bottom/right, square-shouldered. */
 .panel {
@@ -140,9 +138,40 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .guide-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 1rem 0; }
 @media (max-width: 680px) { .guide-lists { grid-template-columns: 1fr; } }
 .guide-lists ul { margin: 0; padding-left: 1.1rem; font-size: .95rem; }
-.guide-steps { margin: 1.25rem 0 0; padding-left: 1.4rem; display: flex; flex-direction: column; gap: 1.25rem; }
-.guide-steps > li { padding-left: .25rem; }
+/* The guide is the main event: each step its own clearly bounded section.
+   The number sits in a recessed slot well in gold, the RS way of saying
+   "earned position in a sequence"; content hangs off it in one column. */
+.guide-steps {
+  margin: .5rem 0 0; padding: 0; list-style: none;
+  counter-reset: step;
+  display: flex; flex-direction: column;
+}
+.guide-steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 1rem 0 1.1rem 3rem;
+  border-top: 1px solid var(--line-soft);
+}
+.guide-steps > li:first-child { border-top: 0; padding-top: .4rem; }
+.guide-steps > li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: .95rem;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  background: var(--rs-well); border-radius: 2px;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in);
+  color: var(--rs-gold); font-weight: 700; font-variant-numeric: tabular-nums;
+  text-shadow: 1px 1px 0 var(--rs-shadow);
+}
+.guide-steps > li:first-child::before { top: .35rem; }
+.guide-steps h3 { margin: 0 0 .35rem; font-family: var(--font-sans); font-size: 1.08rem; font-weight: 700; }
+.guide-steps .desc { margin: 0; }
 .step-photo { max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--line); margin-top: .6rem; }
+@media (max-width: 640px) {
+  .guide-steps > li { padding-left: 2.5rem; }
+  .guide-steps > li::before { width: 28px; height: 28px; }
+}
 
 .history { display: flex; flex-direction: column; }
 .history li { padding: .7rem 0; }
@@ -181,7 +210,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .profile-name { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .profile-name .tag { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
 .admin-tag { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
-.profile-section { font-size: 1.1rem; margin: 2rem 0 1rem; }
 .profile-bio .desc { margin: 0 0 .75rem; }
 .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem .5rem; }
 .profile-stat .n { display: block; font-size: 1.6rem; line-height: 1; }
@@ -223,8 +251,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .design-card h3, .app-head h1, .profile-name { overflow-wrap: break-word; }
 .link-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
 
-/* --- lineage: where a work came from and what grew out of it --- */
-.lineage .stat a { font-weight: 600; }
 .revision-list { list-style: none; margin: 0; padding: 0; }
 .revision-list li { padding: .55rem 0; border-top: 1px solid var(--line-soft); }
 .revision-list li:first-child { border-top: 0; }
@@ -354,6 +380,10 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .creator-list .avatar-sm { width: 28px; height: 28px; margin: 0; vertical-align: middle; }
 .creator-list li:first-child { border-top: 0; }
 .creator-rank { font-family: var(--font-display); font-weight: 700; color: var(--ink-mute); text-align: center; }
+/* The podium: highscores ranks 1-3 in gold, silver, bronze. */
+.creator-rank.rank-1 { color: var(--rs-gold); text-shadow: 1px 1px 0 var(--rs-shadow); }
+.creator-rank.rank-2 { color: #AEB6C4; text-shadow: 1px 1px 0 var(--rs-shadow); }
+.creator-rank.rank-3 { color: #B0763F; text-shadow: 1px 1px 0 var(--rs-shadow); }
 .creator-who a { font-weight: 600; }
 .creator-who small { display: block; color: var(--ink-mute); }
 .creator-nums { text-align: right; color: var(--ink-soft); font-size: .92rem; white-space: nowrap; }
@@ -553,9 +583,50 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   .talk-post-title { font-size: 1.2rem; }
 }
 
+/* --- need filter on browse --- */
+.filter-need { flex: 1 1 100%; }
+.need-filter summary { cursor: pointer; color: var(--ink-mute); font-size: .9rem; padding: .3rem 0; user-select: none; }
+.need-filter summary:hover { color: var(--brand); }
+.need-filter[open] summary { margin-bottom: .5rem; }
+
+/* --- remix lineage --- */
+.remix-note { display: block; font-style: italic; color: var(--ink-soft); font-size: .92rem; margin: .2rem 0 0; }
+.family-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .45rem; font-size: .92rem; }
+.branch-fold summary { cursor: pointer; color: var(--ink-mute); font-size: .82rem; padding: .15rem 0; user-select: none; }
+.branch-fold summary:hover { color: var(--brand); }
+.design-card .remix-note { margin: 0 0 .5rem; }
+.family-stack { margin-left: .5rem; font-size: .72rem; vertical-align: 3px; white-space: nowrap; }
+.remix-banner { margin: 0 0 1rem; }
+
+/* --- profile comment feed: each line a small spoken thing, not a bare row --- */
+.cf-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
+.cf-quote {
+  background: var(--rs-well); box-shadow: var(--rs-step-in); border-radius: 2px;
+  padding: .5rem .7rem; margin: .4rem 0 0; color: var(--ink-soft);
+}
+
+/* --- notifications (own profile) --- */
+.notif-dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: .45rem; vertical-align: 1px;
+}
+.notif-dot.live { background: var(--ok); box-shadow: 0 0 4px color-mix(in oklab, var(--ok) 60%, transparent); }
+.notif-dot.dead { background: var(--ink-mute); opacity: .6; }
+.notif-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; font-size: .9rem; }
+.notif-list li { padding: .4rem .55rem; border-radius: var(--radius-sm); }
+.notif-list li.is-new { background: color-mix(in oklab, var(--rs-gold) 9%, transparent); box-shadow: var(--rs-step-in); }
+.notif-list .when { display: block; color: var(--ink-mute); font-size: .78rem; }
+.notif-snippet { display: block; color: var(--ink-soft); font-size: .85rem; overflow-wrap: break-word; }
+
 /* --- category dispute flag --- */
 .flag-btn { font-size: .82rem; color: var(--ink-mute); }
 .flag-btn:hover { color: var(--warn); }
+.flag-btn.is-disabled { opacity: .45; cursor: not-allowed; }
+.flag-btn.is-disabled:hover { color: var(--ink-mute); }
+.flag-btn.is-armed { color: #B3261E; font-weight: 700; }
+.flag-btn.is-armed:hover { color: #B3261E; }
+.flag-options { display: flex; flex-wrap: wrap; gap: .4rem; }
+.flag-options .need-chip.is-disabled { opacity: .45; cursor: not-allowed; }
 .flag-box { display: grid; gap: .6rem; margin-top: .8rem; padding: .8rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-elev); }
 .flag-box textarea { min-height: 4rem; }
 .dispute-card { border-left-color: var(--brand); }
@@ -659,12 +730,21 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 
 /* Build on this: the fork into the core loop, in its own green so it reads
    apart from every other button on the page. */
+/* The green action button: create/build affordances. Keeps the .btn bevel;
+   only the surface tints. */
 .btn-build {
-  background: color-mix(in oklab, var(--ok) 12%, transparent);
+  background: color-mix(in oklab, var(--ok) 16%, var(--bg-elev));
   color: var(--ok);
-  border: 1px solid color-mix(in oklab, var(--ok) 55%, var(--line));
 }
-.btn-build:hover:not(:disabled) { background: color-mix(in oklab, var(--ok) 20%, transparent); }
+.btn-build:hover:not(:disabled) { background: color-mix(in oklab, var(--ok) 24%, var(--bg-elev)); }
+/* Update replaces in place: the brand teal, sibling to remix's green. */
+.btn-update {
+  background: color-mix(in oklab, var(--brand) 16%, var(--bg-elev));
+  color: var(--brand);
+}
+.btn-update:hover:not(:disabled) { background: color-mix(in oklab, var(--brand) 24%, var(--bg-elev)); color: var(--brand); }
+.go-link { color: var(--ok); }
+.design-card h3 { display: flex; align-items: center; gap: .45rem; }
 
 /* The related-works tree on a work-filtered Talk view. */
 .talk-related { margin-bottom: 1rem; }
@@ -743,7 +823,7 @@ a.rs-slot { text-decoration: none; }
 .rs-tipwrap { position: relative; }
 .rs-tipwrap .rs-tip {
   display: none; position: absolute; z-index: 40; left: 0; top: calc(100% + 4px);
-  width: max-content; max-width: 16rem; padding: .5rem .65rem; text-align: left;
+  width: max-content; max-width: min(16rem, calc(100vw - 2rem)); padding: .5rem .65rem; text-align: left;
   font-size: .78rem; font-weight: 400; line-height: 1.35; color: var(--ink);
   background: var(--rs-panel); border-radius: 2px;
   border: 2px solid; border-color: var(--rs-lite) var(--rs-dark) var(--rs-dark) var(--rs-lite);
@@ -799,9 +879,15 @@ a.rs-slot { text-decoration: none; }
 }
 .rs-innov-strip.on { outline: 1px solid var(--rs-gold); outline-offset: -1px; }
 
-/* The bio at the skills panel's foot: flavor text, plain on the panel. */
+/* The bio at the skills panel's foot: flavor text in the examine-text
+   voice — italic and muted, so it can never be mistaken for a stat. */
 .rs-bio { margin-top: .8rem; padding-top: .7rem; border-top: 1px solid var(--line-soft); font-size: .85rem; }
-.rs-bio .desc { margin: 0; font-size: .85rem; color: var(--ink-soft); }
+.rs-bio-label {
+  display: block; margin-bottom: .3rem; font-family: var(--font-panel); font-weight: 600;
+  font-size: .8rem; color: var(--ink-soft);
+}
+.rs-bio .desc { margin: 0; font-size: .85rem; font-style: italic; color: var(--ink-mute); }
+.rs-bio .stat { font-style: italic; }
 .rs-bio .profile-bio .desc { margin-bottom: .5rem; }
 .rs-bio .field textarea { min-height: 5rem; }
 
@@ -876,9 +962,10 @@ a.rs-slot { text-decoration: none; }
 .rs-main { min-width: 0; }
 .rs-main > * + * { margin-top: 1.5rem; }
 .rs-side {
-  position: sticky; top: 5rem; max-height: calc(100vh - 6rem);
-  overflow-y: auto; min-width: 0;
-  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  /* The stack is page content: it lays out at full height and the page
+     scroll reaches all of it. No viewport clamp, no hidden inner scrollbar
+     pretending the rest does not exist. */
+  min-width: 0;
 }
 .rs-side > * + * { margin-top: 1rem; }
 .rs-side .panel { padding: 1rem; }
