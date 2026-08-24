@@ -49,6 +49,33 @@ app.use('/api/users', userRoutes);
 // 404 for unknown API routes
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
+/* ---------------- the site itself ----------------
+   Serves the built site next to the API, so one `node server.js` gives you the
+   whole thing on one port: no dev server, no second origin, no CORS locally.
+   Only the site's own files are exposed -- the four page shells and public/ --
+   so nothing under backend/ or Factum/ is reachable through here.
+   Set SERVE_SITE=false to run the API on its own (GitHub Pages serves the site
+   in production).                                                            */
+if (process.env.SERVE_SITE !== 'false') {
+  const SITE_ROOT = path.join(__dirname, '..');
+  const APP_SHELL = path.join(SITE_ROOT, 'app.html');
+  // Client-side routes: these have no file of their own, the app reads the URL.
+  const APP_ROUTES = ['/works', '/login', '/register', '/verify', '/user'];
+  const PAGES = /^\/(?:|index\.html|about\.html|app\.html|404\.html)$/;
+
+  const files = express.static(SITE_ROOT, { index: 'index.html', dotfiles: 'ignore' });
+  app.use((req, res, next) => {
+    if (PAGES.test(req.path) || req.path.startsWith('/public/')) return files(req, res, next);
+    next();
+  });
+
+  app.get(APP_ROUTES.map(r => [r, `${r}/*`]).flat(), (req, res) => res.sendFile(APP_SHELL));
+
+  // Anything else is a real 404, answered by the app shell so the page still
+  // renders a site-shaped error rather than a bare Express message.
+  app.use((req, res) => res.status(404).sendFile(APP_SHELL));
+}
+
 // Central error handler (multer errors, JSON parse errors, etc.)
 app.use((err, req, res, next) => {
   if (err.name === 'MulterError') {

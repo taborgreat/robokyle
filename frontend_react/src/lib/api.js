@@ -1,4 +1,17 @@
-const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+/* Where the API lives, decided at run time rather than baked in:
+   - served by the Node server locally, the API is the same origin, so ''
+   - served by GitHub Pages, it is a different host, so the built-in URL
+   window.RK_API_URL overrides both, the same escape hatch public/site.js has. */
+const BUILT_IN_API = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', ''];
+
+function apiBase() {
+  if (typeof window === 'undefined') return BUILT_IN_API;
+  if (window.RK_API_URL != null) return String(window.RK_API_URL).replace(/\/$/, '');
+  return LOCAL_HOSTS.includes(location.hostname) ? '' : BUILT_IN_API;
+}
+
+const BASE = apiBase();
 const TOKEN_KEY = 'rk_token';
 
 export const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };

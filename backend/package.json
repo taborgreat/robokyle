@@ -9,7 +9,9 @@
     "dev": "node --watch server.js",
     "admin": "node scripts/role.js",
     "users": "node scripts/role.js --list",
-    "purge": "node -e \"require('dotenv').config();const m=require('mongoose');m.connect(process.env.MONGO_URI||'mongodb://127.0.0.1:27017/robokyle').then(()=>require('./lib/cleanup').purgeUnverified()).then(r=>console.log(r)).finally(()=>m.disconnect())\""
+    "purge": "node -e \"require('dotenv').config();const m=require('mongoose');m.connect(process.env.MONGO_URI||'mongodb://127.0.0.1:27017/robokyle').then(()=>require('./lib/cleanup').purgeUnverified()).then(r=>console.log(r)).finally(()=>m.disconnect())\"",
+    "build:app": "npm --prefix ../frontend_react run build",
+    "start:all": "npm run build:app && npm start"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

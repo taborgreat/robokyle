@@ -46,6 +46,11 @@ export default defineConfig({
     },
   },
   server: {
+    // Pinned, and strict on purpose: if something else holds 5173 Vite fails
+    // loudly instead of quietly moving to 5174. A drifting port breaks Google
+    // sign-in, which only trusts the exact origins registered for the client.
+    port: 5173,
+    strictPort: true,
     fs: { allow: ['..'] },
     proxy: { '/api': 'http://localhost:4000' },
   },
