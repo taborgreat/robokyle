@@ -116,25 +116,7 @@ app.use((err, req, res, next) => {
 });
 
 mongoose.connect(MONGO_URI)
-  .then(async () => {
-
-    /* One-time cleanup of auto-"(revision)" title pollution from the era when
-       Build on this published instantly: where a remix's title is exactly its
-       parent's plus "(revision)" runs, the suffixes go. Idempotent: once no
-       title matches the pattern, this does nothing. */
-    await (async () => {
-      const Design = require('./models/Design');
-      const polluted = await Design.find({ depth: { $gt: 0 }, title: / \(revision\)$/ }).select('title parent');
-      for (const w of polluted) {
-        const base = w.title.replace(/( \(revision\))+$/, '');
-        const parent = w.parent && await Design.findById(w.parent).select('title');
-        if (parent && parent.title === base) {
-          await Design.updateOne({ _id: w._id }, { title: base });
-          console.log(`[migrate] title "${w.title}" -> "${base}"`);
-        }
-      }
-    })().catch(err => console.error('[migrate]', err.message));
-
+  .then(() => {
     // Sweep abandoned sign-ups now and then keep sweeping while we are up.
     // The same cycle keeps Produced states warm (the 48h window crosses on the
     // clock), applies community-ripe doc revisions, and re-pings deployments.
@@ -155,11 +137,9 @@ mongoose.connect(MONGO_URI)
     sweepBlobs();
     setInterval(sweepBlobs, BLOB_SWEEP_HOURS * 3600 * 1000).unref();
 
-    // XP is a recompute over the works themselves; the incremental refreshes
-    // in the routes keep it fresh, and this nightly pass self-heals anything
-    // they missed.
-    // The nightly pass: full self-healing recompute, then ring detection
-    // (§8.3) over the fresh graph.
+    /* XP is a recompute over the works themselves; the incremental refreshes
+       in the routes keep it fresh. The nightly pass self-heals anything they
+       missed, then runs ring detection (§8.3) over the fresh graph. */
     const recomputeXp = () => xp.recomputeAll()
       .then(n => console.log(`[xp] recomputed ${n} account(s)`))
       .then(() => detectRings())

@@ -36,10 +36,17 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .form-foot { margin-top: 1rem; color: var(--ink-mute); font-size: .95rem; }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.5rem; }
-.toolbar input, .toolbar select { font: inherit; padding: .55rem .8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-elev); color: var(--ink); }
+.toolbar input, .toolbar select { font: inherit; padding: .55rem .8rem; border: 1px solid var(--line); border-radius: 2px; background: var(--bg-elev); color: var(--ink); }
 .toolbar input { flex: 1; min-width: 12rem; }
 
 .stat { color: var(--ink-mute); font-size: .85rem; }
+
+/* Restored after the dead-CSS sweep: these are live. */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 680px) { .field-row { grid-template-columns: 1fr; } }
+.notice { background: var(--bg-sunk); border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: .8rem .9rem; color: var(--ink-mute); font-size: .93rem; margin: 0; }
+.wizard-frac { font-size: 1rem; white-space: nowrap; }
+
 .stat strong { color: var(--ink); }
 
 /* One quiet way back, everywhere: a muted crumb above the page, not a
@@ -83,39 +90,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .btn-danger { background: transparent; color: #B3261E; border: 1px solid #B3261E; }
 .btn-sm { padding: .4rem .8rem; font-size: .9rem; }
 
-/* --- wide, sectioned design form --- */
-.form-wide { max-width: 52rem; }
-.form-section { border-top: 1px solid var(--line-soft); padding-top: 1.25rem; margin-bottom: 1.75rem; }
-.form-section:first-of-type { border-top: 0; padding-top: 0; }
-.form-section h2 { font-family: var(--font-sans); font-size: 1.1rem; margin: 0 0 .3rem; }
-.form-section > .stat { display: block; margin-bottom: .9rem; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-@media (max-width: 680px) { .field-row { grid-template-columns: 1fr; } }
-.notice { background: var(--bg-sunk); border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: .8rem .9rem; color: var(--ink-mute); font-size: .93rem; margin: 0; }
-
-.editor-list { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: .6rem; }
-.editor-row { display: flex; flex-direction: column; gap: .45rem; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: .7rem .8rem; background: var(--bg); }
-.editor-row.is-removed { opacity: .5; }
-.editor-row.is-removed .editor-row-name { text-decoration: line-through; }
-.editor-row input, .editor-row textarea, .editor-row select {
-  font: inherit; color: var(--ink); background: var(--bg-elev); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: .5rem .65rem; width: 100%;
-}
-.editor-row textarea { resize: vertical; }
-.editor-row-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-.editor-row-name { flex: 1; min-width: 8rem; word-break: break-word; font-size: .95rem; }
-.row-actions { display: flex; gap: .25rem; margin-left: auto; }
-.link-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
-.link-row input { flex: 1; min-width: 12rem; }
-.link-row select { width: auto; }
-.step-num { font-weight: 600; font-size: .95rem; }
-.step-image { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: var(--ink-mute); }
-.step-image select { width: auto; }
-
-.kind-chip { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; padding: .15rem .45rem; border-radius: 999px; background: var(--bg-sunk); border: 1px solid var(--line-soft); color: var(--ink-mute); }
-.kind-image { color: #0f7b6c; } .kind-model { color: #3b5bdb; } .kind-doc { color: #8a6d1f; }
-.kind-new { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
-
 /* --- design page gallery, guide and history --- */
 .gallery { margin: 0 0 1.5rem; }
 .gallery img { width: 100%; border-radius: var(--radius); border: 1px solid var(--line); display: block; background: var(--bg-sunk); }
@@ -134,10 +108,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .file-list a { word-break: break-word; }
 
 .guide h3 { font-family: var(--font-sans); font-size: 1rem; margin: 0 0 .3rem; }
-.guide-settings { background: var(--bg-sunk); border-radius: var(--radius-sm); padding: .6rem .8rem; font-size: .93rem; }
-.guide-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 1rem 0; }
-@media (max-width: 680px) { .guide-lists { grid-template-columns: 1fr; } }
-.guide-lists ul { margin: 0; padding-left: 1.1rem; font-size: .95rem; }
 /* The guide is the main event: each step its own clearly bounded section.
    The number sits in a recessed slot well in gold, the RS way of saying
    "earned position in a sequence"; content hangs off it in one column. */
@@ -233,8 +203,10 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 }
 .search-row { display: flex; gap: .5rem; flex-wrap: wrap; }
 .search-row input {
-  flex: 1 1 10rem; min-width: 0; font: inherit; color: var(--ink); background: var(--bg);
-  border: 1px solid var(--line); border-radius: 999px; padding: .5rem .9rem;
+  flex: 1 1 10rem; min-width: 0; font: inherit; color: var(--ink);
+  background: var(--rs-well); border-radius: 2px; padding: .5rem .9rem;
+  border: 2px solid; border-color: var(--rs-dark) var(--rs-lite) var(--rs-lite) var(--rs-dark);
+  box-shadow: var(--rs-step-in);
 }
 .search-row .btn { flex: none; }
 .results-row {
@@ -294,15 +266,12 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .part-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
 .part-head strong { font-size: 1rem; }
 .tag.behind { background: color-mix(in oklab, var(--warn) 15%, transparent); color: var(--warn); border-color: transparent; }
-.part-search { margin-top: 1rem; }
-.part-results { list-style: none; margin: .5rem 0 0; padding: 0; }
-.part-results li { padding: .35rem 0; border-top: 1px solid var(--line-soft); }
 
 /* --- XP: declaration picker, skill panel, creators, chips --- */
 .cat-picker { display: flex; flex-wrap: wrap; gap: .5rem; }
 .cat-chip { display: inline-flex; align-items: center; gap: .35rem; }
 .cat-toggle {
-  font: inherit; cursor: pointer; padding: .4rem .7rem; border-radius: 999px;
+  font: inherit; cursor: pointer; padding: .4rem .7rem; border-radius: 2px;
   border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink-soft);
 }
 .cat-chip.on .cat-toggle { background: var(--brand-soft); color: var(--brand); border-color: color-mix(in oklab, var(--brand) 40%, var(--line)); font-weight: 600; }
@@ -312,12 +281,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 /* The number is gold (earned); the label stays quiet. Teal is for links. */
 .roboxp { font-weight: 600; }
 .badge-row { display: inline-flex; gap: .35rem; margin-top: .35rem; flex-wrap: wrap; }
-.innov-aura {
-  margin-bottom: .9rem; padding: .55rem .8rem; border-radius: var(--radius);
-  background: color-mix(in oklab, var(--warn) 12%, transparent);
-  border: 1px solid color-mix(in oklab, var(--warn) 30%, transparent);
-  font-size: .92rem;
-}
 .skill-detail {
   margin-top: .6rem; padding: .5rem .7rem; font-size: .9rem;
   border-left: 3px solid var(--cat, var(--line)); background: var(--bg-sunk);
@@ -336,9 +299,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   transition: width .4s ease;
 }
 .xp-bar-fill.is-maxed { background: var(--cat, var(--ok)); }
-.skill-panel.has-aura { border: 1px solid color-mix(in oklab, #C9A648 45%, var(--line)); }
-.innov-tier { margin: .8rem 0 0; color: #C9A648; font-weight: 600; font-size: .92rem; text-decoration: none; display: inline-block; }
-.innov-tier.on { text-decoration: underline; }
 
 .profile-id { display: flex; align-items: center; gap: .9rem; }
 /* The adaptive avatar (Avatar Spec): a server-rendered SVG where the wedge
@@ -368,8 +328,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   padding: .5rem .85rem; font-size: .9rem;
   box-shadow: var(--rs-step-out);
 }
-
-.cat-tag { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
 .need-tag { background: color-mix(in oklab, var(--ok) 14%, transparent); color: var(--ok); border-color: transparent; }
 .vote-down.on { color: var(--warn); }
 
@@ -419,6 +377,13 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .creator-who a { font-weight: 600; }
 .creator-who small { display: block; color: var(--ink-mute); }
 .creator-nums { text-align: right; color: var(--ink-soft); font-size: .92rem; white-space: nowrap; }
+/* Narrow screens: the nowrap numbers were crushing the name column, wrapping
+   even short names. Stack the numbers under the name instead. */
+@media (max-width: 640px) {
+  .creator-list li { grid-template-columns: 2rem 28px minmax(0, 1fr); row-gap: .1rem; }
+  .creator-who { min-width: 0; }
+  .creator-nums { grid-column: 3; text-align: left; }
+}
 
 /* --- downvote accountability: the why-box and reason cards --- */
 .why-box { margin-bottom: 1.5rem; display: grid; gap: .6rem; }
@@ -444,7 +409,7 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 /* --- the three-stage wizard --- */
 .wizard-stages { list-style: none; display: flex; gap: .5rem; margin: 0 0 1.5rem; padding: 0; flex-wrap: wrap; }
 .wizard-stages button {
-  font: inherit; cursor: pointer; padding: .45rem .9rem; border-radius: 999px;
+  font: inherit; cursor: pointer; padding: .45rem .9rem; border-radius: 2px;
   border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink-mute);
 }
 .wizard-stages .on button { background: var(--brand-soft); color: var(--brand); border-color: color-mix(in oklab, var(--brand) 40%, var(--line)); font-weight: 600; }
@@ -453,7 +418,7 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .wizard-files { display: flex; flex-wrap: wrap; gap: .4rem; margin: .3rem 0; }
 .wizard-file {
   display: inline-flex; align-items: center; gap: .35rem;
-  padding: .25rem .6rem; border-radius: 999px; font-size: .85rem;
+  padding: .25rem .6rem; border-radius: 2px; font-size: .85rem;
   background: var(--bg-sunk); border: 1px solid var(--line-soft);
 }
 .wizard-file button { border: 0; background: none; cursor: pointer; color: var(--ink-mute); font-size: 1rem; padding: 0; }
@@ -467,8 +432,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .step-files li { padding: .2rem 0; }
 .preview-steps { margin: .5rem 0 0; padding-left: 1.2rem; }
 .preview-steps li { margin-bottom: .35rem; }
-.checks .check-missing { color: var(--warn); font-weight: 600; }
-.checks .check-soft { color: var(--ink-mute); }
 
 /* --- the declaration, explained: one row per category, scope line visible --- */
 .required-mark { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--warn); vertical-align: middle; margin-left: .4rem; }
@@ -492,11 +455,11 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 }
 
 /* --- Talk: the work incubator with a comment section --- */
-.board-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.board-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
 .board-chip {
-  font: inherit; font-size: .88rem; cursor: pointer;
-  display: inline-flex; align-items: center; gap: .35rem;
-  padding: .35rem .75rem; border-radius: 999px;
+  font: inherit; font-size: .8rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .25rem .6rem; border-radius: 2px;
   border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink-mute);
 }
 .board-chip.on {
@@ -505,11 +468,24 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
   background: color-mix(in oklab, var(--cat, var(--brand)) 12%, var(--bg-elev));
 }
 .board-count {
-  font-size: .72rem; font-weight: 700; padding: 0 .4rem; border-radius: 999px;
+  font-size: .72rem; font-weight: 700; padding: 0 .4rem; border-radius: 2px;
   background: color-mix(in oklab, var(--cat, var(--brand)) 20%, transparent);
 }
-.talk-filters { gap: .5rem; margin-bottom: 1rem; }
-.talk-filters select { padding: .35rem .5rem; }
+.talk-filters { gap: .5rem; margin-bottom: .75rem; }
+.talk-filters select { padding: .3rem .45rem; font-size: .84rem; }
+/* The threads are the page: on phones the boards become one swipeable rail
+   and the selects share a single compact row, so the list starts high. */
+@media (max-width: 640px) {
+  .board-row {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    margin-bottom: .6rem; padding-bottom: .25rem;
+    scrollbar-width: none;
+  }
+  .board-row::-webkit-scrollbar { display: none; }
+  .board-chip { flex: none; }
+  .talk-filters { gap: .4rem; margin-bottom: .6rem; }
+  .talk-filters select { flex: 1 1 30%; min-width: 0; font-size: .85rem; }
+}
 
 .talk-list { list-style: none; margin: 0; padding: 0; }
 .talk-row { padding: .75rem .25rem; border-top: 1px solid var(--line-soft); }
@@ -519,10 +495,10 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 /* Thread titles are item names, not hyperlinks: ink at panel-header
    weight, no underline, gold when pointed at. */
 .talk-title {
-  font-weight: 600; font-family: var(--font-panel); font-size: 1.08rem;
-  color: var(--ink); text-decoration: none;
+  font-weight: 700; font-family: var(--font-panel); font-size: 1.28rem;
+  color: var(--rs-gold); text-decoration: none;
 }
-.talk-title:hover, .talk-title:focus-visible { color: var(--rs-gold); }
+.talk-title:hover, .talk-title:focus-visible { color: color-mix(in oklab, var(--rs-gold) 70%, white); }
 .talk-badges { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
 .talk-type { text-transform: none; }
 .talk-type-plan { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
@@ -550,7 +526,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .talk-work-card:hover h2 { color: var(--brand); }
 
 .talk-plan { margin-bottom: 1rem; }
-.talk-plan-head { display: flex; flex-wrap: wrap; gap: .6rem; align-items: baseline; margin-bottom: .4rem; }
 
 /* Threading: replies indent once; depth ≥ 2 collapses behind a click. */
 .talk-comment { position: relative; }
@@ -630,7 +605,6 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 /* --- remix lineage --- */
 .lineage-line { display: block; margin-top: .15rem; }
 .remix-note { display: block; font-style: italic; color: var(--ink-soft); font-size: .92rem; margin: .2rem 0 0; }
-.family-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .45rem; font-size: .92rem; }
 .branch-fold summary { cursor: pointer; color: var(--ink-mute); font-size: .82rem; padding: .15rem 0; user-select: none; }
 .branch-fold summary:hover { color: var(--brand); }
 .design-card .remix-note { margin: 0 0 .5rem; }
@@ -1079,16 +1053,3 @@ a.notif-snippet:hover, a.cf-quote:hover { color: var(--ink); text-decoration: un
   box-shadow: var(--rs-step-in);
 }
 
-/* The wizard's RS progress fraction, top-right of the stage row. */
-.wizard-head { display: flex; align-items: center; gap: 1rem; }
-.wizard-head .wizard-stages { flex: 1; margin-bottom: 0; }
-.wizard-frac { font-size: 1rem; white-space: nowrap; }
-
-@media (max-width: 640px) {
-  .rs-slot { width: 40px; height: 40px; }
-  .rs-item-img { width: 36px; height: 36px; }
-  .rs-inv, .rs-inv-bank { grid-template-columns: repeat(4, 56px); }
-  .rs-inv .rs-slot { width: 56px; height: 56px; }
-  .rs-inv .rs-item-img { width: 50px; height: 50px; }
-  .rs-inv-panel { width: auto; }
-}

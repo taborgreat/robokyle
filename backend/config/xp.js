@@ -105,8 +105,12 @@ module.exports = {
      the challenge window closing clean. Failure reports are first-class: E5
      fires for a documented failure, E6 never does. */
   produced: {
-    minAgeHours: 72,             // poster gate: account age…
-    minXp: 100,                  //   …or total XP, whichever passes first
+    /* Poster gate, currently OPEN (0/0): posting a build should be the first
+       thing a new maker can do — the guide promises it. The 48h challenge
+       window before an entry verifies and pays is the real spam defense.
+       Raise these if fake-build spam ever appears. */
+    minAgeHours: 0,              // poster gate: account age…
+    minXp: 0,                    //   …or total XP, whichever passes first
     challengeWindowHours: 48,    // entries verify after this, unless challenged
     challengeMinLevel: 10,       // level (entry's category) needed to challenge
     perDay: 5,                   // E5 entries past this per poster per UTC day earn 0 (F2)
