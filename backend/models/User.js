@@ -33,7 +33,17 @@ const userSchema = new mongoose.Schema({
   verifyTokenExpires: Date,
   verifySentAt: Date,
   bio: { type: String, trim: true, maxlength: 600, default: '' },
+  /* Delta B: equipment the member owns, from the curated vocabulary. Private:
+     never serialized to other viewers; works derive a buildable-by-you flag. */
+  equipment: { type: [String], default: [] },
+  /* Cached XP totals: { cats: {mech: n, ...}, workXp, socialXp, updatedAt }.
+     A pure cache — lib/xp.js recomputes it from the works themselves. */
+  xp: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  /* Granular capabilities on top of `role` — currently just 'mod'. Powers are
+     expressed as capability checks in lib/permissions.js, never as role
+     checks in routes, so governance evolves without schema churn. */
+  roles: { type: [String], default: [] },
 }, { timestamps: true });
 
 userSchema.pre('validate', function (next) {
@@ -126,25 +136,21 @@ userSchema.statics.availableUsername = async function (seed) {
 };
 
 userSchema.methods.toPublic = function () {
+  const { levelsOf, chipFor } = require('../lib/xp');
   return {
+    levels: levelsOf(this).levels,
+    totalLevel: levelsOf(this).totalLevel,
+    chip: chipFor(this),
     id: this._id,
     username: this.username,
     bio: this.bio || '',
     role: this.role,
+    roles: this.roles || [],
     emailVerified: this.emailVerified,
     hasPassword: !!this.passwordHash,
     google: !!this.googleId,
     createdAt: this.createdAt,
   };
-};
-
-/* Rows written before usernameLower existed get it filled in at boot. */
-userSchema.statics.backfillUsernameLower = async function () {
-  const stale = await this.find({ usernameLower: { $exists: false } }).select('username');
-  for (const u of stale) {
-    await this.updateOne({ _id: u._id }, { $set: { usernameLower: u.username.toLowerCase() } });
-  }
-  return stale.length;
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -19,6 +19,10 @@ export const setToken = (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : 
 
 export function fileUrl(path) { return BASE + path; }
 
+/* The adaptive avatar: the ring IS the stat sheet, rendered server-side and
+   cached hard. One URL per member; the bytes change only when a level does. */
+export const avatarUrl = (username) => `${BASE}/api/users/${encodeURIComponent(username)}/avatar.svg`;
+
 export async function api(path, { method = 'GET', body, form } = {}) {
   const headers = {};
   const token = getToken();

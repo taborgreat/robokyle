@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation, useNavigationType } from 'react-router-dom';
 import '../../public/index.css';
 import './app.css';
 import { AuthProvider } from './lib/auth.jsx';
@@ -8,11 +9,28 @@ import Layout from './Layout.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Designs from './pages/Designs.jsx';
-import DesignNew from './pages/DesignNew.jsx';
 import DesignView from './pages/DesignView.jsx';
-import DesignEdit from './pages/DesignEdit.jsx';
 import Verify from './pages/Verify.jsx';
 import Profile from './pages/Profile.jsx';
+import WorkTree from './pages/WorkTree.jsx';
+import Creators from './pages/Creators.jsx';
+import WorkWizard from './pages/WorkWizard.jsx';
+import Talk from './pages/Talk.jsx';
+import TalkForm from './pages/TalkForm.jsx';
+import TalkPostView from './pages/TalkPostView.jsx';
+import PortHub from './pages/PortHub.jsx';
+
+/* The router keeps scroll across navigations, so clicking through from a
+   scrolled list would land mid-page. New navigations start at the top; the
+   back button (POP) keeps its position, the way browsers are supposed to. */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  const navType = useNavigationType();
+  useEffect(() => {
+    if (navType !== 'POP') window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 // Old /designs/:id links land on the same work at its new path.
 function LegacyDesignLink() {
@@ -26,16 +44,23 @@ createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <BrowserRouter>
+      <ScrollToTop />
         <Routes>
           <Route element={<Layout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/verify" element={<Verify />} />
             <Route path="/user/:username" element={<Profile />} />
+            <Route path="/creators" element={<Creators />} />
             <Route path="/works" element={<Designs />} />
-            <Route path="/works/new" element={<DesignNew />} />
+            <Route path="/works/new" element={<WorkWizard />} />
             <Route path="/works/:id" element={<DesignView />} />
-            <Route path="/works/:id/edit" element={<DesignEdit />} />
+            <Route path="/works/:id/tree" element={<WorkTree />} />
+            <Route path="/works/:id/hub" element={<PortHub />} />
+            <Route path="/works/:id/edit" element={<WorkWizard />} />
+            <Route path="/talk" element={<Talk />} />
+            <Route path="/talk/new" element={<TalkForm />} />
+            <Route path="/talk/:id" element={<TalkPostView />} />
             {/* The section used to live at /designs; keep those links working. */}
             <Route path="/designs" element={<Navigate to="/works" replace />} />
             <Route path="/designs/:id" element={<LegacyDesignLink />} />

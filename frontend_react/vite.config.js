@@ -3,10 +3,12 @@ import react from '@vitejs/plugin-react';
 import { existsSync, createReadStream, statSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
 
-// The React app builds straight into the repo root (next to the flat HTML pages).
-// Its shell is emitted as app.html so it never clobbers index.html; postbuild.mjs
-// copies that shell to 404.html so GitHub Pages serves clean URLs like /login.
-const APP_ROUTES = ['/login', '/register', '/verify', '/user', '/works', '/designs'];
+// The app builds into dist/ and postbuild.mjs copies the result to the repo root,
+// next to the flat HTML pages. Building straight into the root would mean Vite's
+// output directory contained its own sources, which it rightly warns about.
+// The shell is emitted as app.html so it never clobbers index.html, and is copied
+// to 404.html so GitHub Pages serves clean URLs like /login.
+const APP_ROUTES = ['/login', '/register', '/verify', '/user', '/works', '/designs', '/creators', '/talk'];
 
 export default defineConfig({
   plugins: [
@@ -32,8 +34,8 @@ export default defineConfig({
     },
   ],
   build: {
-    outDir: '..',
-    emptyOutDir: false,
+    outDir: 'dist',
+    emptyOutDir: true,
     assetsDir: 'public/assets/react',
     rollupOptions: {
       input: 'app.html',

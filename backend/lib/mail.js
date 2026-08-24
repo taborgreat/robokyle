@@ -74,4 +74,4 @@ async function sendVerification(user, token) {
   }
 }
 
-module.exports = { enabled, sendVerification, verifyUrl, SITE_URL };
+module.exports = { enabled, sendVerification };

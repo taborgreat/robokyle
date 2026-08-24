@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { api } from './lib/api.js';
 import { useAuth } from './lib/auth.jsx';
@@ -34,6 +34,39 @@ function VerifyBanner() {
 }
 
 // Mirrors the "site nav" block in the flat HTML pages so the React pages look identical.
+/* §7.1: the level-up moment is a single small toast, "Mechanical 23 to 24",
+   that dismisses itself. The permanent record is the profile ledger, not the
+   animation. Levels come from /auth/me; the last-seen set lives in the browser. */
+function LevelToasts({ user }) {
+  const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    if (!user || !user.levels) return;
+    const key = `rk_levels_${user.id}`;
+    let seen = {};
+    try { seen = JSON.parse(localStorage.getItem(key)) || {}; } catch {}
+    const risen = Object.entries(user.levels)
+      .filter(([id, lvl]) => lvl > (seen[id] ?? 0) && Object.keys(seen).length > 0)
+      .map(([id, lvl]) => ({ id, from: seen[id] ?? 0, to: lvl }));
+    try { localStorage.setItem(key, JSON.stringify(user.levels)); } catch {}
+    if (!risen.length) return;
+    setToasts(risen);
+    const t = setTimeout(() => setToasts([]), 5000);
+    return () => clearTimeout(t);
+  }, [user]);
+
+  if (!toasts.length) return null;
+  return (
+    <div className="level-toasts" role="status">
+      {toasts.map(t => (
+        <div key={t.id} className="level-toast">
+          {t.id.charAt(0).toUpperCase() + t.id.slice(1)} level {t.from} to {t.to}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Layout() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -52,15 +85,18 @@ export default function Layout() {
             <span className="nav-toggle-text">Menu</span>
           </button>
           <ul id="site-menu" className={'nav-links' + (open ? ' is-open' : '')}>
-            <li><NavLink className="nav-strong" to="/works">Works</NavLink></li>
             <li><a href="/about.html">About</a></li>
+            <li><NavLink className="nav-strong" to="/works">Works</NavLink></li>
+            <li><NavLink to="/creators">Creators</NavLink></li>
+            <li><NavLink to="/talk">Talk</NavLink></li>
             {/* One slot either way, so the nav does not change shape when you sign in. */}
             {user
-              ? <li><NavLink to={`/user/${user.username}`}>{user.username}</NavLink></li>
+              ? <li><NavLink to={`/user/${user.username}`}>Profile</NavLink></li>
               : <li><NavLink to="/login">Log in</NavLink></li>}
           </ul>
         </nav>
       </header>
+      <LevelToasts user={user} />
       <main id="main" className="app-main">
         <div className="wrap"><VerifyBanner /><Outlet /></div>
       </main>
@@ -80,6 +116,8 @@ export default function Layout() {
               <h4>Site</h4>
               <ul>
                 <li><Link to="/works">Works</Link></li>
+                <li><Link to="/talk">Talk</Link></li>
+                <li><Link to="/creators">Creators</Link></li>
                 <li><a href="/about.html">About</a></li>
                 <li><a href="/public/game/game.html">Game</a></li>
               </ul>

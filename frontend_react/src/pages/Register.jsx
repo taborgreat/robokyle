@@ -9,6 +9,7 @@ export default function Register() {
   const config = useConfig();
   const nav = useNavigate();
   const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [suggestion, setSuggestion] = useState('');
   const [busy, setBusy] = useState(false);
@@ -16,7 +17,9 @@ export default function Register() {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   async function submit(e) {
-    e.preventDefault(); setBusy(true); setError('');
+    e.preventDefault();
+    if (form.password !== confirm) { setError('The passwords do not match.'); return; }
+    setBusy(true); setError('');
     try {
       const res = await register(form);
       // Nothing to confirm when verification is off: straight into the works.
@@ -79,7 +82,16 @@ export default function Register() {
         <input id="p" type="password" required minLength={8} autoComplete="new-password"
                value={form.password} onChange={set('password')} />
         <small>At least 8 characters.</small></div>
-      <button className="btn btn-primary" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
+      <div className="field"><label htmlFor="p2">Confirm password</label>
+        <input id="p2" type="password" required autoComplete="new-password"
+               value={confirm} onChange={e => setConfirm(e.target.value)}
+               aria-invalid={confirm.length > 0 && confirm !== form.password} />
+        {confirm.length > 0 && confirm !== form.password
+          ? <small className="field-mismatch">These do not match yet.</small>
+          : confirm.length > 0 && <small className="field-match">They match.</small>}</div>
+      <button className="btn btn-primary" disabled={busy || (confirm.length > 0 && confirm !== form.password)}>
+        {busy ? 'Creating…' : 'Create account'}
+      </button>
       <p className="form-foot">Already have one? <Link to="/login">Log in</Link></p>
     </form>
   );

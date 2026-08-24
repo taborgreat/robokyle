@@ -5,15 +5,21 @@ const cors = require('cors');
 const path = require('path');
 
 const Design = require('./models/Design');
-const User = require('./models/User');
+const Comment = require('./models/Comment');
 const { ALLOWED_EXT } = require('./lib/files');
 const mail = require('./lib/mail');
-const { purgeUnverified } = require('./lib/cleanup');
-const { PURGE_INTERVAL_MINUTES } = require('./lib/limits');
+const { purgeUnverified, purgeExpiredDrafts, archiveIdleTalk,
+        refreshProducedStates, applyRipeDocRevisions, checkDeploymentLinks } = require('./lib/cleanup');
+const { detectRings } = require('./lib/rings');
+const xp = require('./lib/xp');
+const { PURGE_INTERVAL_MINUTES, BLOB_SWEEP_HOURS, BLOB_GRACE_MINUTES } = require('./lib/limits');
 const { VERIFY_REQUIRED } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const designRoutes = require('./routes/designs');
 const userRoutes = require('./routes/users');
+const draftRoutes = require('./routes/drafts');
+const talkRoutes = require('./routes/talk');
+const producedRoutes = require('./routes/produced');
 
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/robokyle';
@@ -42,10 +48,24 @@ app.get('/api/config', (req, res) => res.json({
   googleClientId: process.env.GOOGLE_CLIENT_ID || null,
   emailVerificationRequired: VERIFY_REQUIRED,
   mailEnabled: mail.enabled,
+  xp: {
+    categories: xp.config.categories,
+    declaration: xp.config.declaration,
+    levelCap: xp.config.levelCurve.cap,
+    needVocabulary: xp.config.needVocabulary,
+    introBioMinChars: xp.config.intro.bioMinChars,
+    equipmentItems: xp.config.equipmentItems,
+    materialItems: xp.config.materialItems,
+    materialUnits: xp.config.materialUnits,
+    softwareFacets: xp.config.softwareFacets,
+  },
 }));
 app.use('/api/auth', authRoutes);
 app.use('/api/designs', designRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/drafts', draftRoutes);
+app.use('/api/talk', talkRoutes);
+app.use('/api/designs/:designId/produced', producedRoutes);
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
@@ -61,7 +81,7 @@ if (process.env.SERVE_SITE !== 'false') {
   const SITE_ROOT = path.join(__dirname, '..');
   const APP_SHELL = path.join(SITE_ROOT, 'app.html');
   // Client-side routes: these have no file of their own, the app reads the URL.
-  const APP_ROUTES = ['/works', '/login', '/register', '/verify', '/user'];
+  const APP_ROUTES = ['/works', '/login', '/register', '/verify', '/user', '/creators', '/talk'];
   const PAGES = /^\/(?:|index\.html|about\.html|app\.html|404\.html)$/;
 
   const files = express.static(SITE_ROOT, { index: 'index.html', dotfiles: 'ignore' });
@@ -85,25 +105,52 @@ app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
+  // A deliberate 4xx is the caller's problem, answered and done; only real
+  // server faults deserve a stack in the log.
+  if (err.status && err.status < 500) {
+    return res.status(err.status).json({ error: err.message });
+  }
   console.error(err);
   res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
 mongoose.connect(MONGO_URI)
   .then(async () => {
-    const named = await User.backfillUsernameLower();
-    if (named) console.log(`Backfilled case-insensitive names on ${named} account(s)`);
-    // Only after every row has the field can the unique index over it build;
-    // attempted earlier it fails on the rows that are still missing it.
-    await User.syncIndexes();
 
-    const patched = await Design.backfillFileKinds();
-    if (patched) console.log(`Backfilled file kinds on ${patched} design(s)`);
+    // One-time: comments used to live embedded on designs. No-op once done.
+    await Comment.migrateEmbedded().catch(err => console.error('[migrate]', err.message));
 
     // Sweep abandoned sign-ups now and then keep sweeping while we are up.
-    const sweep = () => purgeUnverified().catch(err => console.error('[cleanup]', err.message));
+    // The same cycle keeps Produced states warm (the 48h window crosses on the
+    // clock), applies community-ripe doc revisions, and re-pings deployments.
+    const sweep = () => Promise.all([
+      purgeUnverified(), purgeExpiredDrafts(), archiveIdleTalk(),
+      refreshProducedStates(), applyRipeDocRevisions(), checkDeploymentLinks(),
+    ]).catch(err => console.error('[cleanup]', err.message));
     sweep();
     setInterval(sweep, PURGE_INTERVAL_MINUTES * 60 * 1000).unref();
+
+    // Reclaim stored files that no work or version references any more.
+    const sweepBlobs = () => Design.sweepOrphanBlobs({ minAgeMinutes: BLOB_GRACE_MINUTES })
+      .then(r => {
+        if (r.removed || r.temp) console.log(`[blobs] reclaimed ${r.removed} file(s), ${(r.bytes / 1e6).toFixed(1)} MB, ${r.temp} temp`);
+        if (r.missing.length) console.warn(`[blobs] ${r.missing.length} referenced file(s) missing from the store`);
+      })
+      .catch(err => console.error('[blobs]', err.message));
+    sweepBlobs();
+    setInterval(sweepBlobs, BLOB_SWEEP_HOURS * 3600 * 1000).unref();
+
+    // XP is a recompute over the works themselves; the incremental refreshes
+    // in the routes keep it fresh, and this nightly pass self-heals anything
+    // they missed.
+    // The nightly pass: full self-healing recompute, then ring detection
+    // (§8.3) over the fresh graph.
+    const recomputeXp = () => xp.recomputeAll()
+      .then(n => console.log(`[xp] recomputed ${n} account(s)`))
+      .then(() => detectRings())
+      .catch(err => console.error('[xp]', err.message));
+    recomputeXp();
+    setInterval(recomputeXp, 24 * 3600 * 1000).unref();
     app.listen(PORT, () => console.log(`API listening on http://localhost:${PORT}`));
   })
   .catch(err => {

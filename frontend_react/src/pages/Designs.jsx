@@ -15,6 +15,8 @@ export default function Designs() {
   const q = params.get('q') || '';
   const tag = params.get('tag') || '';
   const sort = params.get('sort') || 'new';
+  const buildable = params.get('buildable') === '1';
+  const facet = params.get('facet') || '';
   const page = Number(params.get('page') || 1);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -27,12 +29,15 @@ export default function Designs() {
     const query = new URLSearchParams({ sort, page });
     if (q) query.set('q', q);
     if (tag) query.set('tag', tag);
+    if (buildable) query.set('buildable', '1');
+    if (facet) query.set('facet', facet);
     api(`/designs?${query}`).then(setData).catch(e => setError(e.message));
-  }, [q, tag, sort, page]);
+  }, [q, tag, sort, page, buildable, facet]);
 
   // Every control rewrites the URL, so filters survive a refresh and can be shared.
   const update = (patch) => {
-    const next = { sort, page: 1, ...(q ? { q } : {}), ...(tag ? { tag } : {}), ...patch };
+    const next = { sort, page: 1, ...(q ? { q } : {}), ...(tag ? { tag } : {}),
+      ...(buildable ? { buildable: '1' } : {}), ...(facet ? { facet } : {}), ...patch };
     for (const k of Object.keys(next)) if (!next[k]) delete next[k];
     setParams(next);
   };
@@ -44,7 +49,7 @@ export default function Designs() {
       <div className="app-head">
         <div>
           <h1>Works</h1>
-          <p className="stat">Files, photos and a build guide for each one. Free to download and change.</p>
+          <p className="stat">Files, photos and a build guide for each one. Free to download and change. <Link to="/creators">Creators &rarr;</Link></p>
         </div>
         <Link className="btn btn-primary" to={user ? '/works/new' : '/login'} state={{ from: '/works/new' }}>
           Add a work <span className="arrow" aria-hidden="true">&rarr;</span>
@@ -61,6 +66,18 @@ export default function Designs() {
             <button className="btn btn-ghost btn-sm" type="submit">Search</button>
           </div>
         </form>
+
+        {user && (
+          <fieldset className="filter-group">
+            <legend>Show</legend>
+            <div className="options">
+              <label>
+                <input type="checkbox" checked={buildable} onChange={() => update({ buildable: buildable ? '' : '1' })} />
+                <span className="filter-pill">Buildable with my equipment</span>
+              </label>
+            </div>
+          </fieldset>
+        )}
 
         <fieldset className="filter-group">
           <legend>Sort</legend>
@@ -116,9 +133,12 @@ export default function Designs() {
               <h3>{d.title}</h3>
               <p>{d.description.length > 140 ? d.description.slice(0, 140) + '…' : d.description}</p>
               <div className="meta">
+                {d.depth > 0 && <span className="tag">revision</span>}
+                {user && d.buildable === false && <span className="tag miss-tag" title={`Missing: ${(d.missingEquipment || []).join(', ')}`}>missing {(d.missingEquipment || []).length} tool{(d.missingEquipment || []).length === 1 ? '' : 's'}</span>}
+                {user && d.buildable === true && (d.fileCount > 0 || d.guideSteps > 0) && <span className="tag ok-tag">buildable</span>}
                 {d.tags.slice(0, 3).map(t => <span key={t} className="tag">{t}</span>)}
                 <span className="stat">
-                  <strong>&#9650; {d.upvoteCount}</strong> · {d.downloadCount} downloads · {d.commentCount} comments · v{d.version} · by {d.author.username}
+                  <strong>&#9650; {d.upvoteCount}</strong>{d.producedCount > 0 && <> · <span className="tag endorsed-tag" title="Verified real-world results">produced {d.producedCount}×</span></>} · {d.downloadCount} downloads · {d.commentCount} comments · v{d.version} · by {d.author.username}
                   {d.fileCount > 0 && <> · {d.fileCount} file{d.fileCount > 1 ? 's' : ''}</>}
                   {d.linkCount > 0 && <> · {d.linkCount} link{d.linkCount > 1 ? 's' : ''}</>}
                   {d.guideSteps > 0 && <> · guide</>}

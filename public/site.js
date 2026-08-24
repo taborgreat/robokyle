@@ -354,7 +354,7 @@
   function showSignedIn(item, user) {
     var link = document.createElement("a");
     link.href = "/user/" + encodeURIComponent(user.username);
-    link.textContent = user.username;
+    link.textContent = "Profile";
     item.replaceChildren(link);
   }
 

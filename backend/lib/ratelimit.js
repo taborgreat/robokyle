@@ -7,14 +7,16 @@
  */
 const buckets = new Map();
 
-function rateLimit({ windowMs, max, message = 'Too many attempts. Try again shortly.' }) {
+/* `key` groups routes into one bucket ("talk-write") so posting across many
+   threads cannot dodge the limit; without it each path limits on its own. */
+function rateLimit({ windowMs, max, message = 'Too many attempts. Try again shortly.', key = null }) {
   return function (req, res, next) {
     const now = Date.now();
-    const key = `${req.ip}:${req.baseUrl}${req.path}`;
-    const hit = buckets.get(key);
+    const bucketKey = `${req.ip}:${key || req.baseUrl + req.path}`;
+    const hit = buckets.get(bucketKey);
 
     if (!hit || now > hit.resetAt) {
-      buckets.set(key, { count: 1, resetAt: now + windowMs });
+      buckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
       return next();
     }
     if (hit.count >= max) {
