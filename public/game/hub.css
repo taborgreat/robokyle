@@ -1,0 +1,316 @@
+/* ============================================================
+   RoboKyle Arcade — hub / game index stylesheet
+   Self-contained: this page does not load index.css, so the
+   shared bits (palette, skip link, focus ring) are repeated
+   here on purpose. Palette matches the games' dark shell.
+   ============================================================ */
+
+:root {
+    --gm-bg:        #07060A;
+    --gm-panel:     #14100F;
+    --gm-panel-2:   #1E1715;
+    --gm-line:      #37211C;
+    --gm-line-soft: #241614;
+    --gm-ink:       #F1E4D2;
+    --gm-ink-soft:  #BFA898;
+    --gm-ink-mute:  #7C6459;
+    --gm-orange:    #E3552B;
+    --gm-orange-hot:#FF7A3D;
+    --gm-teal:      #6FBFCB;
+    --gm-red:       #B4231C;
+    --gm-blood:     #8E0F14;
+    --gm-green:     #7BC59A;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body.hub-body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--gm-bg);
+    color: var(--gm-ink);
+    font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Hell-glow behind the page, same trick the games use. */
+body.hub-body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(70% 50% at 50% 110%, rgba(180,35,28,.28) 0%, transparent 65%),
+        radial-gradient(50% 40% at 15% -10%, rgba(227,85,43,.14) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 12px;
+    z-index: 100;
+    background: var(--gm-ink);
+    color: var(--gm-bg);
+    padding: .6rem .9rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+}
+.skip-link:focus { top: 12px; }
+
+.hub-body :focus-visible {
+    outline: 3px solid var(--gm-orange);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.hub-shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 2.5rem) 3rem;
+}
+
+/* ---------- Masthead ---------- */
+.hub-head {
+    text-align: center;
+    margin-bottom: clamp(2.5rem, 6vw, 4rem);
+}
+
+.hub-logo {
+    font-family: 'Black Ops One', 'Fraunces', Impact, sans-serif;
+    font-size: clamp(2.4rem, 7.5vw, 5rem);
+    line-height: .9;
+    letter-spacing: .01em;
+    margin: 0 0 .35em;
+    text-transform: uppercase;
+    display: inline-flex;
+    gap: .12em;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.5));
+}
+.hub-logo .robo {
+    color: #F4EADA;
+    -webkit-text-stroke: 2px #000;
+    text-shadow: 0 3px 0 #000, 0 0 24px rgba(255,255,255,.18);
+    transform: skew(-6deg);
+}
+.hub-logo .kyle {
+    color: var(--gm-orange);
+    -webkit-text-stroke: 2px #000;
+    text-shadow:
+        0 3px 0 #000,
+        0 0 26px rgba(227,85,43,.6),
+        0 0 60px rgba(180,35,28,.4);
+    transform: skew(-6deg);
+    animation: emberFlicker 3.5s ease-in-out infinite;
+}
+@keyframes emberFlicker {
+    0%, 100% { filter: brightness(1); }
+    45%      { filter: brightness(1.14); }
+    55%      { filter: brightness(.94); }
+}
+
+.hub-kicker {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    color: var(--gm-ink-soft);
+    letter-spacing: .3em;
+    font-size: .82rem;
+    text-transform: uppercase;
+    margin: 0 0 1.1rem;
+    position: relative;
+    display: inline-block;
+}
+.hub-kicker::before,
+.hub-kicker::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: clamp(20px, 8vw, 70px);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gm-orange));
+}
+.hub-kicker::before { right: calc(100% + 14px); }
+.hub-kicker::after  { left: calc(100% + 14px); transform: scaleX(-1); }
+
+.hub-blurb {
+    color: var(--gm-ink-soft);
+    max-width: 54ch;
+    margin: 0 auto;
+    font-size: clamp(.95rem, 2vw, 1.05rem);
+    line-height: 1.65;
+}
+
+/* ---------- Card grid ---------- */
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: clamp(1.1rem, 2.5vw, 1.8rem);
+    align-items: stretch;
+}
+
+.game-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, var(--gm-panel-2), var(--gm-panel));
+    border: 1px solid var(--gm-line);
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+/* Only real, playable cards lift on hover. */
+a.game-card:hover,
+a.game-card:focus-visible {
+    transform: translateY(-4px);
+    border-color: var(--gm-orange);
+    box-shadow:
+        0 14px 34px rgba(0,0,0,.55),
+        0 0 0 1px rgba(227,85,43,.35),
+        0 0 44px rgba(180,35,28,.22);
+}
+
+.card-art {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #0C0A0E;
+    border-bottom: 1px solid var(--gm-line-soft);
+}
+
+.card-body {
+    padding: 1.15rem 1.25rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: .55rem;
+}
+
+.card-title {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: 1.32rem;
+    line-height: 1.15;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+.card-title .sub {
+    display: block;
+    color: var(--gm-orange);
+    font-size: .82em;
+    margin-top: .18em;
+    text-shadow: 0 0 18px rgba(227,85,43,.45);
+}
+
+.card-desc {
+    color: var(--gm-ink-soft);
+    font-size: .93rem;
+    line-height: 1.6;
+    margin: 0;
+    flex: 1;
+}
+
+.card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-top: .2rem;
+}
+.tag {
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--gm-ink-mute);
+    border: 1px solid var(--gm-line);
+    border-radius: 999px;
+    padding: .25rem .6rem;
+    white-space: nowrap;
+}
+
+.card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    align-self: flex-start;
+    margin-top: .7rem;
+    font-family: 'Black Ops One', Impact, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: .92rem;
+    color: var(--gm-bg);
+    background: var(--gm-orange);
+    border-radius: 8px;
+    padding: .6rem 1.1rem;
+    transition: background .18s ease, transform .18s ease;
+}
+a.game-card:hover .card-cta { background: var(--gm-orange-hot); }
+.card-cta .arrow { transition: transform .18s ease; }
+a.game-card:hover .card-cta .arrow { transform: translateX(3px); }
+
+/* Status ribbon, top-right of the art. */
+.card-flag {
+    position: absolute;
+    top: .8rem;
+    right: .8rem;
+    z-index: 2;
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: .3rem .6rem;
+    border-radius: 999px;
+    backdrop-filter: blur(4px);
+}
+.card-flag.is-live {
+    color: var(--gm-green);
+    background: rgba(18,40,28,.72);
+    border: 1px solid rgba(123,197,154,.45);
+}
+.card-flag.is-soon {
+    color: var(--gm-ink-mute);
+    background: rgba(28,20,18,.72);
+    border: 1px solid var(--gm-line);
+}
+
+/* ---------- Placeholder card for an unreleased game ---------- */
+.game-card.is-placeholder {
+    border-style: dashed;
+    border-color: var(--gm-line-soft);
+    background: linear-gradient(180deg, rgba(30,23,21,.5), rgba(20,16,15,.5));
+}
+.game-card.is-placeholder .card-title,
+.game-card.is-placeholder .card-desc { color: var(--gm-ink-mute); }
+.game-card.is-placeholder .card-title .sub { color: var(--gm-ink-mute); text-shadow: none; }
+.game-card.is-placeholder .card-art { opacity: .5; }
+
+/* ---------- Footer nav ---------- */
+.back-strip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(1rem, 4vw, 2.2rem);
+    margin-top: clamp(2.5rem, 6vw, 4rem);
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--gm-line-soft);
+}
+.back-strip a {
+    color: var(--gm-ink-soft);
+    text-decoration: none;
+    font-size: .88rem;
+    letter-spacing: .04em;
+    transition: color .15s ease;
+}
+.back-strip a:hover { color: var(--gm-orange); }
+
+@media (prefers-reduced-motion: reduce) {
+    .hub-logo .kyle { animation: none; }
+    .game-card, .card-cta, .card-cta .arrow { transition: none; }
+    a.game-card:hover, a.game-card:focus-visible { transform: none; }
+}

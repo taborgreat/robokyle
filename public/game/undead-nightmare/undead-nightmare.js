@@ -1,10 +1,28 @@
 // ============================================================
-// RoboKyle — top-down wave-survival shooter
+// RoboKyle: Undead Nightmare — top-down wave-survival shooter
 // Camera + zoom, larger world, smarter AI, minimap,
 // WebAudio-synth music + SFX (all original, no external files).
 // ============================================================
 (() => {
   'use strict';
+
+  // ==================== SAVE KEYS ====================
+  // Namespaced per game so a second RoboKyle title can keep its own best
+  // score and settings. The old shared 'rk_*' keys are migrated once so
+  // nobody who played before the rename loses their high score.
+  const KEY_BEST     = 'rk_un_best';
+  const KEY_SETTINGS = 'rk_un_settings';
+  (function migrateLegacyKeys() {
+    try {
+      const pairs = [['rk_best', KEY_BEST], ['rk_settings', KEY_SETTINGS]];
+      for (const [oldKey, newKey] of pairs) {
+        const legacy = localStorage.getItem(oldKey);
+        if (legacy !== null && localStorage.getItem(newKey) === null) {
+          localStorage.setItem(newKey, legacy);
+        }
+      }
+    } catch (e) {}
+  })();
 
   // roundRect polyfill for older browsers
   if (!CanvasRenderingContext2D.prototype.roundRect) {
@@ -63,7 +81,7 @@
       shake: true,
       blood: true,
     },
-    best: parseInt(localStorage.getItem('rk_best') || '0', 10),
+    best: parseInt(localStorage.getItem(KEY_BEST) || '0', 10),
     player: null,
     enemies: [],
     corpses: [],
@@ -117,8 +135,8 @@
   };
 
   // ==================== SETTINGS PERSISTENCE ====================
-  try { Object.assign(S.settings, JSON.parse(localStorage.getItem('rk_settings') || '{}')); } catch (e) {}
-  const saveSettings = () => { try { localStorage.setItem('rk_settings', JSON.stringify(S.settings)); } catch (e) {} };
+  try { Object.assign(S.settings, JSON.parse(localStorage.getItem(KEY_SETTINGS) || '{}')); } catch (e) {}
+  const saveSettings = () => { try { localStorage.setItem(KEY_SETTINGS, JSON.stringify(S.settings)); } catch (e) {} };
 
   // ==================== WEAPONS ====================
   const WEAPONS = {
@@ -1419,7 +1437,7 @@
   function onGameOver() {
     sfx.gameover();
     music.stop();
-    if (S.score > S.best) { S.best = S.score; try { localStorage.setItem('rk_best', String(S.best)); } catch (e) {} }
+    if (S.score > S.best) { S.best = S.score; try { localStorage.setItem(KEY_BEST, String(S.best)); } catch (e) {} }
     document.getElementById('over-wave').textContent = S.wave;
     document.getElementById('over-score').textContent = S.score;
     document.getElementById('over-best').textContent = S.best;

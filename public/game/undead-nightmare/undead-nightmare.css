@@ -1,6 +1,6 @@
 /* ============================================================
-   RoboKyle — game-only stylesheet
-   Loaded alongside index.css on /game.html
+   RoboKyle: Undead Nightmare — game-only stylesheet
+   Loaded on /public/game/undead-nightmare/
    Palette: extends site's brand + accent, adds dark game shell
    ============================================================ */
 
@@ -147,6 +147,20 @@ body.game-body {
     45%      { filter: brightness(1.14); }
     55%      { filter: brightness(.94); }
 }
+/* Episode subtitle, sits between the logo and the tagline. */
+.rk-subtitle {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: clamp(1.05rem, 3vw, 1.9rem);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--gm-ink);
+    margin: -.15em 0 .85rem;
+    opacity: .92;
+    text-shadow:
+        0 2px 0 #000,
+        0 0 18px rgba(142,15,20,.65);
+}
+
 .rk-tagline {
     font-family: 'Black Ops One', Impact, sans-serif;
     color: var(--gm-ink-soft);

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>RoboKyle: Undead Nightmare</title>
+    <meta name="description" content="RoboKyle: Undead Nightmare — a top-down wave-survival shooter. Hold the line against the horde in your browser.">
+    <link rel="icon" type="image/png" href="/public/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="undead-nightmare.css">
+</head>
+<body class="game-body">
+
+    <a class="skip-link" href="#game-main">Skip to game</a>
+
+    <div class="game-shell" id="game-main">
+        <div class="game-frame" role="application" aria-label="RoboKyle: Undead Nightmare game">
+
+            <!-- ============ TITLE SCREEN ============ -->
+            <section class="screen centered active" id="screen-title" aria-labelledby="rk-logo-heading">
+                <div>
+                    <h1 id="rk-logo-heading" class="rk-logo" aria-label="RoboKyle: Undead Nightmare">
+                        <span class="robo">Robo</span><span class="kyle">Kyle</span>
+                    </h1>
+                    <p class="rk-subtitle" aria-hidden="true">Undead Nightmare</p>
+                    <p class="rk-tagline">Rip &middot; Tear &middot; Repeat</p>
+                    <ul class="menu-list" role="menu">
+                        <li><button class="menu-btn is-primary" data-goto="mapSelect" role="menuitem">Play</button></li>
+                        <li><button class="menu-btn" data-goto="multiplayer" role="menuitem">Multiplayer <span class="soon">Soon</span></button></li>
+                        <li><button class="menu-btn" data-goto="howTo" role="menuitem">How to Play</button></li>
+                        <li><button class="menu-btn" data-goto="settings" role="menuitem">Settings</button></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ============ MAP SELECT ============ -->
+            <section class="screen" id="screen-mapSelect" aria-labelledby="ms-title">
+                <button class="menu-back" data-goto="title">Back</button>
+                <h2 class="screen-title" id="ms-title">Choose your <span class="accent">Killing Floor</span></h2>
+                <p class="screen-sub">Bigger arenas mean more room to run, and more angles to be flanked from.</p>
+
+                <div class="map-grid">
+                    <button class="map-card" data-map="yard" aria-label="Play The Backyard">
+                        <svg class="map-thumb" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="mg-yard" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0" stop-color="#243026"/>
+                                    <stop offset="1" stop-color="#1a2419"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="200" height="120" fill="url(#mg-yard)"/>
+                            <g fill="#3a4a35" opacity=".6">
+                                <rect x="20" y="20" width="30" height="18" rx="3"/>
+                                <rect x="130" y="70" width="40" height="14" rx="3"/>
+                                <rect x="80" y="35" width="16" height="16" rx="2"/>
+                            </g>
+                            <circle cx="100" cy="60" r="4" fill="#E36B3E"/>
+                        </svg>
+                        <h4>The Backyard</h4>
+                        <p>Open ground, a shed and a fence. Beginner-friendly.</p>
+                        <span class="diff">Easy</span>
+                    </button>
+
+                    <button class="map-card" data-map="warehouse" aria-label="Play The Warehouse">
+                        <svg class="map-thumb" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="mg-ware" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0" stop-color="#22232C"/>
+                                    <stop offset="1" stop-color="#12141B"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="200" height="120" fill="url(#mg-ware)"/>
+                            <g fill="#3A3E4C" opacity=".85">
+                                <rect x="30" y="20" width="14" height="80"/>
+                                <rect x="70" y="20" width="14" height="80"/>
+                                <rect x="115" y="20" width="14" height="80"/>
+                                <rect x="155" y="20" width="14" height="80"/>
+                            </g>
+                            <circle cx="100" cy="60" r="4" fill="#E36B3E"/>
+                        </svg>
+                        <h4>The Warehouse</h4>
+                        <p>Pillars everywhere. Tight sightlines. Watch your corners.</p>
+                        <span class="diff hard">Hard</span>
+                    </button>
+
+                    <button class="map-card" data-map="rooftop" aria-label="Play Rooftop">
+                        <svg class="map-thumb" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="mg-roof" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0" stop-color="#2A3140"/>
+                                    <stop offset="1" stop-color="#0F1319"/>
+                                </linearGradient>
+                            </defs>
+                            <rect width="200" height="120" fill="url(#mg-roof)"/>
+                            <rect x="30" y="18" width="140" height="84" fill="#1E2530" stroke="#3A465A" stroke-width="2"/>
+                            <g fill="#3A465A" opacity=".8">
+                                <rect x="50" y="34" width="20" height="20"/>
+                                <rect x="130" y="70" width="20" height="20"/>
+                            </g>
+                            <circle cx="100" cy="60" r="4" fill="#E36B3E"/>
+                        </svg>
+                        <h4>The Rooftop</h4>
+                        <p>Small arena, hard edges. Fall off and it&rsquo;s over.</p>
+                        <span class="diff brutal">Brutal</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ============ MULTIPLAYER (stub) ============ -->
+            <section class="screen centered" id="screen-multiplayer" aria-labelledby="mp-title">
+                <div>
+                    <button class="menu-back" data-goto="title">Back</button>
+                    <h2 class="screen-title" id="mp-title"><span class="accent">Multiplayer</span></h2>
+                    <p class="screen-sub">Grab a friend and stand back-to-back against the horde.</p>
+                    <div class="stub-note" role="note">
+                        <strong>Coming Soon</strong>
+                        Local co-op and online lobbies are on the roadmap. For now, single-player is where Undead Nightmare lives.
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ HOW TO PLAY ============ -->
+            <section class="screen" id="screen-howTo" aria-labelledby="ht-title">
+                <button class="menu-back" data-goto="title">Back</button>
+                <h2 class="screen-title" id="ht-title">How to <span class="accent">Play</span></h2>
+                <p class="screen-sub">The basics. Controls switch automatically depending on whether you’re on a keyboard or a touchscreen.</p>
+
+                <h3 class="controls-head" id="ht-desktop">Keyboard &amp; mouse</h3>
+                <div class="controls-grid">
+                    <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move (arrow keys work too)</div>
+                    <div><kbd>Mouse</kbd> Aim</div>
+                    <div><kbd>Click</kbd> Shoot, hold for autos</div>
+                    <div><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> Swap weapon</div>
+                    <div><kbd>Shift</kbd> Sprint (short burst)</div>
+                    <div><kbd>Scroll</kbd> Zoom in / out</div>
+                    <div><kbd>P</kbd> or <kbd>Esc</kbd> Pause</div>
+                </div>
+
+                <h3 class="controls-head" id="ht-mobile">Touchscreen</h3>
+                <div class="controls-grid">
+                    <div><kbd>Left stick</kbd> Move</div>
+                    <div><kbd>Right stick</kbd> Aim, fires while held</div>
+                    <div><kbd>RUN</kbd> Sprint (short burst)</div>
+                    <div><kbd>1&ndash;4</kbd> Swap weapon</div>
+                    <div><kbd>+</kbd> <kbd>&minus;</kbd> Zoom in / out</div>
+                    <div><kbd>II</kbd> Pause</div>
+                </div>
+                <p style="margin-top:1.5rem;color:var(--gm-ink-soft);">
+                    Enemies drop ammo. Rockets are rare. Waves get faster and meaner, so keep
+                    moving, back into open ground, and don&rsquo;t let two grunts corner you.
+                </p>
+            </section>
+
+            <!-- ============ SETTINGS ============ -->
+            <section class="screen" id="screen-settings" aria-labelledby="set-title">
+                <button class="menu-back" data-goto="title">Back</button>
+                <h2 class="screen-title" id="set-title"><span class="accent">Settings</span></h2>
+                <p class="screen-sub">Small knobs. Big impact.</p>
+                <div class="settings-grid">
+                    <div class="setting">
+                        <label for="set-volume">Sound effects: <span id="set-volume-value">45%</span></label>
+                        <input type="range" id="set-volume" min="0" max="100" value="45">
+                    </div>
+                    <div class="setting">
+                        <label for="set-music">Music: <span id="set-music-value">30%</span></label>
+                        <input type="range" id="set-music" min="0" max="100" value="30">
+                    </div>
+                    <div class="setting">
+                        <label>Difficulty</label>
+                        <div class="seg">
+                            <label><input type="radio" name="difficulty" value="easy"><span>Easy</span></label>
+                            <label><input type="radio" name="difficulty" value="normal" checked><span>Normal</span></label>
+                            <label><input type="radio" name="difficulty" value="hard"><span>Hard</span></label>
+                        </div>
+                    </div>
+                    <div class="setting">
+                        <label>Screen shake</label>
+                        <div class="seg">
+                            <label><input type="radio" name="shake" value="on" checked><span>On</span></label>
+                            <label><input type="radio" name="shake" value="off"><span>Off</span></label>
+                        </div>
+                    </div>
+                    <div class="setting">
+                        <label>Blood particles</label>
+                        <div class="seg">
+                            <label><input type="radio" name="blood" value="on" checked><span>On</span></label>
+                            <label><input type="radio" name="blood" value="off"><span>Off</span></label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ PLAY (canvas) ============ -->
+            <section class="screen" id="screen-play" aria-label="RoboKyle: Undead Nightmare gameplay">
+                <canvas id="gameCanvas" width="960" height="640" tabindex="0" aria-label="Game viewport"></canvas>
+
+                <div class="hud" aria-live="polite">
+                    <div class="hud-l">
+                        <div class="box">
+                            <span class="k">Health</span>
+                            <span class="v"><span id="hud-hp">100</span></span>
+                            <div class="health-bar" aria-hidden="true"><i id="hud-hp-bar" style="width:100%"></i></div>
+                            <span class="k" style="margin-top:.35rem;">Sprint</span>
+                            <div class="sprint-bar" aria-hidden="true"><i id="hud-sprint-bar" style="width:100%"></i></div>
+                        </div>
+                    </div>
+                    <div class="hud-c">
+                        <div class="box">
+                            <span class="k">Wave</span>
+                            <span class="v"><span class="accent" id="hud-wave">1</span></span>
+                        </div>
+                    </div>
+                    <div class="hud-r">
+                        <div class="box">
+                            <span class="k">Weapon</span>
+                            <span class="v"><span id="hud-weapon">Pistol</span> &middot; <span id="hud-ammo">&infin;</span></span>
+                        </div>
+                        <div class="box">
+                            <span class="k">Score</span>
+                            <span class="v"><span class="accent" id="hud-score">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="combo" id="hud-combo" aria-hidden="true">
+                    <span class="combo-num"><span id="hud-combo-num">0</span><span class="combo-x">x</span></span>
+                    <span class="combo-label">Kill Streak</span>
+                </div>
+
+                <div class="minimap-wrap" aria-hidden="true">
+                    <canvas id="minimap" width="180" height="120"></canvas>
+                </div>
+
+                <div class="hint" id="playHint" aria-hidden="true">
+                    Scroll to zoom &middot; Shift to sprint &middot; Esc to pause
+                </div>
+
+                <div class="wave-banner" id="waveBanner" aria-hidden="true">
+                    <span id="waveBannerText">Wave 1</span>
+                    <span class="sub" id="waveBannerSub">Incoming</span>
+                </div>
+
+
+                <!-- ============ TOUCH CONTROLS (mobile only) ============ -->
+                <div class="touch-ui" id="touchUI" aria-hidden="true">
+
+                    <!-- Left thumb: movement stick -->
+                    <div class="tc-stick tc-move" id="tcMove">
+                        <div class="tc-stick-base"><span class="tc-stick-label">Move</span></div>
+                        <div class="tc-stick-knob" id="tcMoveKnob"></div>
+                    </div>
+
+                    <!-- Right thumb: aim stick (drag to aim, it fires while held) -->
+                    <div class="tc-stick tc-aim" id="tcAim">
+                        <div class="tc-stick-base"><span class="tc-stick-label">Aim / Fire</span></div>
+                        <div class="tc-stick-knob" id="tcAimKnob"></div>
+                    </div>
+
+                    <!-- Weapon slots -->
+                    <div class="tc-weapons" id="tcWeapons">
+                        <button class="tc-wpn is-active" data-weapon="pistol"  type="button">1<span>Pistol</span></button>
+                        <button class="tc-wpn" data-weapon="uzi"     type="button">2<span>Uzi</span></button>
+                        <button class="tc-wpn" data-weapon="shotgun" type="button">3<span>Shot</span></button>
+                        <button class="tc-wpn" data-weapon="rocket"  type="button">4<span>RPG</span></button>
+                    </div>
+
+                    <!-- Utility column -->
+                    <div class="tc-utils">
+                        <button class="tc-btn tc-pause" data-touch="pause"  type="button" aria-label="Pause">II</button>
+                        <button class="tc-btn tc-zoom"  data-touch="zoomin" type="button" aria-label="Zoom in">+</button>
+                        <button class="tc-btn tc-zoom"  data-touch="zoomout" type="button" aria-label="Zoom out">&minus;</button>
+                    </div>
+
+                    <!-- Sprint sits above the move stick, under the left thumb's reach -->
+                    <button class="tc-btn tc-sprint" data-touch="sprint" type="button" aria-label="Sprint">RUN</button>
+                </div>
+
+                <div class="overlay" id="overlay-pause" role="dialog" aria-label="Paused">
+                    <div>
+                        <h2>Paused</h2>
+                        <div class="buttons">
+                            <button class="menu-btn is-primary" data-action="resume" style="min-width:180px;">Resume</button>
+                            <button class="menu-btn" data-action="quit" style="min-width:180px;">Quit to Menu</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overlay" id="overlay-gameover" role="dialog" aria-label="Game over">
+                    <div>
+                        <h2>You Died</h2>
+                        <div class="stats">
+                            <div class="stat"><span class="k">Wave Reached</span><span class="v" id="over-wave">0</span></div>
+                            <div class="stat"><span class="k">Score</span><span class="v" id="over-score">0</span></div>
+                            <div class="stat"><span class="k">Best</span><span class="v" id="over-best">0</span></div>
+                        </div>
+                        <div class="buttons">
+                            <button class="menu-btn is-primary" data-action="restart" style="min-width:180px;">Restart</button>
+                            <button class="menu-btn" data-action="quit" style="min-width:180px;">Back to Menu</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <p class="rotate-note" id="rotateNote">
+            Turn your phone sideways for a wider view of the arena.
+        </p>
+
+        <nav class="back-strip" aria-label="Site">
+            <a href="/public/game/game.html">&larr; All Games</a>
+            <a href="/index.html">Robo Kyle</a>
+            <a href="/works">Works</a>
+            <a href="/about.html">About</a>
+        </nav>
+    </div>
+
+    <script src="/public/site.js"></script>
+    <script src="undead-nightmare.js"></script>
+</body>
+</html>
