@@ -146,6 +146,18 @@
     return w.map(v => total * v / sum);
   }
 
+  // Deterministic per-bank randomness. The same bank always generates the
+  // same building, so "the one with the corner vault" stays that way.
+  function seededRandom(seed) {
+    let a = (seed * 1103515245 + 12345) >>> 0;
+    return function () {
+      a ^= a << 13; a >>>= 0;
+      a ^= a >> 17;
+      a ^= a << 5;  a >>>= 0;
+      return a / 4294967296;
+    };
+  }
+
   function generateWorld(bank) {
     const S = SIZES[bank.size];
     const W = S.w, Hh = S.h;
@@ -153,13 +165,21 @@
     const loot = [];        // {x,y,r,amount,kind,locked}
     const world = { w: W, h: Hh, obstacles, loot, vaults: [], boxes: [] };
 
+    // ---- this bank's own plan ----
+    const R = seededRandom(bank.id * 7919 + 31);
+    const pick2 = (arr) => arr[Math.floor(R() * arr.length)];
+    const between = (a, b) => a + R() * (b - a);
+
     const bx = 90, by = 70;
     const bw = W - 180, bh = Hh - STREET - by;
     world.building = { x: bx, y: by, w: bw, h: bh };
 
-    const doorW = 130;
-    const doorX = bx + bw / 2 - doorW / 2;
+    // The entrance is not always dead centre.
+    const doorW = Math.round(between(120, 170));
+    const doorFrac = pick2([0.24, 0.36, 0.5, 0.5, 0.64, 0.76]);
+    const doorX = clamp(bx + bw * doorFrac - doorW / 2, bx + WALL + 40, bx + bw - WALL - doorW - 40);
     world.door = { x: doorX, y: by + bh - WALL, w: doorW, h: WALL };
+    world.plan = { doorFrac };
 
     // ---- outer shell (front wall split around the door) ----
     obstacles.push({ x: bx, y: by, w: bw, h: WALL, kind: 'wall' });                       // back
@@ -169,14 +189,31 @@
     obstacles.push({ x: doorX + doorW, y: by + bh - WALL, w: bx + bw - (doorX + doorW), h: WALL, kind: 'wall' });
 
     // ---- teller counter dividing lobby from the back of house ----
-    const counterY = by + bh * S.lobby;
-    const gapW = 90;
-    const gap1 = bx + bw * 0.30, gap2 = bx + bw * 0.70;
-    const segs = [
-      [bx + WALL, gap1 - gapW / 2],
-      [gap1 + gapW / 2, gap2 - gapW / 2],
-      [gap2 + gapW / 2, bx + bw - WALL],
-    ];
+    // Its depth into the building, how many ways through it has, and where
+    // those are all vary by bank.
+    const counterY = by + bh * (S.lobby + between(-0.07, 0.09));
+    const gapW = Math.round(between(84, 118));
+    const gapCount = pick2([1, 2, 2, 2, 3]);
+    const gapXs = [];
+    if (gapCount === 1) {
+      gapXs.push(bx + bw * pick2([0.32, 0.5, 0.68]));
+    } else if (gapCount === 2) {
+      const spread = between(0.18, 0.30);
+      const mid = between(0.42, 0.58);
+      gapXs.push(bx + bw * (mid - spread), bx + bw * (mid + spread));
+    } else {
+      gapXs.push(bx + bw * 0.22, bx + bw * 0.5, bx + bw * 0.78);
+    }
+    gapXs.sort((a, b) => a - b);
+    world.plan.gapXs = gapXs;
+
+    const segs = [];
+    let cursor = bx + WALL;
+    gapXs.forEach(gxc => {
+      segs.push([cursor, gxc - gapW / 2]);
+      cursor = gxc + gapW / 2;
+    });
+    segs.push([cursor, bx + bw - WALL]);
     const counterSegs = [];
     segs.forEach(([x0, x1]) => {
       if (x1 - x0 > 10) {
@@ -186,6 +223,21 @@
     });
     world.counterY = counterY;
     world.counterSegs = counterSegs;
+
+    // Lanes people must be able to use: straight in from the door, and
+    // through each gap in the counter. Nothing solid may stand in them.
+    const doorLane = [doorX - 46, doorX + doorW + 46];
+    const gapLanes = gapXs.map(gxc => [gxc - gapW, gxc + gapW]);
+    const inLane = (x, y) => {
+      if (y < by || y > by + bh) return false;               // outside is fine
+      // the strip in front of the counter has to stay walkable, or you
+      // cannot get to your own tills
+      if (y > counterY + 10 && y < counterY + 54) return true;
+      if (x > doorLane[0] && x < doorLane[1]) return true;
+      for (const g of gapLanes) if (x > g[0] && x < g[1]) return true;
+      return false;
+    };
+
 
     // ---- teller drawers: quick, low-risk cash on the lobby side ----
     // Split the haul across drawers / vault / boxes. Banks with no deposit
@@ -235,14 +287,30 @@
     const vaultCash = bank.haul * vaultShare / vaultCount;
     const vw = Math.min(330, (bw - 2 * WALL - 80) / vaultCount - 40);
     const vh = Math.min(240, bh * 0.30);
+
+    // Where the strongroom sits is part of a bank's character: tucked in a
+    // corner, off to one side, or square in the middle of the back wall.
+    const vaultPlan = pick2(['centre', 'left', 'right', 'split', 'corner']);
+    world.plan.vault = vaultPlan;
+    const vaultSpotFor = (v) => {
+      const inset = WALL + 40;
+      const usable = bw - 2 * inset - vw;
+      switch (vaultPlan) {
+        case 'left':   return bx + inset + usable * (0.06 + v * 0.30);
+        case 'right':  return bx + inset + usable * (0.94 - v * 0.30);
+        case 'split':  return bx + inset + usable * (v % 2 ? 0.86 : 0.14) + (v > 1 ? usable * 0.2 : 0);
+        case 'corner': return bx + inset + usable * (v % 2 ? 0.92 : 0.08);
+        default:       return bx + bw * ((v + 1) / (vaultCount + 1)) - vw / 2;
+      }
+    };
     for (let v = 0; v < vaultCount; v++) {
-      const cx = bx + bw * ((v + 1) / (vaultCount + 1));
-      const vx = cx - vw / 2, vy = by + WALL + 40;
+      const vx = clamp(vaultSpotFor(v), bx + WALL + 24, bx + bw - WALL - vw - 24);
+      const vy = by + WALL + Math.round(between(28, 64));
       // three solid walls plus a front wall with a doorway that the drill opens
       obstacles.push({ x: vx, y: vy, w: vw, h: WALL, kind: 'vaultwall' });
       obstacles.push({ x: vx, y: vy, w: WALL, h: vh, kind: 'vaultwall' });
       obstacles.push({ x: vx + vw - WALL, y: vy, w: WALL, h: vh, kind: 'vaultwall' });
-      const dW = 96, dX = vx + vw / 2 - dW / 2;
+      const dW = Math.round(between(86, 112)), dX = vx + vw / 2 - dW / 2;
       obstacles.push({ x: vx, y: vy + vh - WALL, w: dX - vx, h: WALL, kind: 'vaultwall' });
       obstacles.push({ x: dX + dW, y: vy + vh - WALL, w: vx + vw - (dX + dW), h: WALL, kind: 'vaultwall' });
       const door = { x: dX, y: vy + vh - WALL, w: dW, h: WALL, kind: 'vaultdoor', open: false, solid: true };
@@ -271,12 +339,13 @@
     const boxes = boxCount;
     if (boxes > 0) {
       const officeW = 200, officeH = 150;
-      const spots = [
-        { x: bx + WALL + 10, y: by + bh * 0.30 },
-        { x: bx + bw - WALL - officeW - 10, y: by + bh * 0.30 },
-        { x: bx + WALL + 10, y: by + bh * 0.62 },
-        { x: bx + bw - WALL - officeW - 10, y: by + bh * 0.62 },
-      ];
+      const hi = by + bh * between(0.26, 0.36);
+      const lo = by + bh * between(0.56, 0.68);
+      const spots = vaultPlan === 'right'
+        ? [{ x: bx + WALL + 10, y: hi }, { x: bx + WALL + 10, y: lo },
+           { x: bx + bw - WALL - officeW - 10, y: lo }, { x: bx + bw - WALL - officeW - 10, y: hi }]
+        : [{ x: bx + bw - WALL - officeW - 10, y: hi }, { x: bx + bw - WALL - officeW - 10, y: lo },
+           { x: bx + WALL + 10, y: lo }, { x: bx + WALL + 10, y: hi }];
       const boxAmounts = splitCash(bank.haul * boxShare, boxes, 0.25);
       let placed = 0;
       spots.forEach((sp, si) => {
@@ -290,10 +359,6 @@
             x: sp.x + 40 + i * 55, y: sp.y + officeH * 0.5,
             r: 16, amount: boxAmounts[placed],
             open: false, hp: 60, shake: 0,
-          });
-          obstacles.push({
-            x: sp.x + 40 + i * 55 - 15, y: sp.y + officeH * 0.5 - 16,
-            w: 30, h: 32, low: true, kind: 'decor',
           });
           placed++;
         }
@@ -328,7 +393,9 @@
         amount: 0,                       // filled in below, exactly
         open: false, prog: 0, hp: 90, shake: 0,
       });
-      obstacles.push({ x: ax - 17, y: ay - 19, w: 34, h: 38, low: true, kind: 'atm' });
+      // hug the wall: a deep box here can pinch the side aisle shut
+      const wallSide = onLeft ? ax - 15 : ax - 11;
+      obstacles.push({ x: wallSide, y: ay - 17, w: 26, h: 34, low: true, kind: 'atm' });
     }
 
     world.atms.forEach(a => {
@@ -346,13 +413,30 @@
     }
 
     // ---- lobby furniture for cover ----
-    const deskCount = Math.round(bw / 320);
-    for (let i = 0; i < deskCount; i++) {
-      obstacles.push({
-        x: bx + bw * (0.18 + 0.64 * (i / Math.max(1, deskCount - 1))) - 45,
-        y: counterY + (bh - (counterY - by)) * 0.42,
-        w: 90, h: 28, low: true, kind: 'desk',
-      });
+    // Lobby furniture: a row of writing desks, a pair of islands, or a
+    // scatter of pillars. Kept out of the door and counter lanes.
+    const lobbyPlan = pick2(['desks', 'islands', 'pillars', 'desks']);
+    world.plan.lobby = lobbyPlan;
+    const lobbyMidY = counterY + (bh - (counterY - by)) * between(0.36, 0.52);
+    const placeProp = (x, y, w, h, kind) => {
+      if (inLane(x, y) || inLane(x - w / 2, y) || inLane(x + w / 2, y)) return;
+      obstacles.push({ x: x - w / 2, y: y - h / 2, w, h, low: true, kind });
+    };
+    if (lobbyPlan === 'desks') {
+      const n = Math.max(2, Math.round(bw / 320));
+      for (let i = 0; i < n; i++) {
+        placeProp(bx + bw * (0.18 + 0.64 * (i / Math.max(1, n - 1))), lobbyMidY, 90, 28, 'desk');
+      }
+    } else if (lobbyPlan === 'islands') {
+      placeProp(bx + bw * between(0.24, 0.32), lobbyMidY, 120, 48, 'desk');
+      placeProp(bx + bw * between(0.68, 0.76), lobbyMidY, 120, 48, 'desk');
+    } else {
+      const n = Math.max(3, Math.round(bw / 260));
+      for (let i = 0; i < n; i++) {
+        const px = bx + bw * (0.14 + 0.72 * (i / Math.max(1, n - 1)));
+        placeProp(px, lobbyMidY - 30, 34, 34, 'pillar');
+        if (i % 2 === 0) placeProp(px, lobbyMidY + 62, 34, 34, 'pillar');
+      }
     }
 
     // ---- street, pavement and the getaway car ----
@@ -393,19 +477,6 @@
     const tier = bank.id <= 4 ? 'low' : (bank.id <= 12 ? 'mid' : 'high');
     world.tier = tier;
 
-    // Lanes people must be able to use: straight in from the door, and
-    // through each gap in the counter. Nothing solid may stand in them.
-    const doorLane = [doorX - 46, doorX + doorW + 46];
-    const gapLanes = [[gap1 - gapW, gap1 + gapW], [gap2 - gapW, gap2 + gapW]];
-    const inLane = (x, y) => {
-      if (y < by || y > by + bh) return false;               // outside is fine
-      // the strip in front of the counter has to stay walkable, or you
-      // cannot get to your own tills
-      if (y > counterY + 10 && y < counterY + 54) return true;
-      if (x > doorLane[0] && x < doorLane[1]) return true;
-      for (const g of gapLanes) if (x > g[0] && x < g[1]) return true;
-      return false;
-    };
 
     const addDecor = (kind, x, y, opts) => {
       const d = Object.assign({ kind, x, y, rot: 0, s: 1 }, opts || {});
@@ -1613,7 +1684,14 @@
         // Well back and well apart, so the player can always see himself
         // and what he is standing on.
         const off = [[-96, 82], [96, 82], [0, 124]][c.slot - 1] || [0, 100];
-        const tx = p.x + off[0], ty = p.y + off[1];
+        let tx = p.x + off[0], ty = p.y + off[1];
+        // A formation slot can land inside a wall — the corner vaults make
+        // that common — and they would hover outside it forever. Snap the
+        // slot to the nearest ground they can actually stand on.
+        if (navBlockedAt(H.world.nav, tx, ty)) {
+          const cell = nearestFree(H.world.nav, Math.floor(tx / NAV_CELL), Math.floor(ty / NAV_CELL));
+          if (cell) { tx = cellCentre(cell[0]); ty = cellCentre(cell[1]); }
+        }
         const d = Math.hypot(tx - c.x, ty - c.y);
         if (d > 54) {
           navigateTo(c, tx, ty, clamp(d / 55, 0.7, 1) * speed, dt);
