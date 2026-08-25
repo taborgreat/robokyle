@@ -288,8 +288,10 @@ window.GH = (() => {
   GH.carryCap = (c) => {
     const tr = D.TRAITS[c.trait] || {};
     const bag = D.BAGS[c.bag] || D.BAGS.none;
+    // Morale drags this down with everything else. It used to be exempt,
+    // which made the crew screen's claim about it untrue.
     return Math.round((c.carry * T.carryPerPoint + bag.carry) *
-                      (tr.carryMul || 1) * GH.maskPerk(c, 'carry'));
+                      (tr.carryMul || 1) * GH.maskPerk(c, 'carry') * GH.moraleMul(c));
   };
   GH.dmgMul = (c) => {
     const tr = D.TRAITS[c.trait] || {};
@@ -307,6 +309,7 @@ window.GH = (() => {
            (0.85 + 0.15 * GH.moraleMul(c));
   };
   GH.xpToNext = (c) => T.xpPerLevel * c.level;
+  GH.xpMul = (c) => (D.TRAITS[c.trait] || {}).xpMul || 1;
 
   // ---- morale ----
   // Above `comfortable` there is no penalty. Below it everything they do
@@ -316,8 +319,16 @@ window.GH = (() => {
     if ((D.TRAITS[c.trait] || {}).moraleProof) return 1;
     return GH.moraleMulRaw(c);
   };
+  // Someone resilient shrugs part of a bad night off: their working
+  // morale sits closer to normal than the number on the card.
+  GH.effectiveMorale = (c) => {
+    const raw = c.morale == null ? MO.start : c.morale;
+    const hold = (D.TRAITS[c.trait] || {}).moraleHold || 0;
+    return raw + (MO.start - raw) * hold;
+  };
+
   GH.moraleMulRaw = (c) => {
-    const m = c.morale == null ? MO.start : c.morale;
+    const m = GH.effectiveMorale(c);
     if (m >= MO.comfortable) return 1;
     const t = Math.max(0, m) / MO.comfortable;
     return MO.worstMultiplier + (1 - MO.worstMultiplier) * t;
@@ -566,7 +577,7 @@ window.GH = (() => {
         card.addEventListener('click', () => {
           GH.pendingBank = bank.id;
           sfx('select');
-          GH.go('crew', { title: bank.name, sub: bank.boss ? 'Boss bank - ' + bank.bossName : 'Planning the job' });
+          GH.go('crew', { title: bank.name, sub: bank.boss ? bank.bossName + ' is waiting inside' : 'Planning the job' });
         });
       }
       wrap.appendChild(card);
@@ -651,13 +662,41 @@ window.GH = (() => {
     const hpNote = hpFrac >= 1 ? 'Unhurt' : hpFrac > 0.6 ? 'Grazed'
                  : hpFrac > 0.3 ? 'Wounded' : 'In a bad way';
 
+    // What their morale is costing them, in the numbers they care about.
+    // Compare each stat against the same crew member on a good day.
+    const happy = Object.assign({}, c, { morale: MO.start, trait: c.trait });
+    const dmgNow = GH.dmgMul(c), dmgFull = GH.dmgMul(happy);
+    const carryNow = GH.carryCap(c), carryFull = GH.carryCap(happy);
+    const spreadNow = GH.spreadMul(c), spreadFull = GH.spreadMul(happy);
+    const shaken = mm < 0.995;
+
+    const drop = (now, full) => Math.round((1 - now / full) * 100);
+    const dmgDrop = drop(dmgNow, dmgFull);
+    const carryDrop = drop(carryNow, carryFull);
+    const aimDrop = Math.round((spreadNow / spreadFull - 1) * 100);
+
+    const cost = (n, word) => n > 0
+      ? '<span class="mor-cost">' + word + ' &minus;' + n + '%</span>' : '';
+
     return '<div class="stat-rows">' +
-      statRow('shooting', 'Shooting', c.shooting, 'Damage and aim', '') +
+      statRow('shooting', 'Shooting', c.shooting,
+              'Damage and aim' + (shaken && dmgDrop > 0
+                ? '. Shaken: hitting for ' + dmgDrop + '% less' : ''), shaken ? 'warn' : '') +
       meterRow('health', 'Health', hp + ' / ' + max, hpNote, hpFrac, conditionColor(hpFrac)) +
-      statRow('carry', 'Carry', money(GH.carryCap(c)), 'Most they can take out', '') +
+      statRow('carry', 'Carry', money(carryNow),
+              'Most they can take out' + (shaken && carryDrop > 0
+                ? '. Shaken: ' + money(carryFull - carryNow) + ' less than usual' : ''),
+              shaken ? 'warn' : '') +
       meterRow('morale', 'Morale', morale + ' / 100',
-               GH.moraleLabel(c) + (mm < 1 ? ' - all stats ×' + mm.toFixed(2) : ''),
-               moraleFrac, conditionColor(moraleFrac)) +
+               GH.moraleLabel(c), moraleFrac, conditionColor(moraleFrac)) +
+      (shaken
+        ? '<div class="morale-cost">' +
+            '<span class="lbl">What that costs</span>' +
+            cost(dmgDrop, 'Damage') +
+            cost(aimDrop, 'Aim') +
+            cost(carryDrop, 'Carry') +
+          '</div>'
+        : '') +
       '</div>';
   }
 
@@ -676,7 +715,7 @@ window.GH = (() => {
     const m = Math.round(c.morale == null ? MO.start : c.morale);
     const frac = m / MO.start;
     return '<span class="morale-pip" style="--cond:' + conditionColor(frac) + '" ' +
-      'title="Morale ' + m + ' / 100 - ' + GH.moraleLabel(c) + '">' +
+      'title="Morale ' + m + ' out of 100, ' + GH.moraleLabel(c) + '">' +
       '<i class="pip-dot"></i>' + GH.moraleLabel(c) + '</span>';
   }
 
@@ -728,7 +767,8 @@ window.GH = (() => {
           (GH.curHp(c) < GH.maxHp(c)
             ? '<button class="btn-heal">Patch up ' +
               (GH.healCost(c) > 0 ? money(GH.healCost(c)) : 'free') + '</button>'
-            : (c.isRobo ? '' : '<button class="btn-bench">Bench</button>')) +
+            : '') +
+          (c.isRobo ? '' : '<button class="btn-bench">Bench</button>') +
         '</div>';
 
       // clicking anywhere on the card starts editing them; the button
@@ -789,7 +829,10 @@ window.GH = (() => {
         '<span class="bench-id"><span class="bench-name">' + c.name + '</span>' +
           moralePip(c) + '</span>' +
         '<small>Lv ' + c.level + '</small>' +
-        (swapFor ? '<em class="bench-swap">&#8644; ' + swapFor.name + '</em>' : '');
+        // What they are carrying matters more here than who they would
+        // replace: it is the thing you are deciding on.
+        '<em class="bench-gun">' + GH.icon.weapon(c.weapon) +
+          D.WEAPONS[c.weapon].name + '</em>';
       b.title = swapFor ? 'Swap ' + c.name + ' in for ' + swapFor.name
                         : 'Bring ' + c.name + ' along';
       b.addEventListener('click', () => {
@@ -814,7 +857,7 @@ window.GH = (() => {
     renderLoadout(chars[GH.editing]);
     $('crew-primer').innerHTML =
       '<b>Shooting</b> is damage and aim. <b>Carry</b> caps what they can take out of the bank. ' +
-      '<b>Health</b> does not refill on its own - pay to patch them up, or bench them to mend. ' +
+      '<b>Health</b> does not refill on its own. Pay to patch them up, or leave them on the bench to mend. ' +
       '<b>Morale</b> drops when bystanders get hurt, and drags every other stat down with it.';
 
     // ---- header state ----
@@ -884,8 +927,8 @@ window.GH = (() => {
 
     const activeSlot = SLOTS.find(x => x.key === GH.shopTab);
     $('loadout-heading').innerHTML =
-      'Choose a <b>' + activeSlot.label.toLowerCase() + '</b> for ' + c.name +
-      ' - bought for them alone, and theirs until they die.';
+      'A <b>' + activeSlot.label.toLowerCase() + '</b> for ' + c.name +
+      '. Bought for them alone, and theirs until they die.';
 
     const slot = SLOTS.find(x => x.key === GH.shopTab);
     quietRerender();
@@ -946,7 +989,7 @@ window.GH = (() => {
       const next = future.map(k => slot.table[k])
         .sort((a, b) => (a.unlock || 0) - (b.unlock || 0))[0];
       note.style.display = '';
-      note.innerHTML = future.length + ' more unlock later - next is <b>' + next.name +
+      note.innerHTML = future.length + ' more come later. Next up is <b>' + next.name +
         '</b> at Bank ' + next.unlock + '.';
     } else note.style.display = 'none';
   }
@@ -967,8 +1010,11 @@ window.GH = (() => {
     let worth = tier.price;
     worth *= 1 + ((c.level || 1) - 1) * 0.22;
     worth *= 1 + stats * 0.035;
-    if (tr.rare) worth *= 1.45;
-    return Math.round(base * worth / 50) * 50;
+    // What they are like to work with, priced both ways. Somebody lazy
+    // comes cheap, and they are cheap for a reason.
+    worth *= 1 + (tr.worth || 0);
+    if (tr.rare) worth *= 1.35;
+    return Math.max(50, Math.round(base * worth / 50) * 50);
   };
 
   // Don't like any of them? Put the word out again. It costs, and it costs
@@ -1001,9 +1047,14 @@ window.GH = (() => {
 
     const rc = GH.rerollCost();
     const btn = $('btn-reroll');
-    btn.textContent = 'Ask around again - ' + money(rc);
-    btn.disabled = GH.state.cash < rc;
-    btn.title = GH.state.cash < rc ? 'Not enough cash' : 'Three different people, for a fee';
+    const broke = GH.state.cash < rc;
+    $('reroll-price').textContent = money(rc);
+    $('reroll-note').textContent = broke
+      ? 'You cannot cover it'
+      : (GH.rerolls ? 'Word is getting expensive' : 'Three different faces');
+    btn.classList.toggle('is-broke', broke);
+    btn.disabled = broke;
+    btn.title = broke ? 'Not enough cash' : 'Put the word out again';
     quietRerender();
     const wrap = $('recruit-list');
     wrap.innerHTML = '';
@@ -1050,6 +1101,37 @@ window.GH = (() => {
     });
   };
 
+  // Bring the report in a line at a time, and run the take up to its
+  // figure. Cheap, and it makes a list of numbers feel like a result.
+  let debriefTimers = [];
+  function animateDebrief(wrap, target) {
+    debriefTimers.forEach(clearTimeout);
+    debriefTimers = [];
+
+    const rows = Array.prototype.slice.call(wrap.children);
+    rows.forEach((node, i) => {
+      node.classList.add('db-in');
+      debriefTimers.push(setTimeout(() => node.classList.add('is-shown'), 90 + i * 110));
+    });
+
+    // The figure is handed in rather than read back off the element: the
+    // number is the source of truth, not the markup.
+    const counter = wrap.querySelector('.db-take .v');
+    if (!counter) return;
+    if (!(target > 0)) { counter.textContent = money(0); return; }
+
+    const DUR = 900;
+    const started = Date.now();
+    const tick = () => {
+      const k = Math.min(1, (Date.now() - started) / DUR);
+      const ease = 1 - Math.pow(1 - k, 3);
+      counter.textContent = money(Math.round(target * ease));
+      if (k < 1) debriefTimers.push(setTimeout(tick, 32));
+      else counter.classList.add('is-landed');
+    };
+    debriefTimers.push(setTimeout(tick, 420));
+  }
+
   function flash(id) {
     const n = $(id);
     if (!n) return;
@@ -1065,10 +1147,6 @@ window.GH = (() => {
 
     const wrap = $('debrief-body');
     wrap.innerHTML = '';
-    $('debrief-title').textContent = result.escaped
-                                    ? (result.vaultCracked ? 'Clean Getaway' : 'Got Out Empty')
-                                    : result.abandoned ? 'Walked Away' : 'Job Blown';
-    $('debrief-title').className = 'screen-title ' + (result.escaped ? 'good' : 'bad');
 
     // Getting out is worth the money you got out with. Getting the NEXT
     // bank on the board takes cracking the main vault - driving away from
@@ -1095,12 +1173,50 @@ window.GH = (() => {
       s.stats.deaths++;
     });
 
-    const haulRow = el('div', 'debrief-haul');
-    haulRow.innerHTML =
-      '<span class="k">' + (result.escaped ? 'Extracted with'
-                            : result.abandoned ? 'Walked away from' : 'Left on the floor') + '</span>' +
-      '<span class="v">' + money(result.escaped ? haul : result.haul) + '</span>';
-    wrap.appendChild(haulRow);
+    // ---- the headline ----
+    const bank = bankById(result.bankId);
+    const took = result.escaped ? haul : result.haul;
+    const share = bank && bank.haul ? took / bank.haul : 0;
+    const verdict =
+      !result.escaped && !result.abandoned ? ['Job Blown', 'You did not get out.', 'bad']
+      : result.abandoned                   ? ['Walked Away', 'You called it before it went wrong.', 'warn']
+      : !result.vaultCracked                ? ['Got Out Empty', 'The vault never opened, so the job does not count.', 'warn']
+      : share >= 0.85                       ? ['Cleaned Out', 'They will be counting what is left for weeks.', 'good']
+      : share >= 0.55                       ? ['Clean Getaway', 'A good night\'s work.', 'good']
+      :                                       ['Got Away With It', 'Not everything, but enough.', 'good'];
+
+    $('debrief-title').textContent = verdict[0];
+    $('debrief-title').className = 'screen-title ' + (verdict[2] === 'good' ? 'good' : 'bad');
+
+    const head = el('div', 'debrief-head ' + verdict[2]);
+    head.innerHTML =
+      '<p class="db-verdict">' + verdict[1] + '</p>' +
+      '<div class="db-take">' +
+        '<span class="k">' + (result.escaped ? 'Out the door with'
+                              : result.abandoned ? 'Walked away from' : 'Left on the floor') + '</span>' +
+        '<b class="v">' + money(0) + '</b>' +
+      '</div>' +
+      (bank ? '<div class="db-bar"><i style="width:' +
+                (Math.min(1, share) * 100).toFixed(1) + '%"></i>' +
+              '<span>' + Math.round(share * 100) + '% of what was in there</span></div>' : '');
+    wrap.appendChild(head);
+
+    // ---- the numbers behind it ----
+    const kills = result.perChar.reduce((a, pc) => a + (pc.kills || 0), 0);
+    const civs0 = result.civilians || 0;
+    const lost = result.perChar.filter(pc => !pc.survived).length;
+    const tiles = el('div', 'debrief-tiles');
+    const tile = (label, value, tone) =>
+      '<div class="db-tile ' + (tone || '') + '"><span class="lbl">' + label +
+      '</span><b>' + value + '</b></div>';
+    tiles.innerHTML =
+      tile('Bank', bank ? bank.name : '?', '') +
+      tile('Vault', result.vaultCracked ? 'Cracked' : 'Untouched',
+           result.vaultCracked ? 'good' : 'bad') +
+      tile('Hostiles down', kills, kills ? 'warn' : '') +
+      tile('Bystanders hurt', civs0, civs0 ? 'bad' : 'good') +
+      tile('Crew lost', lost, lost ? 'bad' : 'good');
+    wrap.appendChild(tiles);
 
     // Say plainly why the board did not move, rather than leaving the
     // player to notice the next bank is still locked.
@@ -1164,7 +1280,10 @@ window.GH = (() => {
     result.perChar.forEach(pc => {
       const c = pc.char;
       if (!c || !pc.survived) return;
-      const gained = Math.round(pc.kills * T.xpPerKill + pc.cash * T.xpPerCashUnit + (result.escaped ? T.xpSurvive : 0));
+      // A fast learner takes more away from the same night's work.
+      const gained = Math.round(
+        (pc.kills * T.xpPerKill + pc.cash * T.xpPerCashUnit +
+         (result.escaped ? T.xpSurvive : 0)) * GH.xpMul(c));
       c.xp += gained;
       let levels = 0;
       while (c.xp >= GH.xpToNext(c)) { c.xp -= GH.xpToNext(c); c.level++; levels++; }
@@ -1198,19 +1317,34 @@ window.GH = (() => {
       wrap.appendChild(head);
       rested.forEach(({ c, before }) => {
         const row = el('div', 'debrief-row is-bench');
+        const gainedHp = GH.curHp(c) - before.hp;
+        const gainedMo = Math.round(c.morale - before.morale);
         const bits = [];
-        if (GH.curHp(c) > before.hp) bits.push('+' + (GH.curHp(c) - before.hp) + ' hp');
-        if (c.morale > before.morale) bits.push('+' + Math.round(c.morale - before.morale) + ' morale');
+        if (gainedHp > 0) bits.push('+' + gainedHp + ' hp');
+        if (gainedMo > 0) bits.push('+' + gainedMo + ' morale');
+
+        const hurt = GH.curHp(c) < GH.maxHp(c);
+        const what = gainedHp > 0
+          ? (hurt ? 'Mending' : 'Back on their feet')
+          : 'Sat it out';
         row.innerHTML = '<span class="who">' + c.name + '</span>' +
-          '<span class="xp">Resting</span>' +
-          '<span class="mo up">' + bits.join(' · ') + '</span>' +
-          '<span class="lv">' + GH.moraleLabel(c) + '</span>';
+          '<span class="xp">' + what + '</span>' +
+          '<span class="mo up">' + (bits.length ? bits.join(' · ') : 'no change') + '</span>' +
+          '<span class="lv">' +
+            (hurt ? GH.curHp(c) + ' / ' + GH.maxHp(c) + ' hp' : GH.moraleLabel(c)) +
+          '</span>';
         wrap.appendChild(row);
       });
+      const note = el('p', 'debrief-note',
+        'Time off does the healing. Anybody you leave on the bench mends a little ' +
+        'and steadies up every job you run without them.');
+      wrap.appendChild(note);
     }
 
     GH.save();
     renderLevelUps();
+    animateDebrief(wrap, took);
+
     GH.go('debrief', {
       title: result.escaped ? 'Clean Getaway' : 'Job Blown',
       sub: result.escaped ? money(haul) + ' in the bags' : 'Everyone regroups',
@@ -1276,7 +1410,7 @@ window.GH = (() => {
       if (GH.hasSave()) {
         const ok = await GH.confirm({
           title: 'Start a new run?',
-          body: 'Your current campaign - cash, crew and every weapon you have bought - will be erased. This cannot be undone.',
+          body: 'This wipes the lot: your cash, your crew, and every weapon you have bought. There is no getting it back.',
           yes: 'Erase and start over', no: 'Keep my run', danger: true,
         });
         if (!ok) return;

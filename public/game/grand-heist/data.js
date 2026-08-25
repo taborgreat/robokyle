@@ -151,7 +151,7 @@ window.GH_DATA = (() => {
     welder:   { name: "Welder's Mask", cost: 350, color: '#2B3630', blurb: 'You have stood behind a torch for a living. The vault does not take as long.',
                 perk: { kind: 'drill', value: 1.3 }, trim: '#1A1D22' },
     clown:    { name: 'Clown Mask',cost: 400, color: '#F1E4D2', blurb: 'Unsettling enough that people freeze instead of running.',
-                perk: { kind: 'cow', value: 1 }, trim: '#E3552B' },
+                perk: { kind: 'cow', value: 2 }, trim: '#E3552B' },
     hockey:   { name: 'Hockey Mask',cost:400, color: '#E8E2D0', blurb: 'Hard shell, worn by somebody who swings things. Hits land heavier.',
                 perk: { kind: 'melee', value: 1.3 }, trim: '#7C6459' },
     skull:    { name: 'Skull Mask',cost: 650, color: '#EDE6D6', blurb: 'A death\'s head at close range. Nobody standing near you shoots straight.',
@@ -369,27 +369,67 @@ window.GH_DATA = (() => {
   const TAGS     = ['Two-Time','The Drill','Nine Lives','No-Knock','Half-Past','The Nail','Sunday','Clockwork','Loose Change','The Hinge'];
 
   // ==================== TRAITS ====================
-  // `rare` traits only turn up on the people worth paying for, and they
-  // cost accordingly.
+  // What somebody is like to work with. `worth` prices them: positive for
+  // an advantage, negative for a drawback, and the hiring desk adds it up.
+  // `rare` ones only turn up on the people worth paying for.
+  //
+  //   workRate  : how fast they force tills, machines and vaults
+  //   moraleHold: how much of a morale drop they shrug off
+  //   xpMul     : how quickly they learn
+  //   hurtMul   : incoming damage
+  //   lootDouble: chance a pickup pays twice
   const TRAITS = {
-    none:        { name: '-',             blurb: 'No standout quirk.' },
-    triggerhappy:{ name: 'Trigger Happy', blurb: 'Fires faster, reloads slower.', fireRate: 0.85, reloadRate: 1.25 },
-    mule:        { name: 'Mule',          blurb: 'Carries more, moves slower.',   carryMul: 1.35, moveMul: 0.90 },
-    sponge:      { name: 'Bullet Sponge', blurb: 'Tougher, but a worse shot.',    hpMul: 1.30, shootMul: 0.85 },
-    cheapskate:  { name: 'Cheapskate',    blurb: 'Their gear costs 10% less.',    discount: 0.10 },
-    lucky:       { name: 'Lucky',         blurb: 'Sometimes survives a fatal hit at 1 HP.', cheatDeath: 0.30 },
+    none:        { name: '-', worth: 0, blurb: 'Nothing that stands out either way.' },
 
-    psycho:      { name: 'Psychopath',    rare: true,
-                   blurb: 'Nothing that happens on a job touches them. Morale never drags their work down.',
+    triggerhappy:{ name: 'Trigger Happy', worth: 0.05,
+                   blurb: 'Empties a magazine quicker than they fill one.',
+                   fireRate: 0.85, reloadRate: 1.25 },
+    mule:        { name: 'Mule', worth: 0.12,
+                   blurb: 'Carries a third more and walks a bit slower for it.',
+                   carryMul: 1.35, moveMul: 0.90 },
+    sponge:      { name: 'Bullet Sponge', worth: 0.10,
+                   blurb: 'Soaks up punishment. Could not hit a wall.',
+                   hpMul: 1.30, shootMul: 0.85 },
+    cheapskate:  { name: 'Cheapskate', worth: 0.12,
+                   blurb: 'Knows a man. Their gear costs a tenth less.',
+                   discount: 0.10 },
+    lucky:       { name: 'Lucky', worth: 0.34,
+                   blurb: 'One pickup in four comes up twice the size.',
+                   lootDouble: 0.25 },
+    resilient:   { name: 'Resilient', worth: 0.28,
+                   blurb: 'A bad night rolls off them. Morale barely touches their work.',
+                   // 0.6 pulled anyone above morale 25 clear of the penalty
+                   // entirely, which is the psychopath's job, not this one.
+                   moraleHold: 0.45 },
+    quick:       { name: 'Quick Hands', worth: 0.30,
+                   blurb: 'Moves fast and gets things open faster.',
+                   moveMul: 1.15, workRate: 1.3 },
+    student:     { name: 'Fast Learner', worth: 0.24,
+                   blurb: 'Takes more away from every job than the others do.',
+                   xpMul: 1.5 },
+
+    lazy:        { name: 'Lazy', worth: -0.26,
+                   blurb: 'In no hurry. Slow on their feet and slower on a lock.',
+                   moveMul: 0.85, workRate: 0.72 },
+    glassjaw:    { name: 'Glass Jaw', worth: -0.22,
+                   blurb: 'Goes down easy. Everything hurts them more.',
+                   hurtMul: 1.3 },
+    butterfingers:{ name: 'Butterfingers', worth: -0.18,
+                   blurb: 'Drops things. Fumbles a reload more often than not.',
+                   reloadRate: 1.5 },
+
+    psycho:      { name: 'Psychopath', rare: true, worth: 0.5,
+                   blurb: 'Nothing that happens on a job reaches them. Morale never drags their work down.',
                    moraleProof: true },
-    surgeon:     { name: 'Field Medic',   rare: true,
+    surgeon:     { name: 'Field Medic', rare: true, worth: 0.34,
                    blurb: 'Gets people back on their feet in half the time.',
                    reviveRate: 0.5 },
-    marksman:    { name: 'Marksman',      rare: true,
+    marksman:    { name: 'Marksman', rare: true, worth: 0.52,
                    blurb: 'Puts rounds exactly where they are aimed.',
                    spreadMul: 0.45, shootMul: 1.15 },
   };
-  const TRAIT_KEYS = ['none','triggerhappy','mule','sponge','cheapskate','lucky'];
+  const TRAIT_KEYS = ['none','triggerhappy','mule','sponge','cheapskate','lucky',
+                      'resilient','quick','student','lazy','glassjaw','butterfingers'];
   const RARE_TRAIT_KEYS = ['psycho','surgeon','marksman'];
 
   // What turns up when you put the word out. Weights shift toward the
@@ -410,7 +450,10 @@ window.GH_DATA = (() => {
     tellerWalletMax: 40,
     atmMin: 260,        // an ATM is worth cracking, and takes longer
     atmMax: 640,
-    atmDrill: 4200,     // ms to lever one open
+    atmDrill: 4200,     // ms to force a cash machine
+    registerPry: 1400,  // ms to lever a till
+    boxPry: 1100,       // ms to force a deposit box
+    walletTime: 1100,   // ms to go through somebody's pockets
   };
 
   // Morale. Crew who watch bystanders get shot stop being much use.
