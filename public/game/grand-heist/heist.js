@@ -74,19 +74,73 @@
     register(){ A() && GH.audio.playVaried('register', 0.9); },
     glass()  { A() && GH.audio.playVaried('glass', 0.8); },
     drill()  { A() && GH.audio.play('drill', { rate: 0.94 + Math.random() * 0.12, vol: 0.34 }); },
+    // forcing a machine: a grind that climbs as the lock gives
+    crack(done) {
+      if (!A()) return;
+      const t = Math.max(0, Math.min(1, done || 0));
+      GH.audio.play('drill', { rate: 0.78 + t * 0.5, vol: 0.26 + t * 0.12 });
+      if (Math.random() < 0.25 + t * 0.4) {
+        GH.audio.play('metal', { rate: 1.2 + t * 0.7, vol: 0.14 + t * 0.1 });
+      }
+    },
     alarm()  { A() && GH.audio.play('alarm', { vol: 1 }); },
     boom()   { A() && GH.audio.play('gunHeavy', { rate: 0.45, vol: 1 }); },
     down()   { A() && GH.audio.play('down', { vol: 0.9 }); },
     revive() { A() && GH.audio.play('revive', { vol: 0.9 }); },
-    reload() {
-      // magazine out, magazine in
-      A() && GH.audio.play('metal', { rate: 1.35, vol: 0.35 });
-      setTimeout(() => { A() && GH.audio.play('metal', { rate: 0.95, vol: 0.45 }); }, 130);
+    // Each class of weapon reloads with its own rhythm, so you can hear
+    // what somebody is doing without looking at them. Layered from the
+    // CC0 impact samples already in the pack.
+    reload(kind) {
+      if (!A()) return;
+      const hit = (key, rate, vol, at) => setTimeout(() => {
+        A() && GH.audio.play(key, { rate, vol });
+      }, at);
+      switch (kind) {
+        case 'shotgun':                       // shells in, then the pump
+          hit('metal', 1.5, 0.26, 0);
+          hit('metal', 1.44, 0.24, 150);
+          hit('metal', 1.38, 0.24, 300);
+          hit('metal', 0.72, 0.42, 470);
+          break;
+        case 'rifle':                         // mag out, mag in, bolt
+          hit('metal', 1.28, 0.30, 0);
+          hit('hitArmor', 0.86, 0.34, 190);
+          hit('metal', 0.82, 0.40, 340);
+          break;
+        case 'heavy':                         // a belt, and it is not quick
+          hit('metal', 0.62, 0.40, 0);
+          hit('hitArmor', 0.58, 0.38, 240);
+          hit('metal', 0.50, 0.46, 520);
+          hit('metal', 0.70, 0.36, 760);
+          break;
+        case 'rocket':                        // tube open, round in, shut
+          hit('metal', 0.90, 0.34, 0);
+          hit('hitArmor', 0.66, 0.40, 260);
+          hit('metal', 0.58, 0.44, 520);
+          break;
+        case 'energy':                        // a cell swap and a spin-up
+          hit('glass', 1.6, 0.22, 0);
+          hit('metal', 1.75, 0.20, 120);
+          hit('metal', 2.0, 0.16, 240);
+          hit('metal', 2.3, 0.13, 340);
+          break;
+        default:                              // pistol: clack, clack
+          hit('metal', 1.42, 0.30, 0);
+          hit('metal', 0.98, 0.42, 140);
+      }
     },
     vault()  { A() && GH.audio.play('vault', { vol: 1 }); },
     scream() {
-      A() && GH.audio.play(Math.random() < 0.5 ? 'screamA' : 'screamB',
-        { rate: 0.92 + Math.random() * 0.22, vol: 0.5 });
+      // Rate-limited hard: a crowd reacting is a burst of two or three
+      // voices, not one every second for the rest of the job.
+      if (!A()) return;
+      if (H.screamT > 0) return;
+      if ((H.screamCount || 0) >= 3 && H.t - (H.screamWindow || 0) < 9000) return;
+      if (H.t - (H.screamWindow || 0) >= 9000) { H.screamWindow = H.t; H.screamCount = 0; }
+      H.screamCount = (H.screamCount || 0) + 1;
+      H.screamT = 900 + Math.random() * 600;
+      GH.audio.play(Math.random() < 0.5 ? 'screamA' : 'screamB',
+        { rate: 0.94 + Math.random() * 0.18, vol: 0.34 });
     },
     step()   { A() && GH.audio.play('step', { rate: 0.9 + Math.random() * 0.25, vol: 0.18 }); },
   };
@@ -110,27 +164,44 @@
   const mouse = { x: 0, y: 0, down: false, wx: 0, wy: 0 };
 
   // ==================== WORLD GENERATION ====================
+  // Heights include the street below the building, so they grew with it —
+  // the banks themselves are the same size they always were.
   const SIZES = {
-    small: { w: 1250, h: 950,  lobby: 0.56 },
-    mid:   { w: 1550, h: 1150, lobby: 0.54 },
-    large: { w: 1950, h: 1400, lobby: 0.52 },
-    huge:  { w: 2350, h: 1700, lobby: 0.50 },
+    small: { w: 1250, h: 1030, lobby: 0.56 },
+    mid:   { w: 1550, h: 1230, lobby: 0.54 },
+    large: { w: 1950, h: 1480, lobby: 0.52 },
+    huge:  { w: 2350, h: 1780, lobby: 0.50 },
   };
-  const STREET = 230;
+  // Deep enough for a proper pavement AND a carriageway: 120 of pavement,
+  // and road left over for parked cars with room to walk round them.
+  const STREET = 310;
   const WALL = 18;
 
   // Put a cash pile on open floor near a prop rather than inside it.
   // Tries a few angles outward, then falls back to the nearest free cell,
   // so nothing ever spawns clipped into a wall or a counter.
-  function spillSpot(x, y, preferAngle, away) {
+  // `mustPass` lets a caller insist on a side — a till has to drop its
+  // takings where the customer is standing, not behind the counter.
+  function spillSpot(x, y, preferAngle, away, mustPass) {
     const d0 = away == null ? 34 : away;
-    const tries = [];
-    if (preferAngle != null) tries.push(preferAngle);
-    for (let i = 0; i < 8; i++) tries.push(preferAngle == null ? i * Math.PI / 4
-                                                              : preferAngle + (i + 1) * Math.PI / 4);
-    for (const a of tries) {
-      const sx = x + Math.cos(a) * d0, sy = y + Math.sin(a) * d0;
-      if (!navBlockedAt(H.world.nav, sx, sy) && !blocked(sx, sy, 10)) return { x: sx, y: sy };
+    const ok = (sx, sy) => {
+      // Real geometry, not the nav grid: a cell that merely clips a
+      // counter's clearance is still perfectly good floor to drop cash on,
+      // and testing the grid here was throwing the money over the counter.
+      if (blocked(sx, sy, 10)) return false;
+      if (mustPass && !mustPass(sx, sy)) return false;
+      return true;
+    };
+    for (let step = 0; step < 3; step++) {
+      const d = d0 + step * 16;
+      if (preferAngle != null && ok(x + Math.cos(preferAngle) * d, y + Math.sin(preferAngle) * d)) {
+        return { x: x + Math.cos(preferAngle) * d, y: y + Math.sin(preferAngle) * d };
+      }
+      for (let i = 1; i <= 8; i++) {
+        const a = (preferAngle == null ? 0 : preferAngle) + i * Math.PI / 5 * (i % 2 ? 1 : -1);
+        const sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d;
+        if (ok(sx, sy)) return { x: sx, y: sy };
+      }
     }
     const cell = nearestFree(H.world.nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL));
     return cell ? { x: cellCentre(cell[0]), y: cellCentre(cell[1]) } : { x, y };
@@ -232,7 +303,9 @@
       if (y < by || y > by + bh) return false;               // outside is fine
       // the strip in front of the counter has to stay walkable, or you
       // cannot get to your own tills
-      if (y > counterY + 10 && y < counterY + 54) return true;
+      // deep enough that nothing solid ends up within a body's width of
+      // somebody standing at a till
+      if (y > counterY - 30 && y < counterY + 92) return true;
       if (x > doorLane[0] && x < doorLane[1]) return true;
       for (const g of gapLanes) if (x > g[0] && x < g[1]) return true;
       return false;
@@ -445,27 +518,47 @@
     // rather than floating in the middle of the carriageway.
     world.street = { x: 0, y: Hh - STREET, w: W, h: STREET };
     const walkY = Hh - STREET;                 // top of the pavement
-    const kerbY = walkY + 66;                  // pavement meets road here
+    const kerbY = walkY + 120;                 // pavement meets road here
     const parkY = kerbY + 40;                  // centre line of parked cars
     world.walkY = walkY;
     world.kerbY = kerbY;
     world.parkY = parkY;
 
-    // The getaway car waits at the kerb directly outside the entrance.
-    world.car = { x: doorX + doorW / 2, y: parkY, r: 78 };
+    // The getaway car waits at the kerb. Normally that is right outside
+    // the entrance — but if this job has men posted on the street, park
+    // at the other end of it. Walking up the pavement towards a guard is
+    // a decision; spawning six feet from one is just an ambush.
+    const entranceX = doorX + doorW / 2;
+    const guardsOutside = bank.guards >= 4 || !!bank.boss;
+    world.guardsOutside = guardsOutside;
+    world.car = {
+      x: guardsOutside
+        ? (entranceX > W / 2 ? W * 0.16 : W * 0.84)
+        : entranceX,
+      y: parkY, r: 78,
+    };
+    world.entranceX = entranceX;
 
     // Other vehicles along the same kerb, never on top of the getaway car.
+    // A street's worth of different vehicles, all at full size — the old
+    // ones were scaled down and read as models parked next to the real car.
     world.vehicles = [];
-    const PAINT = ['#2B3A4A', '#3A3038', '#243028', '#40382A', '#32323A', '#3B2A2A'];
-    for (let vx = 150; vx < W - 150; vx += rand(210, 300)) {
+    const PAINT = ['#2B3A4A', '#3A3038', '#243028', '#40382A', '#32323A', '#3B2A2A',
+                   '#4A4438', '#1E2A34', '#513B2E', '#6A6257', '#2E3E3A'];
+    const BODIES = ['saloon', 'saloon', 'hatch', 'estate', 'van', 'pickup', 'taxi'];
+    for (let vx = 170; vx < W - 170; vx += rand(240, 340)) {
       if (Math.abs(vx - world.car.x) < 300) continue;   // room to load up
+      const body = BODIES[Math.floor(Math.random() * BODIES.length)];
+      const len = VEHICLE_LEN[body];
       world.vehicles.push({
-        x: vx, y: parkY + rand(-4, 4),
-        color: PAINT[Math.floor(Math.random() * PAINT.length)],
+        x: vx, y: parkY + rand(-3, 3),
+        color: body === 'taxi' ? '#C9A227' : PAINT[Math.floor(Math.random() * PAINT.length)],
         flip: Math.random() < 0.5,
-        scale: rand(0.82, 0.95),
+        scale: rand(0.98, 1.06),
+        body,
+        rust: Math.random() < 0.3,
       });
-      obstacles.push({ x: vx - 62, y: parkY - 25, w: 124, h: 50, low: true, kind: 'car' });
+      obstacles.push({ x: vx - len / 2, y: parkY - 26, w: len, h: 52, low: true, kind: 'car' });
     }
 
     // ---- decoration ----
@@ -478,8 +571,23 @@
     world.tier = tier;
 
 
+    // The strip of pavement against the shopfronts stays clear end to
+    // end. Benches and planters live on the kerb side of it. Without this
+    // the street furniture could wall the pavement off completely, which
+    // matters now that the car is not always parked at the door.
+    // Wide enough that a whole nav-grid row fits inside it: a 30px gap
+    // that a body fits through is no use if every cell covering it also
+    // clips the wall's clearance and reads as blocked.
+    const PAVE_CLEAR_TO = walkY + 68;
+
     const addDecor = (kind, x, y, opts) => {
       const d = Object.assign({ kind, x, y, rot: 0, s: 1 }, opts || {});
+      // keep solid street furniture out of the walking lane
+      if (d.solid && y > walkY - 20 && y < kerbY + 30) {
+        const half = d.solid[1] / 2;
+        if (d.y - half < PAVE_CLEAR_TO) d.y = PAVE_CLEAR_TO + half;
+        if (d.y + half > kerbY - 4) d.y = kerbY - 4 - half;     // and off the road
+      }
       // shove a blocking prop aside rather than dropping it in a doorway
       if (d.solid && inLane(x, y)) {
         const shift = (x < (bx + bw) / 2 ? -1 : 1) * (gapW + 40);
@@ -560,20 +668,20 @@
     if (tier === 'low') {
       for (let i = 0; i < 10; i++) { const p = inLobby(); addDecor('scuff', p.x, p.y, { s: rand(0.8, 1.6) }); }
       for (let i = 0; i < 5; i++)  { const p = inLobby(); addDecor('litter', p.x, p.y, { rot: rand(0, 6.3), s: 0.8 }); }
-      addDecor('cooler', bx + 40, counterY + 56, { solid: [26, 26] });
+      addDecor('cooler', bx + 40, counterY + 126, { solid: [26, 26] });
       addDecor('chair', bx + 96, lobbyBot - 10, { solid: [26, 26] });
       addDecor('chair', bx + 132, lobbyBot - 10, { solid: [26, 26] });
       addDecor('board', bx + bw - 60, counterY + 54, { s: 1 });
     } else if (tier === 'mid') {
-      addDecor('plant', bx + 44, counterY + 58, { solid: [34, 34] });
-      addDecor('plant', bx + bw - 44, counterY + 58, { solid: [34, 34] });
+      addDecor('plant', bx + 44, counterY + 128, { solid: [34, 34] });
+      addDecor('plant', bx + bw - 44, counterY + 128, { solid: [34, 34] });
       addDecor('seating', bx + 74, lobbyBot - 16, { solid: [90, 30] });
       addDecor('seating', bx + bw - 74, lobbyBot - 16, { solid: [90, 30] });
-      addDecor('stand', bx + 96, counterY + 58, { solid: [24, 24] });
+      addDecor('stand', bx + 96, counterY + 132, { solid: [24, 24] });
     } else {
       addDecor('rug', bx + bw * 0.5, (counterY + lobbyBot) / 2, { s: 1 });
-      addDecor('topiary', bx + 46, counterY + 58, { solid: [40, 40] });
-      addDecor('topiary', bx + bw - 46, counterY + 58, { solid: [40, 40] });
+      addDecor('topiary', bx + 46, counterY + 132, { solid: [40, 40] });
+      addDecor('topiary', bx + bw - 46, counterY + 132, { solid: [40, 40] });
       addDecor('flowers', bx + bw * 0.34, counterY - 40, { s: 1 });
       addDecor('flowers', bx + bw * 0.66, counterY - 40, { s: 1 });
       addDecor('rope', doorX - 70, by + bh - 90, { solid: [12, 12] });
@@ -584,7 +692,63 @@
     }
 
     buildNav(world);
+    clearRouteToDoor(world);
     return world;
+  }
+
+  // ---- prove you can actually walk from the car to the front door ----
+  // The street furniture is placed by tier and by taste, and any given
+  // arrangement can wall the pavement off — especially now the car is not
+  // always parked at the entrance. Rather than hand-tuning every prop,
+  // check the route and take out whatever is in the way until it opens.
+  // Only loose street furniture is ever removed; walls and vehicles stay.
+  function clearRouteToDoor(world) {
+    const CELL = NAV_CELL;
+    const doorPt = { x: world.door.x + world.door.w / 2, y: world.door.y + 40 };
+
+    const connected = () => {
+      const nav = world.nav;
+      const sx = Math.floor(world.car.x / CELL), sy = Math.floor(world.car.y / CELL);
+      const gx = Math.floor(doorPt.x / CELL), gy = Math.floor(doorPt.y / CELL);
+      if (nav.blocked[sy * nav.cols + sx]) return false;
+      const seen = new Uint8Array(nav.cols * nav.rows);
+      const q = [sx, sy];
+      seen[sy * nav.cols + sx] = 1;
+      for (let h = 0; h < q.length; h += 2) {
+        const x = q[h], y = q[h + 1];
+        if (x === gx && y === gy) return true;
+        for (let d = 0; d < 4; d++) {
+          const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d];
+          if (nx < 0 || ny < 0 || nx >= nav.cols || ny >= nav.rows) continue;
+          const i = ny * nav.cols + nx;
+          if (seen[i] || nav.blocked[i]) continue;
+          seen[i] = 1;
+          q.push(nx, ny);
+        }
+      }
+      return false;
+    };
+
+    if (connected()) return;
+
+    // Everything loose on the street, nearest the route first.
+    const midX = (world.car.x + doorPt.x) / 2;
+    const loose = world.obstacles
+      .map((o, i) => ({ o, i }))
+      .filter(({ o }) => o.kind === 'decor' && o.y > world.walkY - 40)
+      .sort((a, b) => Math.abs(a.o.x - midX) - Math.abs(b.o.x - midX));
+
+    for (const { o } of loose) {
+      const at = world.obstacles.indexOf(o);
+      if (at < 0) continue;
+      world.obstacles.splice(at, 1);
+      // and take the visible prop with it, so nothing is left floating
+      const dec = world.decor.find(d => d.solid &&
+        Math.abs(d.x - (o.x + o.w / 2)) < 1 && Math.abs(d.y - (o.y + o.h / 2)) < 1);
+      if (dec) world.decor.splice(world.decor.indexOf(dec), 1);
+      buildNav(world);
+      if (connected()) return;
+    }
   }
 
   // ==================== ENTITY FACTORY ====================
@@ -708,16 +872,25 @@
       if (!ok) { gx = b.x + b.w / 2; gy = world.counterY + 80; }   // lobby fallback
       H.enemies.push(makeEnemy(bank.guardWpn, gx, gy));
     }
-    // a couple of them patrol outside on bigger jobs
+    // A couple of them stand outside on bigger jobs — by the doors they
+    // are watching. Never within opening-fire distance of the car.
     if (bank.guards >= 4) {
-      H.enemies.push(makeEnemy(bank.guardWpn, world.car.x - 220, world.h - STREET + 60));
-      H.enemies.push(makeEnemy(bank.guardWpn, world.car.x + 220, world.h - STREET + 60));
+      const post = world.entranceX;
+      [post - 120, post + 120].forEach(gx2 => {
+        const x2 = clamp(gx2, 90, world.w - 90);
+        if (Math.abs(x2 - world.car.x) < 360) return;    // too near the car
+        H.enemies.push(makeEnemy(bank.guardWpn, x2, world.h - STREET + 60));
+      });
     }
     // boss unit
     if (bank.boss) {
       const def = D.ENEMIES[bank.boss];
       let bx2, by2;
-      if (def.static || def.vehicle) { bx2 = world.car.x + 260; by2 = world.h - STREET + 80; }
+      // parked across the entrance, not across your escape
+      if (def.static || def.vehicle) {
+        bx2 = clamp(world.entranceX + (world.entranceX > world.car.x ? 180 : -180), 120, world.w - 120);
+        by2 = world.h - STREET + 80;
+      }
       else { const v = world.vaults[0]; bx2 = v.x + v.w / 2; by2 = v.y + v.h + 70; }
       const boss = makeEnemy(bank.boss, bx2, by2);
       boss.isBoss = true;
@@ -734,6 +907,7 @@
   // Handle onto live mission state, for debugging and the headless
   // test harness. Read-only in practice; nothing in the game uses it.
   GH.__debug = () => H;
+  GH.__mouse = () => mouse;      // tests need to point somewhere before pinging
 
   function banner(text, sub) {
     H.msg = { text, sub };
@@ -792,10 +966,61 @@
 
   function placePing() {
     if (!H) return;
-    H.ping = { x: mouse.wx, y: mouse.wy };
+    const x = mouse.wx, y = mouse.wy;
+    H.pingSeq = (H.pingSeq || 0) + 1;
+    H.ping = { x, y, id: H.pingSeq };
     H.pingT = 9000;
     sfxSafe.pickup();
+
+    // Dropped on something worth opening? Put a name to the job.
+    const job = machineAt(x, y);
+    if (job) {
+      const hand = freestCrewFor(job.obj);
+      if (hand) {
+        hand.job = { kind: job.kind, obj: job.obj, pingId: H.pingSeq };
+        hand.pingAt = null;
+        banner(hand.name.toUpperCase() + ' IS ON IT', 'Cracking the ' + job.label + '.');
+        floatText(job.obj.x, job.obj.y - 34, hand.name, '#E0B44C');
+        return;
+      }
+      banner('NOBODY FREE', 'Everyone is busy \u2014 do it yourself.');
+      return;
+    }
     banner('MOVE UP', 'Crew are taking the mark.');
+  }
+
+  // What is under the mark, if anything: a till, a machine or a box.
+  function machineAt(x, y) {
+    let best = null, bd = 78;
+    const test = (obj, kind, label) => {
+      if (obj.open) return;
+      const d = Math.hypot(obj.x - x, obj.y - y);
+      if (d < bd) { bd = d; best = { obj, kind, label }; }
+    };
+    H.world.atms.forEach(a => test(a, 'atm', 'cash machine'));
+    H.world.registers.forEach(t => test(t, 'register', 'till'));
+    H.world.deposits.forEach(b => test(b, 'deposit', 'deposit box'));
+    return best;
+  }
+
+  // Whoever is least busy, nearest first. Somebody already carrying a job
+  // is not free, so a second mark goes to a second pair of hands.
+  function freestCrewFor(obj) {
+    let best = null, bd = 1e9;
+    for (const c of H.crew) {
+      if (c.dead || c.downed) continue;
+      if (c.job && c.job.obj && !c.job.obj.open) continue;    // already tasked
+      const d = dist(c, obj);
+      if (d < bd) { bd = d; best = c; }
+    }
+    if (best) return best;
+    // everyone is tasked: hand it to whoever is closest anyway
+    for (const c of H.crew) {
+      if (c.dead || c.downed) continue;
+      const d = dist(c, obj);
+      if (d < bd) { bd = d; best = c; }
+    }
+    return best;
   }
 
   function quickMelee() {
@@ -924,7 +1149,9 @@
     t.shake = 12;
     sfxSafe.register();
     if (loud) { sfxSafe.glass(); if (!H.alarm) trip('teller'); }
-    const spot = spillSpot(t.x, t.y, Math.PI / 2, 40);
+    // straight out onto the customer's side of the counter
+    const lobbySide = (sx, sy) => sy > H.world.counterY + 26;
+    const spot = spillSpot(t.x, t.y, Math.PI / 2, 46, lobbySide);
     H.world.loot.push({
       x: spot.x, y: spot.y, r: 13,
       amount: t.amount, kind: 'till', locked: false, taken: false,
@@ -937,6 +1164,16 @@
         color: i % 2 ? 'rgba(150,200,150,0.85)' : 'rgba(200,200,190,0.7)',
       });
     }
+  }
+
+  // A steady grinding while a machine is being forced, pitching up as it
+  // gives way. Keyed per machine so two people working two machines do
+  // not stamp on each other's timer.
+  function crackNoise(o) {
+    if (H.t < (o.noiseAt || 0)) return;
+    o.noiseAt = H.t + 190;
+    const done = Math.min(1, (o.prog || 0) / LO.atmDrill);
+    sfxSafe.crack(done);
   }
 
   function grabNearbyLoot(a, manual) {
@@ -1019,7 +1256,14 @@
         const silentKill = !H.alarm && !e.alerted;
         damageEnemy(e, w.dmg * a.dmgMul, a, ang);
         bloodSpray(e.x, e.y, Math.cos(ang), Math.sin(ang), 10);
-        if (w.knockback) { e.x += Math.cos(ang) * w.knockback; e.y += Math.sin(ang) * w.knockback; }
+        // Knock them back, but never into the scenery — shoving a body
+        // inside a wall is how things end up permanently stuck.
+        if (w.knockback) {
+          const kx = e.x + Math.cos(ang) * w.knockback;
+          const ky = e.y + Math.sin(ang) * w.knockback;
+          if (!blocked(kx, e.y, e.r)) e.x = kx;
+          if (!blocked(e.x, ky, e.r)) e.y = ky;
+        }
         if (silentKill && e.dead) floatText(e.x, e.y - 30, 'QUIET', '#4FB3C4');
       }
       return;
@@ -1074,11 +1318,21 @@
     return a;
   }
 
+  // Which reload rhythm a weapon uses. Falls back to the pistol pattern,
+  // so a weapon added later still makes a sensible noise.
+  const RELOAD_KIND = {
+    glock: 'pistol', shotgun: 'shotgun', smg: 'rifle', rifle: 'rifle',
+    lmg: 'heavy', minigun: 'heavy', rpg: 'rocket',
+    pulse: 'energy', arc: 'energy', plasma: 'energy', singularity: 'energy',
+  };
+
   function tryReload(a) {
     const w = D.WEAPONS[a.weapon];
     if (!w.mag || a.reloading > 0 || a.mag === w.mag) return;
-    a.reloading = w.reload * (a.trait && a.trait.reloadRate ? a.trait.reloadRate : 1);
-    sfxSafe.reload();
+    const time = w.reload * (a.trait && a.trait.reloadRate ? a.trait.reloadRate : 1);
+    a.reloading = time;
+    a.reloadFor = time;                    // for the spinner over their head
+    sfxSafe.reload(RELOAD_KIND[a.weapon]);
   }
 
   function damageEnemy(e, dmg, src, ang) {
@@ -1542,16 +1796,25 @@
     const w = D.WEAPONS[c.weapon];
     const speed = 2.1 * c.moveMul;
 
-    if (c.reloading > 0) c.reloading -= dt;
+    if (c.reloading > 0) {
+      c.reloading -= dt;
+      if (c.reloading <= 0) c.mag = w.mag;      // the magazine actually goes in
+    }
     if (c.heat > 0) c.heat = Math.max(0, c.heat - (w.cool || 2) * dt / 1000);
     c.cd -= dt;
 
     // ---------- 1. pick a threat ----------
+    // While nothing has kicked off, the crew do not start anything. They
+    // will defend themselves against someone already coming for them, but
+    // they will not sprint across the car park at a guard on sight.
+    const quiet = !H.alarm;
     let foe = null, fd = 1e9;
     for (const e of H.enemies) {
       if (e.dead) continue;
       const d = dist(c, e);
-      if (d < fd && d < 480 && hasLOS(c, e)) { fd = d; foe = e; }
+      const range = quiet ? 150 : 480;          // quiet: only what is on top of them
+      if (quiet && !e.alerted) continue;        // and only if it has noticed them
+      if (d < fd && d < range && hasLOS(c, e)) { fd = d; foe = e; }
     }
     // a ping overrides target choice
     if (H.ping && H.pingT > 0) {
@@ -1564,26 +1827,78 @@
       if (pf) { foe = pf; fd = dist(c, pf); }
     }
 
-    // ---------- 1b. a ping is an order ----------
-    // Move to the mark and hold it. Anything hostile near it is the
-    // priority; if it is empty ground, they go and stand on it anyway.
-    const ping = (H.ping && H.pingT > 0) ? H.ping : null;
-    if (ping) {
-      const pd = Math.hypot(ping.x - c.x, ping.y - c.y);
-      if (pd > 70) {
-        c.state = 'ping';
-        navigateTo(c, ping.x, ping.y, speed * 1.1, dt);
+    // ---------- 1b. a job they were given ----------
+    // Marked on a till or a machine: go and open it. This outranks the
+    // plain move order and everything below it short of being shot at.
+    if (c.job && c.job.obj) {
+      const o = c.job.obj;
+      if (o.open) { c.job = null; }
+      else {
+        c.state = 'crack';
+        const reach = c.job.kind === 'register' ? 60 : 50;
+        const d = dist(c, o);
+        if (d > reach) {
+          navigateTo(c, o.x, o.y, speed * 1.1, dt);
+        } else {
+          c.angle = lerp(c.angle, Math.atan2(o.y - c.y, o.x - c.x), 0.18);
+          if (c.job.kind === 'register') openRegister(o, false);
+          else if (c.job.kind === 'deposit') openDeposit(o, c);
+          else {
+            // a machine is a hold, same as it is for the player
+            o.prog = (o.prog || 0) + dt;
+            o.shake = 4;
+            crackNoise(o);
+            if (o.prog >= LO.atmDrill) openATM(o, c);
+          }
+        }
         if (foe && fd < (w.range || w.reach + 20)) {
-          c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
           if (w.mag && c.mag <= 0) tryReload(c);
           else fire(c, foe.x, foe.y);
-        } else {
-          c.angle = lerp(c.angle, Math.atan2(ping.y - c.y, ping.x - c.x), 0.16);
         }
         separate(c, H.all, c.r * 3.0, 0.45, dt);
         grabNearbyLoot(c, false);
         return;
       }
+    }
+
+    // ---------- 1c. a ping is an order ----------
+    // Move to the mark and then STAY on it. They used to arrive, drop back
+    // into follow, walk away and bounce between the two forever \u2014 so
+    // arriving is latched, and only a new mark or a timeout releases them.
+    const ping = (H.ping && H.pingT > 0) ? H.ping : null;
+    if (ping) {
+      if (c.pingAt !== ping.id) {
+        const pd = Math.hypot(ping.x - c.x, ping.y - c.y);
+        if (pd <= 74) {
+          c.pingAt = ping.id;                 // close enough. Stop.
+          c.holdX = c.x; c.holdY = c.y;
+        } else {
+          c.state = 'ping';
+          navigateTo(c, ping.x, ping.y, speed * 1.1, dt);
+          if (foe && fd < (w.range || w.reach + 20)) {
+            c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
+            if (w.mag && c.mag <= 0) tryReload(c);
+            else fire(c, foe.x, foe.y);
+          } else {
+            c.angle = lerp(c.angle, Math.atan2(ping.y - c.y, ping.x - c.x), 0.16);
+          }
+          separate(c, H.all, c.r * 3.0, 0.45, dt);
+          grabNearbyLoot(c, false);
+          return;
+        }
+      }
+      if (c.pingAt === ping.id && !foe) {
+        // holding the mark: settle, look around, pick up anything underfoot
+        c.state = 'onmark';
+        idleAbout(c, c.holdX == null ? c.x : c.holdX, c.holdY == null ? c.y : c.holdY, speed, dt);
+        separate(c, H.all, c.r * 3.4, 0.45, dt);
+        grabNearbyLoot(c, false);
+        if (w.mag && c.mag < w.mag) tryReload(c);
+        return;
+      }
+    } else if (c.pingAt != null) {
+      c.pingAt = null;                        // mark expired: back to normal
+      c.holdX = c.holdY = null;
     }
 
     // ---------- 2. a mate on the floor outranks everything but survival ----------
@@ -1657,9 +1972,17 @@
           if (l.locked) return;
           // fresh out of a till or a machine: the player gets first refusal
           if (l.claimAt && H.t < l.claimAt) return;
-          // one earner per pile — three of them converging on your feet is
-          // what made this so irritating
-          if (l.claimedBy && l.claimedBy !== c && !l.claimedBy.dead && !l.claimedBy.downed) return;
+          // One earner per pile. But a claim is not a deed: if somebody
+          // else ends up clearly nearer, they take it over rather than the
+          // pair of them crossing the room past each other.
+          const holder = l.claimedBy;
+          if (holder && holder !== c && !holder.dead && !holder.downed) {
+            if (holder.carryCap - holder.carried <= 200) {
+              // their bag is full, so it is going spare anyway
+            } else if (dist(c, l) > dist(holder, l) - 70) {
+              return;                          // not clearly nearer: leave it
+            }
+          }
           const d = dist(c, l);
           if (d < td) { td = d; target = l; }
         };
@@ -1669,7 +1992,12 @@
 
       // release anything this crew member was going for but no longer is
       if (c.claim && c.claim !== target) { c.claim.claimedBy = null; c.claim = null; }
-      if (target) { target.claimedBy = c; c.claim = target; }
+      if (target) {
+        // taking it off somebody else: let them go and find another
+        if (target.claimedBy && target.claimedBy !== c) target.claimedBy.claim = null;
+        target.claimedBy = c;
+        c.claim = target;
+      }
 
       if (target) {
         c.state = 'loot';
@@ -1683,7 +2011,7 @@
         // loose formation, offset behind RoboKyle rather than on top of him
         // Well back and well apart, so the player can always see himself
         // and what he is standing on.
-        const off = [[-96, 82], [96, 82], [0, 124]][c.slot - 1] || [0, 100];
+        const off = [[-132, 110], [132, 110], [0, 168]][c.slot - 1] || [0, 140];
         let tx = p.x + off[0], ty = p.y + off[1];
         // A formation slot can land inside a wall — the corner vaults make
         // that common — and they would hover outside it forever. Snap the
@@ -1693,7 +2021,7 @@
           if (cell) { tx = cellCentre(cell[0]); ty = cellCentre(cell[1]); }
         }
         const d = Math.hypot(tx - c.x, ty - c.y);
-        if (d > 54) {
+        if (d > 68) {
           navigateTo(c, tx, ty, clamp(d / 55, 0.7, 1) * speed, dt);
           c.angle = lerp(c.angle, Math.atan2(ty - c.y, tx - c.x), 0.14);
           c.idle = null;
@@ -1710,7 +2038,7 @@
     }
 
     // never bunch up on each other or on RoboKyle
-    separate(c, H.all, c.r * 3.4, 0.5, dt);
+    separate(c, H.all, c.r * 4.0, 0.55, dt);
 
     // whatever they are doing, they hoover up cash they walk over
     grabNearbyLoot(c, false);
@@ -2499,6 +2827,41 @@
   // separation, or left behind when a wall was rebuilt — normal movement
   // can never free them, because every candidate step is blocked too.
   // Slide them out toward open floor, ignoring collision for that nudge.
+  // Ease a body out of anything it has ended up inside — knockback from a
+  // burst of fire is the usual way it happens. Pushes out of the NEAREST
+  // face of each prop, so a wall pushes you back the way you came instead
+  // of through to the other side, which an "any open floor" search would
+  // happily do.
+  function pushOutOfProps(a, dt) {
+    const step = 3.0 * (dt / 16.67);
+    let mx = 0, my = 0;
+    for (const o of H.world.obstacles) {
+      if (o.kind === 'vaultdoor' && !o.solid) continue;
+      const nx = Math.max(o.x, Math.min(a.x, o.x + o.w));
+      const ny = Math.max(o.y, Math.min(a.y, o.y + o.h));
+      const dx = a.x - nx, dy = a.y - ny;
+      if (dx * dx + dy * dy >= a.r * a.r) continue;
+
+      if (dx || dy) {
+        // clipping a corner or an edge: straight back out along it
+        const d = Math.hypot(dx, dy) || 1;
+        mx += dx / d; my += dy / d;
+      } else {
+        // dead inside: leave by whichever face is closest
+        const left = a.x - o.x, right = o.x + o.w - a.x;
+        const up = a.y - o.y, down = o.y + o.h - a.y;
+        const m = Math.min(left, right, up, down);
+        if (m === left) mx -= 1; else if (m === right) mx += 1;
+        else if (m === up) my -= 1; else my += 1;
+      }
+    }
+    const len = Math.hypot(mx, my);
+    if (!len) return;
+    a.x = clamp(a.x + mx / len * step, a.r, H.world.w - a.r);
+    a.y = clamp(a.y + my / len * step, a.r, H.world.h - a.r);
+    a.ghost = 200;                        // squeeze past bodies on the way out
+  }
+
   function unembed(a, dt) {
     const nav = H.world.nav;
     // Physically inside a prop: always needs the escape hatch.
@@ -2559,17 +2922,14 @@
     const player = H.robo;
     if (self === player) {
       const r = self.r * 0.82;
-      // Crew and hostiles are solid. Bystanders are not: you push through
-      // a queue rather than being walled out of a counter by one.
-      const lists = [H.all, H.enemies];
-      for (let l = 0; l < 2; l++) {
-        const arr = lists[l];
-        for (let i = 0; i < arr.length; i++) {
-          const o = arr[i];
-          if (o === self || o.dead || o.downed) continue;
-          const rr = r + o.r * 0.82;
-          if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
-        }
+      // Only hostiles are solid to you. Your own crew and the bystanders
+      // get shouldered out of the way instead — nothing is worse than
+      // being pinned in a doorway by the people you brought with you.
+      for (let i = 0; i < H.enemies.length; i++) {
+        const o = H.enemies[i];
+        if (o.dead || o.downed) continue;
+        const rr = r + o.r * 0.82;
+        if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
       }
       return false;
     }
@@ -2633,6 +2993,16 @@
       return;
     }
 
+    // ---- never leave the player wedged in the scenery ----
+    // Getting shoved into a wall by a rushing enemy, or a prop landing on
+    // top of you, used to be unrecoverable: every direction reads blocked,
+    // so no input helps. Walk them back out to real floor instead. This
+    // tests actual geometry, not the nav grid, whose cells are coarse
+    // enough to call perfectly good floor blocked.
+    if (blocked(p.x, p.y, p.r)) {
+      pushOutOfProps(p, dt);
+    }
+
     // ---- movement ----
     let mx = 0, my = 0;
     if (keys['w'] || keys['arrowup']) my -= 1;
@@ -2662,7 +3032,7 @@
     p.cd -= dt;
     if (p.reloading > 0) {
       p.reloading -= dt;
-      if (p.reloading <= 0) p.mag = w.mag;
+      if (p.reloading <= 0) { p.mag = w.mag; p.reloadFor = 0; }
     }
     if (w.heat) {
       p.heat = Math.max(0, p.heat - (w.cool || 2) * dt / 1000);
@@ -2700,16 +3070,16 @@
       const a = p.atm;
       a.prog += dt;
       a.shake = 4;
-      if (Math.random() < 0.05) sfxSafe.drill();
+      crackNoise(a);
       if (a.prog >= LO.atmDrill) openATM(a, p);
     } else if (p.atm) {
       p.atm.prog = Math.max(0, p.atm.prog - dt * 2);   // slips back if you walk off
       if (!holding) p.atm = null;
     }
 
-    // Walking into a bystander shoulders them out of the way rather than
-    // stopping you dead.
-    for (const c of H.civilians) {
+    // Walking into a bystander or one of your own shoulders them out of
+    // the way rather than stopping you dead.
+    for (const c of H.civilians.concat(H.crew)) {
       if (c.dead) continue;
       const dx = c.x - p.x, dy = c.y - p.y;
       const rr = p.r + c.r * 0.9;
@@ -3028,9 +3398,12 @@
       }
     }
 
-    // extraction: RoboKyle at the car
+    // extraction: RoboKyle at the car, once the driver has had time to
+    // get the engine going. Without this you could roll up, touch the
+    // door and drive off with nothing.
     const atCar = dist(H.robo, H.world.car) < H.world.car.r;
-    H.canExtract = atCar && !H.robo.downed;
+    H.extractLeft = Math.max(0, TUNE_EXTRACT_LOCK - H.t);
+    H.canExtract = atCar && !H.robo.downed && H.extractLeft <= 0;
     const wantsExtract = keys['e'] || (touch.active && touch.interact);
     if (H.canExtract && wantsExtract && !H.extractPhase) {
       H.extractPhase = true;
@@ -3139,8 +3512,12 @@
       hpOut[key] = a.dead ? 1 : Math.max(1, Math.round(a.hp));
     });
 
+    // The first vault is the main one. Cracking it is what the job was
+    // for, and what earns the next bank on the board.
+    const mainVault = H.world.vaults[0];
     GH.debrief({
       escaped,
+      vaultCracked: !!(mainVault && mainVault.open),
       haul: escaped ? haul : uncollected,
       killed: H.killedIds.slice(),
       perChar,
@@ -3151,6 +3528,9 @@
     });
     H = null;
   }
+
+  // The driver needs a moment before the car is going anywhere.
+  const TUNE_EXTRACT_LOCK = 15000;
 
   // ==================== LOOP ====================
   let frameErrors = 0;
@@ -3208,6 +3588,7 @@
     H.world.registers.forEach(t => { if (t.shake > 0) t.shake -= dt * 0.05; });
     H.world.atms.forEach(a => { if (a.shake > 0) a.shake -= dt * 0.05; });
     H.world.deposits.forEach(b => { if (b.shake > 0) b.shake -= dt * 0.05; });
+    if (H.screamT > 0) H.screamT -= dt;
     if (H.msgT > 0) H.msgT -= dt;
     if (H.pingT > 0) H.pingT -= dt;
     if (H.shake > 0) H.shake *= 0.88;
@@ -3459,7 +3840,9 @@
     for (const d of w.decor) if (FLAT_DECOR[d.kind]) drawDecor(d);
 
     // ---- parked vehicles ----
-    for (const v of w.vehicles) drawVehicle(v.x, v.y, v.color, v.scale, v.flip, {});
+    for (const v of w.vehicles) {
+      drawVehicle(v.x, v.y, v.color, v.scale, v.flip, { body: v.body, rust: v.rust });
+    }
 
     // ---- upright scenery ----
     for (const d of w.decor) if (!FLAT_DECOR[d.kind]) drawDecor(d);
@@ -3482,21 +3865,8 @@
       drawBag(d.x, d.y);
     }
 
-    // ---- drill markers ----
-    w.vaults.forEach(v => {
-      if (v.open) return;
-      ctx.save();
-      ctx.translate(v.drillX, v.drillY);
-      ctx.fillStyle = v.drilling ? '#E3552B' : '#7C6459';
-      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#0A0B0E';
-      ctx.fillRect(-2.5, -8, 5, 16);
-      if (v.drilling) {
-        ctx.strokeStyle = '#FFB347'; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(0, 0, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.progress); ctx.stroke();
-      }
-      ctx.restore();
-    });
+    // ---- drill rigs (the progress ring is drawn later, on top) ----
+    w.vaults.forEach(v => { if (!v.open) drawDrillRig(v); });
 
     // ---- ping ----
     if (H.ping && H.pingT > 0) {
@@ -3547,6 +3917,7 @@
       label(f.x, f.y, f.text, f.color, { size: 12, alpha: Math.min(1, f.life / 400) });
     }
 
+    drawProgressRings();   // above the actors: never hidden by whoever is working
     drawLabels();          // always on top of every actor and prop
     ctx.restore();
 
@@ -3561,53 +3932,98 @@
   // rectangles pretending to be cars.
   function drawVehicle(x, y, color, scale, flip, opts) {
     const o = opts || {};
+    const body = o.body || 'saloon';
+    const L = VEHICLE_LEN[body] || 124;      // nose to tail
+    const Wd = VEHICLE_WID[body] || 48;      // kerb side to road side
+    const half = L / 2, halfW = Wd / 2;
+    // where the cabin sits, and how much of the length it takes
+    const cab = VEHICLE_CAB[body];
+
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(flip ? -scale : scale, scale);
 
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.beginPath(); ctx.ellipse(3, 8, 68, 28, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(3, 8, half + 6, halfW + 4, 0, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = '#0C0F13';
-    [[-38, -27], [-38, 27], [36, -27], [36, 27]].forEach(function (w) {
+    [[-half * 0.61, -halfW - 3], [-half * 0.61, halfW + 3],
+     [half * 0.58, -halfW - 3], [half * 0.58, halfW + 3]].forEach(function (w) {
       ctx.beginPath(); ctx.roundRect(w[0] - 10, w[1] - 5.5, 20, 11, 4); ctx.fill();
     });
 
-    const grd = ctx.createLinearGradient(0, -25, 0, 25);
+    const grd = ctx.createLinearGradient(0, -halfW, 0, halfW);
     grd.addColorStop(0, shade(color, 0.10));
     grd.addColorStop(0.45, color);
     grd.addColorStop(1, shade(color, -0.12));
     ctx.fillStyle = grd;
-    ctx.beginPath(); ctx.roundRect(-62, -24, 124, 48, 12); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-half, -halfW, L, Wd, body === 'van' ? 7 : 12); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.8; ctx.stroke();
 
-    ctx.fillStyle = shade(color, 0.07);
-    ctx.beginPath(); ctx.roundRect(-27, -20, 53, 40, 8); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.beginPath(); ctx.roundRect(-23, -16, 45, 10, 5); ctx.fill();
+    // a pickup's bed and a van's box read differently to a saloon roof
+    if (body === 'pickup') {
+      ctx.fillStyle = shade(color, -0.30);
+      ctx.beginPath(); ctx.roundRect(half * 0.05, -halfW + 4, half * 0.85, Wd - 8, 4); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    if (o.rust) {
+      ctx.fillStyle = 'rgba(96,58,32,0.35)';
+      ctx.beginPath(); ctx.ellipse(-half * 0.5, halfW * 0.5, 11, 6, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(half * 0.35, -halfW * 0.6, 8, 5, -0.2, 0, Math.PI * 2); ctx.fill();
+    }
+    if (body === 'taxi') {
+      ctx.fillStyle = '#141414';
+      for (let i = -1; i <= 1; i++) {
+        ctx.fillRect(-half * 0.2 + i * 12, -halfW - 0.5, 10, 5);
+        ctx.fillRect(-half * 0.2 + i * 12, halfW - 4.5, 10, 5);
+      }
+      ctx.fillStyle = '#E8E2D0';
+      ctx.beginPath(); ctx.roundRect(cab.x - 6, -5, 13, 10, 2); ctx.fill();
+    }
 
+    ctx.fillStyle = shade(color, 0.07);
+    ctx.beginPath(); ctx.roundRect(cab.x - cab.len / 2, -halfW + 4, cab.len, Wd - 8, 8); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.roundRect(cab.x - cab.len / 2 + 4, -halfW + 8, cab.len - 8, 10, 5); ctx.fill();
+
+    // glass: windscreen, rear screen, side windows
     ctx.fillStyle = 'rgba(120,180,205,0.26)';
-    ctx.beginPath(); ctx.roundRect(-34, -17, 9, 34, 4); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(26, -17, 8, 34, 4); ctx.fill();
-    ctx.fillStyle = 'rgba(120,180,205,0.14)';
-    ctx.beginPath(); ctx.roundRect(-21, -21, 40, 4.5, 2); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(-21, 16.5, 40, 4.5, 2); ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(cab.x - cab.len / 2 - 7, -halfW + 7, 9, Wd - 14, 4); ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(cab.x + cab.len / 2 - 2, -halfW + 7, 8, Wd - 14, 4); ctx.fill();
+    if (body !== 'van') {
+      ctx.fillStyle = 'rgba(120,180,205,0.14)';
+      ctx.beginPath();
+      ctx.roundRect(cab.x - cab.len / 2 + 6, -halfW + 3, cab.len - 12, 4.5, 2); ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(cab.x - cab.len / 2 + 6, halfW - 7.5, cab.len - 12, 4.5, 2); ctx.fill();
+    }
 
     ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.1;
-    ctx.beginPath(); ctx.moveTo(-2, -24); ctx.lineTo(-2, 24); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-2, -halfW); ctx.lineTo(-2, halfW); ctx.stroke();
     ctx.fillStyle = shade(color, 0.22);
-    ctx.beginPath(); ctx.roundRect(-13, -23.6, 6, 2, 1); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(5, -23.6, 6, 2, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-13, -halfW + 0.4, 6, 2, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(5, -halfW + 0.4, 6, 2, 1); ctx.fill();
 
     // lights
     ctx.fillStyle = o.lightsOn ? '#FFE9B0' : 'rgba(220,215,195,0.5)';
-    ctx.beginPath(); ctx.roundRect(-64, -18, 5, 8, 2); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(-64, 10, 5, 8, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-half - 2, -halfW + 6, 5, 8, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-half - 2, halfW - 14, 5, 8, 2); ctx.fill();
     ctx.fillStyle = o.lightsOn ? '#B4322A' : 'rgba(120,50,44,0.7)';
-    ctx.beginPath(); ctx.roundRect(58, -18, 4.5, 8, 2); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(58, 10, 4.5, 8, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(half - 2.5, -halfW + 6, 4.5, 8, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(half - 2.5, halfW - 14, 4.5, 8, 2); ctx.fill();
     ctx.restore();
   }
+
+  // Vehicle shapes. A van is longer and boxier than a hatchback, and both
+  // are the same size on the road as the car you arrived in.
+  const VEHICLE_LEN = { saloon: 128, hatch: 112, estate: 138, van: 152, pickup: 146, taxi: 130 };
+  const VEHICLE_WID = { saloon: 50, hatch: 48, estate: 50, van: 56, pickup: 52, taxi: 50 };
+  const VEHICLE_CAB = {
+    saloon: { x: 0, len: 54 }, hatch: { x: 4, len: 50 }, estate: { x: 6, len: 72 },
+    van:    { x: 22, len: 92 }, pickup: { x: -22, len: 46 }, taxi: { x: 0, len: 56 },
+  };
 
   // Flat scenery drawn under everything, then upright props drawn with
   // the actors. `layer` keeps ground stains from painting over a bollard.
@@ -3935,6 +4351,112 @@
     ctx.restore();
   }
 
+  // A proper drill rig: tripod feet, a braced column, a motor housing
+  // with cooling fins, and a bit that turns while it is cutting.
+  function drawDrillRig(v) {
+    const on = v.drilling;
+    ctx.save();
+    ctx.translate(v.drillX, v.drillY);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.beginPath(); ctx.ellipse(1, 9, 17, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+    // three legs splayed off the column
+    ctx.strokeStyle = '#6B6259';
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'round';
+    for (const a of [Math.PI * 0.5, Math.PI * 1.17, Math.PI * 1.83]) {
+      ctx.beginPath();
+      ctx.moveTo(0, -2);
+      ctx.lineTo(Math.cos(a) * 15, Math.sin(a) * 9 + 6);
+      ctx.stroke();
+      ctx.fillStyle = '#4A443E';
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(a) * 15, Math.sin(a) * 9 + 6, 3.4, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // column
+    ctx.fillStyle = '#8A7F73';
+    ctx.beginPath(); ctx.roundRect(-3, -14, 6, 16, 1.5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(-3, -14, 2, 16);
+
+    // motor housing
+    ctx.fillStyle = on ? '#C4453A' : '#5E564E';
+    ctx.beginPath(); ctx.roundRect(-9, -24, 18, 12, 3); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1;
+    ctx.stroke();
+    // cooling fins
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1;
+    for (let i = -5; i <= 5; i += 3.5) {
+      ctx.beginPath(); ctx.moveTo(i, -23); ctx.lineTo(i, -13); ctx.stroke();
+    }
+    // running light
+    ctx.fillStyle = on ? '#FFD37A' : '#3A342E';
+    ctx.beginPath(); ctx.arc(6, -21, 1.8, 0, Math.PI * 2); ctx.fill();
+
+    // the bit, spinning while it cuts
+    const spin = on ? (H.t / 40) % (Math.PI * 2) : 0;
+    ctx.save();
+    ctx.translate(0, -6);
+    ctx.rotate(spin);
+    ctx.fillStyle = '#C9CED6';
+    ctx.beginPath(); ctx.roundRect(-1.6, -3, 3.2, 12, 1); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(-1.6, 2, 3.2, 1.2);
+    ctx.restore();
+
+    // swarf and sparks
+    if (on && Math.random() < 0.5) {
+      H.particles.push({
+        x: v.drillX + rand(-4, 4), y: v.drillY + 4,
+        vx: rand(-1.6, 1.6), vy: rand(-2.2, -0.4),
+        life: rand(8, 18), r: rand(0.8, 1.8),
+        color: Math.random() < 0.5 ? 'rgba(255,196,110,0.9)' : 'rgba(210,215,225,0.6)',
+      });
+    }
+    ctx.restore();
+  }
+
+  // Every "this is happening" ring, drawn last so nothing standing on top
+  // of it can hide it. Watching a drill you cannot see was the problem.
+  function drawProgressRings() {
+    const ring = (x, y, frac, color, label) => {
+      const R = 22;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = 'rgba(6,10,14,0.62)';
+      ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.001, frac));
+      ctx.stroke();
+      ctx.restore();
+      label(x, y - R - 6, Math.round(frac * 100) + '%', color, { size: 10 });
+    };
+
+    for (const v of H.world.vaults) {
+      if (v.open || !v.drilling) continue;
+      ring(v.drillX, v.drillY, clamp(v.progress, 0, 1), '#FFB347', label);
+    }
+    for (const a of H.world.atms) {
+      if (a.open || !a.prog) continue;
+      ring(a.x, a.y, clamp(a.prog / LO.atmDrill, 0, 1), '#4FB3C4', label);
+    }
+    // and everyone mid-reload, above their own name tag
+    for (const c of H.crew) if (!c.dead && !c.downed) drawReloadSpinner(c);
+    if (!H.robo.dead && !H.robo.downed) drawReloadSpinner(H.robo);
+    for (const e of H.enemies) if (!e.dead) drawReloadSpinner(e);
+  }
+
   function drawCar(car) {
     const ready = H.canExtract;
     ctx.save();
@@ -4012,6 +4534,7 @@
 
     // extraction ring
     if (ready) {
+
       ctx.strokeStyle = 'rgba(95,191,135,' + (0.55 + Math.sin(H.t / 160) * 0.3) + ')';
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(0, 0, car.r, 0, Math.PI * 2); ctx.stroke();
@@ -4031,6 +4554,11 @@
               ? 'E   GO WITHOUT THEM (' + H.stragglers + ' MISSING)'
               : 'E   DRIVE OFF',
             '#5FBF87', { size: 12 });
+    } else if (H.extractLeft > 0) {
+      // the driver is still getting the engine going
+      label(car.x, car.y - car.r - 12,
+            'ENGINE WARMING — ' + Math.ceil(H.extractLeft / 1000) + 's',
+            '#E0B44C', { size: 11 });
     } else {
       label(car.x, car.y - car.r - 12, 'GETAWAY CAR', '#E0B44C', { size: 9, alpha: 0.7 });
     }
@@ -4245,6 +4773,56 @@
     downed:   { rgb: '224,180,76',  ring: 0.90, fill: 0.26 },
   };
 
+  // Anybody mid-reload gets a spinner over their head. Not knowing why
+  // the trigger had stopped working was the single most annoying thing
+  // about running dry.
+  function drawReloadSpinner(a) {
+    if (!a.reloading || a.reloading <= 0) return;
+    const total = a.reloadFor || a.reloading;
+    const done = Math.max(0, Math.min(1, 1 - a.reloading / total));
+    const cx = a.x, cy = a.y - (a.r || 14) * 3.6;   // clear of the name plate
+    const R = 9;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // dark disc so it reads on any floor
+    ctx.fillStyle = 'rgba(6,10,14,0.62)';
+    ctx.beginPath(); ctx.arc(0, 0, R + 3, 0, Math.PI * 2); ctx.fill();
+
+    // the track
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+
+    // a chasing arc that spins, on top of the fill showing how far along
+    ctx.strokeStyle = 'rgba(224,180,76,0.35)';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
+    ctx.stroke();
+
+    const spin = (H.t / 320) % (Math.PI * 2);
+    ctx.strokeStyle = '#E0B44C';
+    ctx.lineWidth = 2.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(0, 0, R, spin, spin + Math.PI * 0.6);
+    ctx.stroke();
+
+    // two little arrowheads, so it reads as "reloading" not "loading"
+    ctx.fillStyle = '#E0B44C';
+    for (const a0 of [spin + Math.PI * 0.6, spin + Math.PI * 1.6]) {
+      ctx.save();
+      ctx.rotate(a0);
+      ctx.beginPath();
+      ctx.moveTo(R + 3.4, 0); ctx.lineTo(R - 3.4, -2.6); ctx.lineTo(R - 3.4, 2.6);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   function drawMarker(a, m) {
     // Sized to sit clearly OUTSIDE the sprite and its own drop shadow —
     // tucked underneath, the ring was invisible at any real zoom.
@@ -4296,19 +4874,8 @@
 
     // downed characters lie flat and stop aiming
     if (c.downed) {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.beginPath(); ctx.ellipse(0, 4, c.r + 6, c.r * 0.7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#8E0F14';
-      ctx.beginPath(); ctx.ellipse(0, 0, c.r * 0.95, c.r * 0.62, 0.4, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
-      label(c.x, c.y - c.r - 12, 'DOWN', '#E0B44C', { size: 11 });
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      const frac = c.isRobo ? (c.reviveProg || 0) / T.reviveTime : 1 - c.downTimer / T.downedBleedout;
-      ctx.strokeStyle = '#E3552B'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(0, 0, c.r + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(frac, 0, 1)); ctx.stroke();
-      ctx.textAlign = 'left';
-      ctx.restore();
+      drawDowned(c);
       return;
     }
 
@@ -4385,6 +4952,131 @@
 
     // name + carry pill above crew
     if (!c.isRobo) label(c.x, c.y - c.r - 13, c.name, '#9FB0BF', { size: 9, alpha: 0.9 });
+  }
+
+  // Somebody on the floor, not a stain. They keep their outfit, their
+  // mask and their hair; the chest rises; the blood spreads. You should
+  // be able to tell at a glance WHO is down without reading the tag.
+  function drawDowned(c) {
+    // Which way they fell is fixed the moment they go down, so the body
+    // does not swivel about on the floor.
+    if (c.fallAngle == null) c.fallAngle = (c.angle || 0) + rand(-0.5, 0.5);
+    const spread = c.r * 1.25;
+    const breathe = Math.sin(H.t / 620 + (c.slot || 0)) * 0.6;
+    const skin = c.skin || '#C79B76';
+    const outfit = c.isRobo ? '#1B1F27' : (c.outfit || '#3A4250');
+    const mask = D.MASKS[c.char ? c.char.mask : 'none'] || D.MASKS.none;
+
+    ctx.save();
+    ctx.translate(c.x, c.y);
+
+    // blood, spreading and irregular
+    const pool = 1 + Math.min(1, (c.bleedSpread = Math.min(1.6, (c.bleedSpread || 0) + 0.0016)));
+    ctx.fillStyle = 'rgba(96,10,14,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(-2, 3, spread * pool, c.r * 0.78 * pool, c.fallAngle, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(140,16,20,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(spread * 0.5, 5, c.r * 0.5 * pool, c.r * 0.3 * pool, c.fallAngle, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.rotate(c.fallAngle);
+
+    // legs, sprawled apart
+    ctx.strokeStyle = shade(outfit, -0.3);
+    ctx.lineWidth = c.r * 0.42;
+    ctx.lineCap = 'round';
+    for (const sp of [-0.55, 0.42]) {
+      ctx.beginPath();
+      ctx.moveTo(-c.r * 0.1, sp * c.r * 0.5);
+      ctx.lineTo(-spread * 1.05, sp * c.r * 1.5);
+      ctx.stroke();
+    }
+    // boots
+    ctx.fillStyle = '#15171C';
+    for (const sp of [-0.55, 0.42]) {
+      ctx.beginPath();
+      ctx.ellipse(-spread * 1.12, sp * c.r * 1.55, 3.4, 2.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // one arm flung out, one across the chest
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = c.r * 0.32;
+    ctx.beginPath();
+    ctx.moveTo(0, -c.r * 0.5);
+    ctx.lineTo(c.r * 0.5, -c.r * 1.45);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, c.r * 0.5);
+    ctx.lineTo(c.r * 0.75, c.r * 0.95);
+    ctx.stroke();
+
+    // torso, breathing
+    ctx.fillStyle = outfit;
+    ctx.strokeStyle = shade(outfit, -0.45);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, c.r * 0.86 + breathe * 0.3, c.r * 0.62 + breathe * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // vest seam
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-c.r * 0.5, 0); ctx.lineTo(c.r * 0.5, 0); ctx.stroke();
+
+    // RoboKyle's chrome arm still reads even face down
+    if (c.isRobo) {
+      ctx.strokeStyle = '#B9C1CC';
+      ctx.lineWidth = c.r * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(0, c.r * 0.5);
+      ctx.lineTo(c.r * 0.75, c.r * 0.95);
+      ctx.stroke();
+    }
+
+    // head, turned to one side
+    ctx.save();
+    ctx.translate(c.r * 0.92, c.r * 0.12);
+    const R = c.r * 0.46;
+    ctx.fillStyle = mask.color || skin;
+    ctx.strokeStyle = shade(mask.color || skin, -0.45);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.ellipse(0, 0, R, R * 0.94, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (!mask.color) {
+      // eyes shut
+      ctx.strokeStyle = 'rgba(10,7,9,0.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(R * 0.1, -R * 0.3); ctx.lineTo(R * 0.6, -R * 0.24); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(R * 0.1, R * 0.34); ctx.lineTo(R * 0.6, R * 0.28); ctx.stroke();
+      // hair
+      ctx.fillStyle = c.isRobo ? '#F2C75E' : (c.hair || '#3A2A20');
+      ctx.beginPath();
+      ctx.ellipse(-R * 0.35, 0, R * 0.8, R * 0.9, 0, Math.PI * 0.4, Math.PI * 1.6);
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(R * 0.1, -R * 0.5, 2.2, 1.5);
+      ctx.fillRect(R * 0.1, R * 0.3, 2.2, 1.5);
+    }
+    ctx.restore();
+    ctx.restore();
+
+    // the tag and the clock, upright and on top
+    label(c.x, c.y - c.r - 14, c.name.toUpperCase() + ' \u2014 DOWN', '#E0B44C', { size: 11 });
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    const frac = c.isRobo ? (c.reviveProg || 0) / T.reviveTime
+                          : 1 - c.downTimer / T.downedBleedout;
+    ctx.strokeStyle = 'rgba(6,10,14,0.6)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, 0, c.r + 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#E3552B'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.r + 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(frac, 0, 1));
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.restore();
   }
 
   function drawHead(c, hx) {
@@ -5055,6 +5747,11 @@
     if (H.extractPhase && H.stragglers > 0)
       obj.textContent = 'Waiting on ' + H.stragglers + ' — press E again to go without them';
     else if (H.canExtract) obj.textContent = 'Press E to drive off';
+    else if (H.extractLeft > 0 && dist(H.robo, H.world.car) < H.world.car.r)
+      obj.textContent = 'The car is not going anywhere yet — ' +
+                        Math.ceil(H.extractLeft / 1000) + 's';
+    else if (!H.world.vaults[0].open)
+      obj.textContent = 'Crack the main vault — nothing else counts as the job';
     else if (openVaults < H.world.vaults.length)
       obj.textContent = tills
         ? 'Drill the vault. ' + tills + ' till' + (tills > 1 ? 's' : '') + ' still shut, if you have time'

@@ -333,7 +333,32 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 
 .mate-head { display: flex; gap: .6rem; align-items: flex-start; }
 .mate-id { min-width: 0; flex: 1; }
-.mate-card h4 { margin: 0; font-size: .95rem; display: flex; align-items: center; gap: .4rem; }
+.mate-card h4 { margin: 0; font-size: .95rem; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.mate-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* the weapon, next to the name, because that is the fact most people
+   are actually scanning for when they pick a crew */
+.weapon-tag {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: rgba(224,180,76,.10); border: 1px solid rgba(224,180,76,.42);
+    border-radius: 5px; padding: .12rem .4rem .12rem .3rem;
+    font-family: 'Oswald', Impact, sans-serif; text-transform: uppercase;
+    letter-spacing: .05em; font-size: .66rem; color: var(--gold);
+}
+.weapon-tag .ico { color: var(--gold); font-size: 1.15rem; }
+.weapon-tag b { font-weight: 600; color: var(--gold); }
+
+/* morale at a glance, same colour ramp as the stat meters */
+.morale-pip {
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: .6rem; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--cond, var(--ink-mute));
+}
+.morale-pip .pip-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex: none;
+    background: var(--cond, var(--ink-mute));
+    box-shadow: 0 0 0 2px rgba(0,0,0,.35);
+}
 .mate-card h4 .you { font-size: .56rem; letter-spacing: .12em; background: var(--gold); color: #14100A; border-radius: 3px; padding: .08rem .3rem; font-weight: 700; }
 .mate-sub { margin: .12rem 0 0; font-size: .72rem; color: var(--ink-soft); display: flex; align-items: center; gap: .3rem; }
 .mate-sub b { color: var(--teal); }
@@ -496,7 +521,8 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
     background: rgba(0,0,0,.22); border: 1px solid var(--line-soft);
     border-radius: 8px; padding: .5rem .7rem; margin-bottom: 1rem;
 }
-.bench-label { font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); }
+.bench-label { font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); display: flex; flex-direction: column; gap: .1rem; }
+.bench-label small { font-size: .54rem; letter-spacing: .06em; color: var(--ink-mute); opacity: .7; text-transform: none; }
 .bench-strip { display: flex; gap: .4rem; flex-wrap: wrap; flex: 1; }
 .bench-chip {
     display: inline-flex; align-items: center; gap: .4rem; cursor: pointer;
@@ -507,6 +533,15 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .bench-chip:disabled { opacity: .4; cursor: not-allowed; }
 
 .bench-chip small { color: var(--ink-mute); font-size: .62rem; }
+.bench-id { display: flex; flex-direction: column; align-items: flex-start; gap: .08rem; line-height: 1.15; }
+.bench-name { font-size: .74rem; }
+/* what clicking this chip would do */
+.bench-swap {
+    font-style: normal; font-size: .58rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-mute);
+    border-left: 1px solid var(--line); padding-left: .4rem; margin-left: .1rem;
+}
+.bench-chip:hover .bench-swap { color: var(--gold); }
 
 /* ---------- loadout ---------- */
 .loadout { background: rgba(0,0,0,.24); border: 1px solid var(--line-soft); border-radius: 10px; padding: .8rem .9rem; }
@@ -662,6 +697,8 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .debrief-row .lv { color: var(--ink-soft); font-size: .76rem; }
 .debrief-row .up { color: var(--gold); }
 .debrief-row.is-dead { border-color: rgba(196,69,58,.4); }
+.debrief-row.is-warn { border-color: rgba(224,180,76,.45); }
+.debrief-row.is-warn .xp { color: var(--gold); }
 .debrief-row.is-dead .xp { color: var(--red); }
 .levelup { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin-bottom: .45rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .levelup h4 { margin: 0; font-size: .88rem; }

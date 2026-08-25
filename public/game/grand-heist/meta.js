@@ -524,9 +524,27 @@ window.GH = (() => {
       '</div>';
   }
 
+  // The headline piece of kit, big enough to read across the room. It
+  // sits next to the name because for a lot of players that one fact
+  // decides who goes in.
+  function weaponTag(c) {
+    const w = D.WEAPONS[c.weapon];
+    return '<span class="weapon-tag" title="Carrying a ' + w.name + '">' +
+      GH.icon.weapon(c.weapon) + '<b>' + w.name + '</b></span>';
+  }
+
+  // A dot and a short word, coloured on the same ramp as the stat meters,
+  // so you can tell at a glance who has recovered enough to go back in.
+  function moralePip(c) {
+    const m = Math.round(c.morale == null ? MO.start : c.morale);
+    const frac = m / MO.start;
+    return '<span class="morale-pip" style="--cond:' + conditionColor(frac) + '" ' +
+      'title="Morale ' + m + ' / 100 — ' + GH.moraleLabel(c) + '">' +
+      '<i class="pip-dot"></i>' + GH.moraleLabel(c) + '</span>';
+  }
+
   function gearChips(c) {
     return '<div class="gear-row">' +
-      '<span class="gear" title="' + D.WEAPONS[c.weapon].name + '">' + GH.icon.weapon(c.weapon) + D.WEAPONS[c.weapon].name + '</span>' +
       '<span class="gear" title="' + D.BAGS[c.bag].name + '">' + GH.icon.bag(c.bag) + D.BAGS[c.bag].name + '</span>' +
       '<span class="gear" title="' + D.ARMOR[c.armor].name + '">' + GH.icon.armor(c.armor) + D.ARMOR[c.armor].name + '</span>' +
       '<span class="gear" title="' + D.MASKS[c.mask].name + '">' + GH.icon.mask(c.mask) + D.MASKS[c.mask].name + '</span>' +
@@ -558,7 +576,9 @@ window.GH = (() => {
         '<div class="mate-head">' +
           avatarHtml(c, true) +
           '<div class="mate-id">' +
-            '<h4>' + c.name + (c.isRobo ? '<span class="you">YOU</span>' : '') + '</h4>' +
+            '<h4><span class="mate-name">' + c.name + '</span>' +
+              (c.isRobo ? '<span class="you">YOU</span>' : '') +
+              weaponTag(c) + '</h4>' +
             '<p class="mate-sub">' + GH.icon.stat('level') + 'Level ' + c.level +
               (c.trait !== 'none' ? ' &middot; <b>' + tr.name + '</b>' : '') + '</p>' +
             (c.trait !== 'none' ? '<p class="trait-note">' + tr.blurb + '</p>' : '') +
@@ -605,6 +625,7 @@ window.GH = (() => {
         '<p class="empty-note">Click to recruit somebody, or run a person short.</p>';
       slot.addEventListener('click', () => {
         GH.recruitOffers = null;
+        GH.rerolls = 0;
         sfx('select');
         GH.go('recruit');
       });
@@ -616,13 +637,37 @@ window.GH = (() => {
     const benched = s.roster.filter(c => s.selected.indexOf(c.id) < 0);
     $('bench-wrap').style.display = benched.length ? '' : 'none';
     benchWrap.innerHTML = '';
+    // Who a click would displace: whoever is being edited, unless that is
+    // RoboKyle, who never sits out — then it is the last crew slot.
+    const full = s.selected.length >= T.crewPerHeist;
+    const editedChar = chars[GH.editing];
+    const swapFor = !full ? null
+      : (editedChar && !editedChar.isRobo ? editedChar
+         : GH.squad()[s.selected.length - 1] || null);
+
     benched.forEach(c => {
       const b = el('button', 'bench-chip');
-      b.innerHTML = avatarHtml(c) + '<span>' + c.name + '</span><small>Lv ' + c.level + '</small>';
-      b.disabled = s.selected.length >= T.crewPerHeist;
+      b.innerHTML = avatarHtml(c) +
+        '<span class="bench-id"><span class="bench-name">' + c.name + '</span>' +
+          moralePip(c) + '</span>' +
+        '<small>Lv ' + c.level + '</small>' +
+        (swapFor ? '<em class="bench-swap">&#8644; ' + swapFor.name + '</em>' : '');
+      b.title = swapFor ? 'Swap ' + c.name + ' in for ' + swapFor.name
+                        : 'Bring ' + c.name + ' along';
       b.addEventListener('click', () => {
-        if (s.selected.length >= T.crewPerHeist) return;
-        s.selected.push(c.id); GH.save(); RENDER.crew();
+        if (!full) {
+          s.selected.push(c.id);
+          GH.editing = s.selected.length;          // land on the person you just added
+        } else {
+          if (!swapFor) return;
+          const at = s.selected.indexOf(swapFor.id);
+          if (at < 0) return;
+          s.selected[at] = c.id;                   // same slot, so you stay put
+          GH.editing = at + 1;                     // +1 for RoboKyle at the front
+        }
+        sfx('confirm');
+        GH.save();
+        RENDER.crew();
       });
       benchWrap.appendChild(b);
     });
@@ -760,6 +805,23 @@ window.GH = (() => {
   GH.hireCost = () => GH.state.roster.length < T.crewPerHeist
     ? 0 : T.hireBaseCost + T.hireCostPerBank * GH.state.unlocked;
 
+  // Don't like any of them? Put the word out again. It costs, and it costs
+  // more each time you do it on the same trip, so it is a decision rather
+  // than a free slot machine.
+  GH.rerollCost = () => {
+    const base = 120 + 40 * GH.state.unlocked;
+    return Math.round(base * Math.pow(1.6, GH.rerolls || 0));
+  };
+  GH.rerollRecruits = () => {
+    const cost = GH.rerollCost();
+    if (GH.state.cash < cost) return false;
+    GH.state.cash -= cost;
+    GH.rerolls = (GH.rerolls || 0) + 1;
+    GH.recruitOffers = null;
+    GH.save();
+    return true;
+  };
+
   RENDER.recruit = () => {
     if (!GH.recruitOffers) {
       const taken = usedNames();
@@ -768,6 +830,12 @@ window.GH = (() => {
     const cost = GH.hireCost();
     $('recruit-cost').textContent = cost === 0 ? 'Free' : money(cost);
     $('recruit-cash').textContent = money(GH.state.cash);
+
+    const rc = GH.rerollCost();
+    const btn = $('btn-reroll');
+    btn.textContent = 'Ask around again — ' + money(rc);
+    btn.disabled = GH.state.cash < rc;
+    btn.title = GH.state.cash < rc ? 'Not enough cash' : 'Three different people, for a fee';
     quietRerender();
     const wrap = $('recruit-list');
     wrap.innerHTML = '';
@@ -791,6 +859,7 @@ window.GH = (() => {
         s.roster.push(c);
         if (s.selected.length < T.crewPerHeist) s.selected.push(c.id);
         GH.recruitOffers = null;
+        GH.rerolls = 0;
         GH.save();
         sfx('confirm');
         GH.go('crew');
@@ -814,19 +883,26 @@ window.GH = (() => {
 
     const wrap = $('debrief-body');
     wrap.innerHTML = '';
-    $('debrief-title').textContent = result.escaped ? 'Clean Getaway'
+    $('debrief-title').textContent = result.escaped
+                                    ? (result.vaultCracked ? 'Clean Getaway' : 'Got Out Empty')
                                     : result.abandoned ? 'Walked Away' : 'Job Blown';
     $('debrief-title').className = 'screen-title ' + (result.escaped ? 'good' : 'bad');
 
+    // Getting out is worth the money you got out with. Getting the NEXT
+    // bank on the board takes cracking the main vault — driving away from
+    // an untouched vault is a walk, not a job.
     let haul = 0;
+    const didTheJob = result.escaped && result.vaultCracked;
     if (result.escaped) {
       haul = result.haul;
       s.cash += haul;
       s.stats.haul += haul;
-      s.stats.wins++;
-      const bank = bankById(result.bankId);
-      if (!s.cleared.includes(bank.id)) s.cleared.push(bank.id);
-      if (bank.id >= s.unlocked && bank.id < D.BANKS.length) s.unlocked = bank.id + 1;
+      if (didTheJob) {
+        s.stats.wins++;
+        const bank = bankById(result.bankId);
+        if (!s.cleared.includes(bank.id)) s.cleared.push(bank.id);
+        if (bank.id >= s.unlocked && bank.id < D.BANKS.length) s.unlocked = bank.id + 1;
+      }
     }
 
     result.killed.forEach(id => {
@@ -843,6 +919,16 @@ window.GH = (() => {
                             : result.abandoned ? 'Walked away from' : 'Left on the floor') + '</span>' +
       '<span class="v">' + money(result.escaped ? haul : result.haul) + '</span>';
     wrap.appendChild(haulRow);
+
+    // Say plainly why the board did not move, rather than leaving the
+    // player to notice the next bank is still locked.
+    if (result.escaped && !result.vaultCracked) {
+      const note = el('div', 'debrief-row is-warn');
+      note.innerHTML = '<span class="who">Main vault</span>' +
+        '<span class="xp">Never opened</span>' +
+        '<span class="lv">This bank is not done</span>';
+      wrap.appendChild(note);
+    }
 
     // ---- what the job did to the people who ran it ----
     const civs = result.civilians || 0;
@@ -1035,7 +1121,9 @@ window.GH = (() => {
       RENDER.map();                       // press sound comes from delegation
     });
 
-    $('btn-hire').addEventListener('click', () => { GH.recruitOffers = null; GH.go('recruit'); });
+    $('btn-hire').addEventListener('click', () => {
+      GH.recruitOffers = null; GH.rerolls = 0; GH.go('recruit');
+    });
 
     $('btn-begin').addEventListener('click', () => {
       const bank = bankById(GH.pendingBank);
@@ -1082,6 +1170,11 @@ window.GH = (() => {
     s3.addEventListener('change', () => { GH.settings.shake = s3.checked; GH.saveSettings(); sfx('toggle'); });
 
     bindInterfaceSound();
+    $('btn-reroll').addEventListener('click', () => {
+      if (GH.rerollRecruits()) RENDER.recruit();
+      else { sfx('error'); flash('recruit-cash'); }
+    });
+
     GH.show('title');
   };
 

@@ -237,23 +237,23 @@ window.GH_DATA = (() => {
   // drill       : seconds to drill the vault
   const BANKS = [
     { id: 1,  name: 'Pawn & Loan',              act: 1, size: 'small', guards: 1, guardWpn: 'guard_baton',
-      copWaves: [], respond: 90, breach: 70, haul: 1100, drill: 12, atms: 1, vaults: 1,
+      copWaves: [], respond: 90, breach: 70, haul: 1210, drill: 12, atms: 1, vaults: 1,
       blurb: 'A counter, a back room, and one bored guard with a stick. Everybody starts here.' },
 
     { id: 2,  name: 'Corner Credit Union',      act: 1, size: 'small', guards: 2, guardWpn: 'guard_baton',
-      copWaves: [['cop', 1]], respond: 80, breach: 68, haul: 1900, drill: 14, atms: 1, vaults: 1,
+      copWaves: [['cop', 1]], respond: 80, breach: 68, haul: 2090, drill: 14, atms: 1, vaults: 1,
       blurb: 'First real gunfight. Beat cops roll up slow and shoot slower.' },
 
     { id: 3,  name: 'Suburb Savings',           act: 1, size: 'small', guards: 3, guardWpn: 'guard_pistol',
-      copWaves: [['cop', 1]], respond: 70, breach: 66, haul: 3000, drill: 15, atms: 1, vaults: 1, boxes: 3,
+      copWaves: [['cop', 1]], respond: 70, breach: 66, haul: 3300, drill: 15, atms: 1, vaults: 1, boxes: 3,
       blurb: 'Deposit boxes in the back for anyone willing to go deeper.' },
 
     { id: 4,  name: 'Midtown Trust',            act: 1, size: 'mid',   guards: 3, guardWpn: 'guard_pistol',
-      copWaves: [['cop', 2], ['riot', 1]], respond: 60, breach: 64, haul: 4400, drill: 17, atms: 2, vaults: 1, boxes: 4,
+      copWaves: [['cop', 2], ['riot', 1]], respond: 60, breach: 64, haul: 4840, drill: 17, atms: 2, vaults: 1, boxes: 4,
       blurb: 'Riot shields show up. Get around them or get nowhere.' },
 
     { id: 5,  name: 'First National',           act: 1, size: 'mid',   guards: 4, guardWpn: 'guard_pistol',
-      copWaves: [['riot', 2], ['cop', 1]], respond: 50, breach: 62, haul: 8000, drill: 20, atms: 2, vaults: 1, boxes: 4,
+      copWaves: [['riot', 2], ['cop', 1]], respond: 50, breach: 62, haul: 8800, drill: 20, atms: 2, vaults: 1, boxes: 4,
       boss: 'captain', bossName: 'Bank Captain',
       blurb: 'ACT ONE FINALE. An armoured captain holds the vault floor and rallies the guards.' },
 

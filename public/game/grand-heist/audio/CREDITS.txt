@@ -50,3 +50,22 @@ music/heist.mp3
 Deliberately NOT used: OpenGameArt "gunshot-sounds" (sounds.zip). The
 page lists CC0 but the archive ships a creativecommons.txt declaring
 CC-BY 3.0. The conflict was not worth resolving, so it was dropped.
+
+--- composed cues -------------------------------------------------
+
+Weapon reloads and the "forcing a machine" grind are not separate
+recordings. There is no CC0 reload recording on OpenGameArt — the
+closest matches (Metal Click, Light Machine Gun) are CC-BY 4.0, which
+this project does not use. They are instead layered from the CC0
+samples above (metal_hit, hit_armor, glass_break, drill_bit) with a
+different rhythm and pitch per weapon class:
+
+    pistol   two clacks
+    shotgun  three shells, then the pump
+    rifle    magazine out, magazine in, bolt
+    heavy    a belt, slowly
+    rocket   tube open, round in, tube shut
+    energy   cell swap and a spin-up
+
+The machine-cracking grind pitches up as the lock gives way.
+All source material remains CC0 1.0.
