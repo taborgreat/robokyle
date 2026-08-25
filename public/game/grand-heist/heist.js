@@ -21,6 +21,7 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dist  = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const lerp  = (a, b, t) => a + (b - a) * t;
+  const pick  = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const money = GH.money;
 
   function circleRect(cx, cy, r, R) {
@@ -72,6 +73,10 @@
     down()   { A() && GH.audio.play('down', { vol: 0.9 }); },
     revive() { A() && GH.audio.play('revive', { vol: 0.9 }); },
     vault()  { A() && GH.audio.play('vault', { vol: 1 }); },
+    scream() {
+      A() && GH.audio.play(Math.random() < 0.5 ? 'screamA' : 'screamB',
+        { rate: 0.92 + Math.random() * 0.22, vol: 0.5 });
+    },
     step()   { A() && GH.audio.play('step', { rate: 0.9 + Math.random() * 0.25, vol: 0.18 }); },
   };
   // Siren is a looping bed rather than a one-shot; the music engine owns it.
@@ -305,6 +310,7 @@
     a.dr = def.dr || 0;
     a.name = def.name;
     a.alerted = false;
+    a.suspicion = 0;
     a.target = null;
     a.lastSeen = null;
     a.repathe = 0;
@@ -329,6 +335,7 @@
       bank, world, robo, crew,
       all: [robo].concat(crew),
       enemies: [], bullets: [], particles: [], drops: [], decals: [], floats: [],
+      bodies: [], civilians: [],
       t: 0, last: performance.now(), running: true, paused: false,
       alarm: false, alarmT: 0,
       policeLeft: bank.respond * 1000,
@@ -343,6 +350,8 @@
       showMap: false,
       msg: null, msgT: 0,
     };
+
+    H.civilians = spawnCivilians(world, bank);
 
     // interior guards
     for (let i = 0; i < bank.guards; i++) {
@@ -376,7 +385,7 @@
 
     GH.show('heist');
     resize();
-    banner(bank.name, bank.boss ? 'BOSS BANK — ' + bank.bossName : 'Get in, get the vault, get out.');
+    banner(bank.name, bank.boss ? bank.bossName + ' is inside' : 'In, vault, out.');
     requestAnimationFrame(loop);
   };
 
@@ -435,7 +444,7 @@
     const s = H.crew[0] ? H.crew[0].stance : 'follow';
     const next = s === 'follow' ? 'hold' : 'follow';
     H.crew.forEach(c => { c.stance = next; });
-    banner(next === 'hold' ? 'HOLD POSITION' : 'ON ME', '');
+    banner(next === 'hold' ? 'HOLD HERE' : 'ON ME', '');
   }
 
   function placePing() {
@@ -479,10 +488,13 @@
     // start a drill on a vault
     for (const v of H.world.vaults) {
       if (!v.open && Math.hypot(p.x - v.drillX, p.y - v.drillY) < 60) {
-        if (!v.drilling) { v.drilling = true; trip('drill'); banner('DRILL RUNNING', 'Keep it covered.'); }
+        if (!v.drilling) { v.drilling = true; trip('drill'); banner('DRILL IS RUNNING', 'Keep it covered.'); }
         return;
       }
     }
+    // lift a wallet — quiet, and quicker than the vault
+    if (tryRobCivilian(p, 0)) return;
+
     // pry open a cash register (quiet — no alarm)
     for (const t of H.world.registers) {
       if (t.open) continue;
@@ -521,7 +533,7 @@
       if (l.taken || l.locked) continue;
       if (dist(a, l) > reach) continue;
       const room = a.carryCap - a.carried;
-      if (room <= 4) { if (manual) floatText(a.x, a.y - 26, 'BAG FULL', '#FF7A3D'); return; }
+      if (room <= 4) { if (manual) floatText(a.x, a.y - 26, 'BAG FULL', '#E0B44C'); return; }
       const take = Math.min(room, l.amount);
       a.carried += take; l.amount -= take;
       got += take;
@@ -552,8 +564,14 @@
     H.alarmT = H.t;
     sfx.alarm();
     H.enemies.forEach(e => { e.alerted = true; });
-    const why = { gun: 'Gunfire heard', teller: 'A teller hit the silent alarm', drill: 'The drill tripped the alarm', guard: 'A guard called it in' }[reason] || 'Alarm';
-    banner('ALARM', why + ' — police inbound.');
+    const why = {
+      gun: 'Gunfire heard',
+      teller: 'A teller hit the silent alarm',
+      drill: 'The drill tripped the alarm',
+      guard: 'A guard called it in',
+      civilian: 'Somebody got to a phone',
+    }[reason] || 'Someone raised the alarm';
+    banner('ALARM', why + '. Police are coming.');
   }
 
   // ==================== COMBAT ====================
@@ -588,7 +606,7 @@
         const silentKill = !H.alarm && !e.alerted;
         damageEnemy(e, w.dmg * a.dmgMul, a, ang);
         if (w.knockback) { e.x += Math.cos(ang) * w.knockback; e.y += Math.sin(ang) * w.knockback; }
-        if (silentKill && e.dead) floatText(e.x, e.y - 30, 'SILENT', '#6FBFCB');
+        if (silentKill && e.dead) floatText(e.x, e.y - 30, 'QUIET', '#4FB3C4');
       }
       return;
     }
@@ -610,7 +628,10 @@
     a.cd = w.cd * (a.trait && a.trait.fireRate ? a.trait.fireRate : 1);
     a.flash = 90;
     sfx.shot(w);
-    if (!w.silent && !H.alarm) trip('gun');
+    if (!w.silent) {
+      panicAll(a.x, a.y, 520, 'seen');
+      if (!H.alarm) trip('gun');
+    }
     if (GH.settings.shake) H.shake = Math.max(H.shake, w.kind === 'explosive' ? 9 : w.kind === 'shotgun' ? 5 : 2.2);
 
     const base = Math.atan2(targetY - a.y, targetX - a.x);
@@ -665,7 +686,28 @@
       e.dead = true;
       if (src && src.side === 'crew') { src.kills = (src.kills || 0) + 1; GH.state.stats.kills++; }
       spark(e.x, e.y, 12);
-      if (e.isBoss) banner(e.name + ' DOWN', 'Move!');
+      // A body on the floor is evidence. Anyone who walks past it reacts.
+      H.bodies.push({ x: e.x, y: e.y, seen: false });
+      if (e.isBoss) banner(e.name + ' IS DOWN', 'Keep moving.');
+    } else {
+      // Survived it — they shout, and they get on the radio.
+      e.suspicion = 1;
+      if (e.radio == null || e.radio > 700) e.radio = 700;
+      alertNearby(e, 300);
+      if (src) e.lastSeen = { x: src.x, y: src.y };
+    }
+  }
+
+  // One guard reacting pulls in everyone within earshot.
+  function alertNearby(from, radius) {
+    for (const o of H.enemies) {
+      if (o === from || o.dead || o.alerted) continue;
+      if (dist(o, from) > radius) continue;
+      o.alerted = true;
+      o.suspicion = 1;
+      o.draw = o.wpn.melee ? 260 : 520;
+      o.lastSeen = from.lastSeen || { x: from.x, y: from.y };
+      if (o.radio == null || o.radio > 1400) o.radio = 1400;
     }
   }
 
@@ -687,7 +729,7 @@
       // Lucky sometimes buys one more second of life.
       if (a.trait && a.trait.cheatDeath && !a.usedLuck && Math.random() < a.trait.cheatDeath) {
         a.usedLuck = true; a.hp = 1;
-        floatText(a.x, a.y - 30, 'LUCKY', '#7BC59A');
+        floatText(a.x, a.y - 30, 'LUCKY', '#5FBF87');
         return;
       }
       goDown(a);
@@ -704,7 +746,7 @@
       H.drops.push({ x: a.x, y: a.y, r: 18, amount: a.carried, taken: false, name: a.name });
       a.carried = 0;
     }
-    banner(a.name + ' IS DOWN', a.isRobo ? 'Get up or it is over.' : 'Revive them with E.');
+    banner(a.name + ' IS DOWN', a.isRobo ? 'Get up, or that is the job.' : 'Stand them up with E.');
   }
 
   // ==================== EXPLOSIONS ====================
@@ -757,7 +799,7 @@
     v.door.open = true;
     H.world.navDirty = true;      // the vault is a doorway now
     H.world.loot.forEach(l => { if (l.kind === 'vault' && l.vaultId === v.id) l.locked = false; });
-    banner('VAULT OPEN', money(v.cash) + ' inside. Fill your bags.');
+    banner('VAULT IS OPEN', money(v.cash) + ' in there. Fill the bags.');
     sfx.revive();
   }
 
@@ -831,19 +873,62 @@
     if (!e.def.static && unembed(e, dt)) return;   // free them first
     if (e.hitFlash > 0) e.hitFlash -= dt * 0.06;
     if (e.muzzle > 0) e.muzzle -= dt;
+    if (e.draw > 0) e.draw -= dt;
+    if (e.swing > 0) e.swing -= dt;
 
     const tgt = nearestTarget(e);
     if (!tgt) return;
     const d = dist(e, tgt);
     const los = hasLOS(e, tgt);
 
-    // Guards only wake up when they see you misbehaving or the alarm goes.
+    // ---- awareness ----
+    // Suspicion builds from what a guard can actually see: how close you
+    // are, whether you are armed, and whether you are wearing a mask into
+    // a bank. It is not instant, so a careful approach still works.
     if (!e.alerted) {
-      if (los && d < 300) {
-        const armed = D.WEAPONS[tgt.weapon] && D.WEAPONS[tgt.weapon].kind !== 'melee';
-        if (armed || H.alarm) { e.alerted = true; e.radio = 900; }
+      e.suspicion = e.suspicion || 0;
+      const SIGHT = 360;
+      if (los && d < SIGHT) {
+        const wpn = D.WEAPONS[tgt.weapon];
+        const armed  = wpn && wpn.kind !== 'melee';
+        const masked = tgt.char && tgt.char.mask && tgt.char.mask !== 'none';
+        // facing matters — a guard notices what is in front of him faster
+        const rel = Math.abs(normAngle(Math.atan2(tgt.y - e.y, tgt.x - e.x) - e.angle));
+        const inView = rel < 1.1 ? 1 : 0.35;
+        let rate = (1 - d / SIGHT) * inView;
+        if (armed)  rate *= 3.2;
+        if (masked) rate *= 2.0;
+        if (H.alarm) rate = 4;
+        e.suspicion = Math.min(1, e.suspicion + rate * dt / 1000);
+        // turn toward whatever caught his eye
+        if (e.suspicion > 0.25) {
+          e.angle = lerp(e.angle, Math.atan2(tgt.y - e.y, tgt.x - e.x), 0.08);
+        }
+      } else {
+        e.suspicion = Math.max(0, e.suspicion - 0.35 * dt / 1000);
       }
-      if (!e.alerted) { patrol(e, dt); return; }
+
+      // a body in plain sight is all the proof anyone needs
+      if (!e.alerted) {
+        for (const b of H.bodies) {
+          if (dist(e, b) > 190) continue;
+          if (!hasLOS(e, b)) continue;
+          e.suspicion = 1;
+          e.lastSeen = { x: b.x, y: b.y };
+          break;
+        }
+      }
+
+      if (e.suspicion >= 1) {
+        e.alerted = true;
+        e.radio = 900;
+        e.draw = e.wpn.melee ? 260 : 520;   // time spent pulling the weapon
+        alertNearby(e, 260);
+        floatText(e.x, e.y - e.r - 16, '!', '#E0B44C');
+      } else {
+        patrol(e, dt);
+        return;
+      }
     }
 
     // A guard that spots you radios it in shortly after.
@@ -852,7 +937,8 @@
       if (e.radio <= 0 && !H.alarm) trip('guard');
     }
 
-    if (los) e.lastSeen = { x: tgt.x, y: tgt.y };
+    if (los) { e.lastSeen = { x: tgt.x, y: tgt.y }; e.searchT = 0; }
+    else e.searchT = (e.searchT || 0) + dt;
     e.angle = lerp(e.angle, Math.atan2((e.lastSeen || tgt).y - e.y, (e.lastSeen || tgt).x - e.x), 0.16);
 
     const wpn = e.wpn;
@@ -890,11 +976,12 @@
 
     // shooting
     e.cd -= dt;
-    if (los && d < wpn.range && e.cd <= 0) {
+    if (los && d < wpn.range && e.cd <= 0 && !(e.draw > 0)) {
       if (wpn.melee) {
         if (d < wpn.reach + tgt.r) {
           e.cd = wpn.cd;
-          e.swing = 150;
+          e.swing = 220;
+          sfx.melee();
           damageActor(tgt, wpn.dmg, e.x, e.y);
         } else e.cd = 120;
       } else {
@@ -945,7 +1032,7 @@
       if (c.downTimer <= 0) {
         c.dead = true;
         H.killedIds.push(c.char.id);
-        banner(c.name + ' BLED OUT', 'Gone for good.');
+        banner(c.name + ' DIDN\u2019T MAKE IT', 'That one is permanent.');
       }
       return;
     }
@@ -988,6 +1075,25 @@
     }
 
     // ---------- 3. act ----------
+    // Extraction wins over everything. They will still shoot on the move,
+    // but they stop chasing money and start running for the car.
+    if (H.extractPhase) {
+      c.state = 'extract';
+      const car = H.world.car;
+      const d = dist(c, car);
+      if (d > 44) navigateTo(c, car.x, car.y, speed * 1.25, dt);
+      if (foe && fd < (w.range || w.reach + 20)) {
+        c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
+        if (w.mag && c.mag <= 0) tryReload(c);
+        else fire(c, foe.x, foe.y);
+      } else {
+        c.angle = lerp(c.angle, Math.atan2(car.y - c.y, car.x - c.x), 0.15);
+      }
+      separate(c, H.all, c.r * 2.2, 0.34, dt);
+      grabNearbyLoot(c, false);
+      return;
+    }
+
     if (foe) {
       c.state = 'engage';
       c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
@@ -1015,12 +1121,6 @@
           banner(rescue.name + ' IS UP', c.name + ' got them.');
         }
       } else c.reviveProg = 0;
-
-    } else if (H.extractPhase) {
-      c.state = 'extract';
-      const car = H.world.car;
-      if (dist(c, car) > 44) navigateTo(c, car.x, car.y, speed * 1.15, dt);
-      c.angle = lerp(c.angle, Math.atan2(car.y - c.y, car.x - c.x), 0.15);
 
     } else {
       // ---------- idle: go earn your cut ----------
@@ -1069,6 +1169,301 @@
 
     // whatever they are doing, they hoover up cash they walk over
     grabNearbyLoot(c, false);
+  }
+
+  // ==================== CIVILIANS ====================
+  // Tellers behind the counter, customers in the lobby. They are not
+  // targets — they are pressure. They scream, they run for the door, and
+  // if one gets out or reaches a phone they call the police themselves.
+  // They also carry wallets, which is free money for anyone patient
+  // enough to take it before the shooting starts.
+
+  const CIV_FIRST = ['Marcy','Dev','Priya','Tom','Aisha','Gordon','Lena','Ray','Nina','Karl',
+                     'Sofia','Errol','Jean','Malik','Bea','Hugo'];
+
+  function makeCivilian(kind, x, y) {
+    return {
+      kind, x, y, r: 15,
+      angle: kind === 'teller' ? Math.PI / 2 : rand(0, Math.PI * 2),
+      state: 'idle',              // idle | scared | flee | cower | robbed
+      hp: 30, dead: false, downed: false, side: 'civ',
+      walkPhase: 0, hitFlash: 0,
+      panic: 0,                   // 0..1
+      robbed: false, robProg: 0,
+      wallet: kind === 'customer' ? Math.round(rand(90, 420)) : 0,
+      callT: rand(9000, 15000),   // time to reach a phone once panicking
+      idleT: rand(1200, 4000),
+      screamed: false,
+      name: pick(CIV_FIRST),
+      skin: pick(D.SKIN_TONES),
+      outfit: kind === 'teller' ? '#2C3A4A' : pick(D.OUTFITS).color,
+      seed: Math.random() * 1000,
+    };
+  }
+
+  function spawnCivilians(world, bank) {
+    const list = [];
+    // one teller per till, standing on the staff side of the counter
+    world.registers.forEach((t, i) => {
+      if (i % 2 && world.registers.length > 4) return;   // not every till is staffed
+      list.push(makeCivilian('teller', t.x + rand(-8, 8), t.y - 26));
+    });
+    // customers milling about the lobby
+    const custs = clamp(2 + Math.round(bank.guards * 0.8), 3, 9);
+    const B = world.building;
+    for (let i = 0; i < custs; i++) {
+      let x = 0, y = 0, ok = false;
+      for (let tries = 0; tries < 30 && !ok; tries++) {
+        x = B.x + 70 + Math.random() * (B.w - 140);
+        y = world.counterY + 60 + Math.random() * (B.y + B.h - world.counterY - 120);
+        ok = navFree(world.nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL));
+      }
+      if (ok) list.push(makeCivilian('customer', x, y));
+    }
+    return list;
+  }
+
+  function scare(c, why) {
+    if (c.dead) return;
+    c.panic = 1;
+    if (c.state === 'idle') c.state = 'scared';
+    if (!c.screamed) {
+      c.screamed = true;
+      sfx.scream();
+    }
+    if (why === 'seen') c.state = c.kind === 'teller' ? 'cower' : 'flee';
+  }
+
+  function panicAll(x, y, radius, why) {
+    for (const c of H.civilians) {
+      if (c.dead) continue;
+      if (Math.hypot(c.x - x, c.y - y) > radius) continue;
+      scare(c, why);
+    }
+  }
+
+  function stepCivilian(c, dt) {
+    if (c.dead) return;
+    if (c.hitFlash > 0) c.hitFlash -= dt * 0.06;
+    if (c.heldUp > 0) { c.heldUp -= dt; c.state = 'cower'; }
+
+    // Anything frightening nearby: a drawn gun, a body, the alarm.
+    if (!c.panic) {
+      if (H.alarm) scare(c, 'alarm');
+      else {
+        for (const a of H.all) {
+          if (a.dead || a.downed) continue;
+          const d = dist(c, a);
+          if (d > 190) continue;
+          const w = D.WEAPONS[a.weapon];
+          const armed = w && w.kind !== 'melee';
+          const masked = a.char && a.char.mask && a.char.mask !== 'none';
+          if ((armed || masked) && hasLOS(c, a)) { scare(c, 'seen'); break; }
+        }
+        for (const b of H.bodies) {
+          if (dist(c, b) < 170 && hasLOS(c, b)) { scare(c, 'seen'); break; }
+        }
+      }
+    }
+
+    if (c.panic > 0) {
+      // A frightened civilian who is not being watched will get to a phone.
+      c.callT -= dt;
+      if (c.callT <= 0 && !H.alarm) {
+        trip('civilian');
+        c.callT = 1e9;
+      }
+    }
+
+    const speed = 1.9;
+    if (c.state === 'flee') {
+      // head for the front door and out onto the street
+      const dr = H.world.door;
+      const goal = c.y > H.world.building.y + H.world.building.h - 10
+        ? { x: c.x, y: H.world.h - 60 }                   // already outside, keep going
+        : { x: dr.x + dr.w / 2, y: dr.y + 40 };
+      navigateTo(c, goal.x, goal.y, speed, dt);
+      c.angle = lerp(c.angle, Math.atan2(goal.y - c.y, goal.x - c.x), 0.2);
+      // made it out — they will be telling the police everything
+      if (c.y > H.world.h - 80) {
+        c.dead = true;                                    // leaves the level
+        if (!H.alarm) trip('civilian');
+      }
+    } else if (c.state === 'cower') {
+      // stay put, hands up
+      c.angle = lerp(c.angle, c.angle, 0.1);
+    } else if (c.state === 'scared') {
+      // back away from the nearest threat
+      let near = null, nd = 1e9;
+      for (const a of H.all) {
+        if (a.dead || a.downed) continue;
+        const d = dist(c, a);
+        if (d < nd) { nd = d; near = a; }
+      }
+      if (near && nd < 200) {
+        const ang = Math.atan2(c.y - near.y, c.x - near.x);
+        moveActor(c, Math.cos(ang) * speed * 0.9, Math.sin(ang) * speed * 0.9, dt);
+        c.angle = lerp(c.angle, ang + Math.PI, 0.2);
+      } else if (Math.random() < 0.01) {
+        c.state = c.kind === 'teller' ? 'cower' : 'flee';
+      }
+    } else {
+      // idle: tellers stand their post, customers drift
+      c.idleT -= dt;
+      if (c.kind === 'customer') {
+        if (c.idleT <= 0) {
+          c.idleT = rand(2000, 5000);
+          const B = H.world.building;
+          c.wanderTo = {
+            x: clamp(c.x + rand(-160, 160), B.x + 60, B.x + B.w - 60),
+            y: clamp(c.y + rand(-110, 110), H.world.counterY + 50, B.y + B.h - 70),
+          };
+        }
+        if (c.wanderTo) {
+          const d = Math.hypot(c.wanderTo.x - c.x, c.wanderTo.y - c.y);
+          if (d > 18) {
+            navigateTo(c, c.wanderTo.x, c.wanderTo.y, speed * 0.35, dt);
+            c.angle = lerp(c.angle, Math.atan2(c.wanderTo.y - c.y, c.wanderTo.x - c.x), 0.08);
+          }
+        }
+      } else {
+        c.angle = lerp(c.angle, Math.PI / 2, 0.05);
+      }
+    }
+
+    separate(c, H.civilians, c.r * 2.2, 0.3, dt);
+  }
+
+  // Robbing: hold E next to someone. Quiet, but it terrifies them, and a
+  // guard who sees it will not let it go.
+  function tryRobCivilian(p, dt) {
+    let target = null, td = 54;
+    for (const c of H.civilians) {
+      if (c.dead || c.robbed) continue;
+      const d = dist(p, c);
+      if (d < td) { td = d; target = c; }
+    }
+    if (!target) { if (p.robbing) p.robbing.robProg = 0; p.robbing = null; return false; }
+
+    p.robbing = target;
+    target.robProg += dt;
+    scare(target, 'rob');
+    // Hands up and rooted to the spot. A civilian who backs away from the
+    // person robbing them makes the whole interaction impossible.
+    target.state = 'cower';
+    target.heldUp = 400;
+    if (target.robProg > 700) {
+      target.robbed = true;
+      target.robProg = 0;
+      p.robbing = null;
+      const take = Math.min(target.wallet, Math.max(0, p.carryCap - p.carried));
+      if (take > 0) {
+        p.carried += take;
+        sfx.pickup();
+        floatText(target.x, target.y - 26, '+' + money(take), '#5FBF87');
+      } else {
+        floatText(target.x, target.y - 26, 'BAG FULL', '#E0B44C');
+      }
+      target.wallet = 0;
+      target.state = 'cower';
+      // a guard watching you rob someone is not going to shrug it off
+      for (const e of H.enemies) {
+        if (e.dead || e.alerted) continue;
+        if (dist(e, target) < 320 && hasLOS(e, target)) {
+          e.suspicion = 1;
+          e.lastSeen = { x: p.x, y: p.y };
+        }
+      }
+    }
+    return true;
+  }
+
+  function drawCivilian(c) {
+    if (c.dead) return;
+    // Match the crew's build so a bystander reads as an adult standing
+    // next to them, not a child.
+    const SH = c.r * 1.12, CH = c.r * 0.76;
+    const walk = Math.sin(c.walkPhase);
+
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.angle);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.beginPath(); ctx.ellipse(1, 3, CH + 4, SH + 2, 0, 0, Math.PI * 2); ctx.fill();
+
+    // legs
+    ctx.fillStyle = shade(c.outfit, -0.22);
+    [[-SH * 0.55, walk], [SH * 0.55, -walk]].forEach(function (pair) {
+      ctx.save();
+      ctx.translate(-2 + pair[1] * 2.2, pair[0]);
+      ctx.beginPath(); ctx.roundRect(-5, -3.6, 12, 7.2, 3); ctx.fill();
+      ctx.restore();
+    });
+
+    // torso
+    ctx.fillStyle = c.outfit;
+    ctx.strokeStyle = '#0A0D12'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(-1, 0, CH + 1, SH, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    if (c.kind === 'teller') {                 // shirt collar + lanyard
+      ctx.fillStyle = '#E8EDF2';
+      ctx.beginPath(); ctx.roundRect(CH * 0.1, -SH * 0.45, CH * 0.7, SH * 0.9, 2); ctx.fill();
+      ctx.strokeStyle = '#C4453A'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(CH * 0.2, -SH * 0.3); ctx.lineTo(CH * 0.2, SH * 0.3); ctx.stroke();
+    }
+
+    // arms — up if cowering, down otherwise
+    const up = c.state === 'cower' || c.state === 'scared';
+    ctx.strokeStyle = c.skin; ctx.lineWidth = 5.2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-1, SH * 0.7);
+    ctx.quadraticCurveTo(CH * 0.5, SH * (up ? 1.05 : 0.6), CH * (up ? 0.3 : 0.8), SH * (up ? 1.25 : 0.5));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-1, -SH * 0.7);
+    ctx.quadraticCurveTo(CH * 0.5, -SH * (up ? 1.05 : 0.6), CH * (up ? 0.3 : 0.8), -SH * (up ? 1.25 : 0.5));
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // head
+    ctx.fillStyle = c.skin;
+    ctx.strokeStyle = shade(c.skin, -0.4); ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.arc(CH * 0.5, 0, c.r * 0.46, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // a suggestion of hair so they are not featureless
+    ctx.fillStyle = shade(c.skin, -0.5);
+    ctx.beginPath();
+    ctx.arc(CH * 0.5 - 1.4, 0, c.r * 0.44, Math.PI * 0.45, Math.PI * 1.55);
+    ctx.closePath(); ctx.fill();
+
+    if (c.hitFlash > 0) {
+      ctx.fillStyle = 'rgba(255,110,80,0.45)';
+      ctx.beginPath(); ctx.arc(0, 0, c.r + 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // status above the head, upright
+    if (c.panic > 0 || c.robbed) {
+      ctx.font = '700 11px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      if (c.robbed) { ctx.fillStyle = 'rgba(107,124,139,0.9)'; ctx.fillText('EMPTY', c.x, c.y - c.r - 12); }
+      else { ctx.fillStyle = 'rgba(224,180,76,0.95)'; ctx.fillText('!', c.x, c.y - c.r - 12); }
+      ctx.textAlign = 'left';
+    }
+    // prompt when you can take their wallet
+    if (!c.robbed && c.wallet > 0 && H.robo && dist(H.robo, c) < 54) {
+      ctx.font = '700 9px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(95,191,135,0.95)';
+      ctx.fillText('E  TAKE WALLET', c.x, c.y - c.r - 24);
+      if (c.robProg > 0) {
+        ctx.strokeStyle = '#5FBF87'; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(c.robProg / 700, 0, 1));
+        ctx.stroke();
+      }
+      ctx.textAlign = 'left';
+    }
   }
 
   // ==================== NAVIGATION ====================
@@ -1396,11 +1791,15 @@
   // Slide them out toward open floor, ignoring collision for that nudge.
   function unembed(a, dt) {
     const nav = H.world.nav;
-    // Two ways to be trapped: physically inside a prop, or standing in a
-    // cell the grid considers unwalkable (the clearance padding around a
-    // wall). The second looks fine to collision but makes every path and
-    // every line-of-walk test fail, which reads as an agent frozen solid.
-    if (!blocked(a.x, a.y, a.r) && !navBlockedAt(nav, a.x, a.y)) return false;
+    // Physically inside a prop: always needs the escape hatch.
+    const solid = blocked(a.x, a.y, a.r);
+    // Standing in a cell the grid calls unwalkable is NOT the same thing.
+    // Cells are coarse, so the free half of a cell next to a parked car
+    // reads as blocked. Yanking those agents fought their own movement and
+    // pinned them in place, so only do it as a last resort once they have
+    // genuinely stopped making progress.
+    const gridTrapped = !solid && navBlockedAt(nav, a.x, a.y) && (a.stuckT || 0) > 700;
+    if (!solid && !gridTrapped) return false;
     const cell = nearestFree(nav, cellOf(a.x), cellOf(a.y));
     if (!cell) return false;
     const tx = cellCentre(cell[0]), ty = cellCentre(cell[1]);
@@ -1465,7 +1864,7 @@
           p.hp = p.maxHp * 0.45;
           p.iframes = 1200;
           sfx.revive();
-          banner('BACK UP', 'That was your one free save.');
+          banner('ON YOUR FEET', 'That was the only free one.');
         } else {
           finish(false);
         }
@@ -1542,6 +1941,10 @@
       }
     }
 
+    // ---- robbing is a hold, not a tap ----
+    if (keys['e'] || (touch.active && touch.interact)) tryRobCivilian(p, dt);
+    else if (p.robbing) { p.robbing.robProg = 0; p.robbing = null; }
+
     // ---- passive loot pickup while standing on it ----
     grabNearbyLoot(p, false);
 
@@ -1584,6 +1987,25 @@
           t.hp -= b.dmg; t.shake = 8;
           sfx.ricochet();
           if (t.hp <= 0) openRegister(t, true);
+          hit = true; break;
+        }
+      }
+
+      // civilians are in the line of fire like anyone else
+      if (!hit) {
+        for (const c of H.civilians) {
+          if (c.dead) continue;
+          if (dist(b, c) > c.r) continue;
+          c.hp -= b.dmg; c.hitFlash = 10;
+          scare(c, 'shot');
+          panicAll(c.x, c.y, 320, 'seen');
+          sfx.hit(false);
+          if (c.hp <= 0) {
+            c.dead = true;
+            H.bodies.push({ x: c.x, y: c.y, seen: false });
+            if (!H.alarm) trip('civilian');
+            floatText(c.x, c.y - 24, 'CIVILIAN DOWN', '#C4453A');
+          }
           hit = true; break;
         }
       }
@@ -1661,7 +2083,7 @@
         H.copsHere = true;
         startSiren();
         spawnCopWave(T.copWaveSizeBase, false);
-        banner('POLICE ON SCENE', 'They are setting up outside. The car is covered.');
+        banner('POLICE ARE HERE', 'They have the street. The car is covered.');
       }
     }
 
@@ -1677,7 +2099,7 @@
         H.breachLeft -= dt;
         if (H.breachLeft <= 0) {
           H.breached = true;
-          banner('THEY ARE BREACHING', 'SWAT is coming through the front.');
+          banner('BREACH', 'SWAT is coming through the front door.');
           spawnCopWave(4, true);
         }
       }
@@ -1686,13 +2108,52 @@
     // extraction: RoboKyle at the car
     const atCar = dist(H.robo, H.world.car) < H.world.car.r;
     H.canExtract = atCar && !H.robo.downed;
-    if (H.canExtract && (keys['e'] || (touch.active && touch.interact))) H.extractPhase = true;
+    const wantsExtract = keys['e'] || (touch.active && touch.interact);
+    if (H.canExtract && wantsExtract && !H.extractPhase) {
+      H.extractPhase = true;
+      H.extractAt = H.t;
+      banner('EVERYONE TO THE CAR', 'Press E again to go without them.');
+    }
 
-    // Everyone still standing has to be aboard before the car pulls away.
     // finish() tears down mission state, so nothing may touch H after it.
     if (H.extractPhase && atCar) {
-      const stragglers = H.crew.filter(c => !c.dead && !c.downed && dist(c, H.world.car) > 70);
+      const stragglers = H.crew.filter(c => !c.dead && !c.downed && dist(c, H.world.car) > 80);
+      H.stragglers = stragglers.length;
       if (stragglers.length === 0) { finish(true); return; }
+
+      // You are never trapped waiting on someone who cannot get here.
+      // After a moment, pressing E again offers to drive off without them.
+      if (wantsExtract && H.t - H.extractAt > 1400 && !H.leavePrompt) {
+        H.leavePrompt = true;
+        H.paused = true;
+        const names = stragglers.map(c => c.name).join(' and ');
+        GH.confirm({
+          title: 'Leave without ' + (stragglers.length > 1 ? 'them?' : names + '?'),
+          body: stragglers.length > 1
+            ? names + ' are not at the car. Drive off now and they do not come back.'
+            : names + ' is not at the car. Drive off now and they do not come back.',
+          yes: 'Drive off', no: 'Wait for them', danger: true,
+        }).then((leave) => {
+          H.leavePrompt = false;
+          if (!H) return;
+          if (leave) {
+            stragglers.forEach(c => {
+              c.dead = true;
+              if (H.killedIds.indexOf(c.char.id) < 0) H.killedIds.push(c.char.id);
+            });
+            H.paused = false;
+            finish(true);
+          } else {
+            H.extractAt = H.t;          // reset, so a stray E does not re-ask
+            H.paused = false;
+            H.last = performance.now();
+            requestAnimationFrame(loop);
+          }
+        });
+        return;
+      }
+    } else {
+      H.stragglers = 0;
     }
 
     // total wipe
@@ -1750,6 +2211,7 @@
     if (!H) return;
     H.crew.forEach(c => stepCrew(c, dt));
     H.enemies.forEach(e => stepEnemy(e, dt));
+    H.civilians.forEach(c => stepCivilian(c, dt));
     stepBullets(dt);
     stepMission(dt);
     if (!H) return;   // the mission ended this frame; H is gone
@@ -2041,6 +2503,7 @@
     }
 
     // ---- actors ----
+    for (const c of H.civilians) drawCivilian(c);
     for (const e of H.enemies) drawEnemy(e);
     for (const c of H.crew) drawChar(c);
     drawChar(H.robo);
@@ -2118,6 +2581,9 @@
     const shake = t.shake > 0 ? (Math.random() - 0.5) * t.shake * 0.5 : 0;
     ctx.save();
     ctx.translate(t.x + shake, t.y);
+    // The till belongs to the teller, so it faces the counter — screen and
+    // keys toward the staff side, drawer opening away from the lobby.
+    ctx.scale(1, -1);
 
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath(); ctx.ellipse(1, 12, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
@@ -2154,11 +2620,14 @@
       // note compartments, emptied
       ctx.fillStyle = '#3E4750';
       for (let i = 0; i < 4; i++) ctx.fillRect(-10 + i * 5.4, 14, 4.2, 5);
+      ctx.save();
+      ctx.scale(1, -1);                     // un-flip so the label reads
       ctx.fillStyle = 'rgba(224,180,76,0.5)';
       ctx.font = '700 8px Oswald, Impact, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('EMPTY', 0, -17);
       ctx.textAlign = 'left';
+      ctx.restore();
     } else {
       // drawer front, still shut
       ctx.fillStyle = '#39424B';
@@ -2178,11 +2647,14 @@
       }
       // prompt when you are close enough to pry it
       if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 52) {
+        ctx.save();
+        ctx.scale(1, -1);                   // un-flip so the prompt reads
         ctx.fillStyle = 'rgba(224,180,76,0.95)';
         ctx.font = '700 9px Oswald, Impact, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('E  PRY OPEN', 0, -19);
+        ctx.fillText('E  PRY OPEN', 0, 26);
         ctx.textAlign = 'left';
+        ctx.restore();
       }
     }
     ctx.restore();
@@ -2679,13 +3151,50 @@
   }
 
   function drawEnemyGun(e, gx) {
+    // Before they have noticed you the weapon is still on the hip.
+    const drawing = e.draw > 0;
+    const holstered = !e.alerted;
+    if (holstered) {
+      ctx.save();
+      ctx.fillStyle = e.wpn.melee ? '#2A2E36' : '#171A20';
+      ctx.beginPath();
+      ctx.roundRect(-4, e.r * 0.62, e.wpn.melee ? 12 : 9, 4.5, 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0A0D12'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
     ctx.save();
-    ctx.translate(gx, 0);
+    // while drawing, the weapon swings up from the hip into position
+    if (drawing) {
+      const t = clamp(e.draw / (e.wpn.melee ? 260 : 520), 0, 1);
+      ctx.translate(gx - 6 * t, e.r * 0.6 * t);
+      ctx.rotate(t * 0.9);
+    } else {
+      ctx.translate(gx, 0);
+    }
+
     if (e.wpn.melee) {
-      ctx.fillStyle = '#2A2E36';
-      ctx.beginPath(); ctx.roundRect(0, -1.6, 13, 3.2, 1.6); ctx.fill();
-      ctx.fillStyle = '#4A515C';
-      ctx.beginPath(); ctx.roundRect(9, -2, 5, 4, 2); ctx.fill();
+      // baton thrusts forward on a swing, same language as the player's
+      const sw = e.swing > 0 ? e.swing / 220 : 0;
+      const lunge = Math.sin((1 - sw) * Math.PI) * 14;
+      ctx.translate(lunge, 0);
+      ctx.fillStyle = '#1F242B';
+      ctx.beginPath(); ctx.roundRect(-2, -1.7, 6, 3.4, 1.6); ctx.fill();
+      ctx.fillStyle = '#3C444E';
+      ctx.beginPath(); ctx.roundRect(4, -1.5, 12, 3, 1.5); ctx.fill();
+      ctx.fillStyle = '#59626D';
+      ctx.beginPath(); ctx.roundRect(15, -2, 5, 4, 2); ctx.fill();
+      if (sw > 0) {
+        ctx.globalAlpha = sw * 0.35;
+        ctx.strokeStyle = '#9BA6B3'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(2, -3); ctx.lineTo(-12, -3);
+        ctx.moveTo(2, 3);  ctx.lineTo(-12, 3);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
     } else {
       const L = (e.key === 'heavy' || e.key === 'guard_rifle') ? 22 : 17;
       ctx.fillStyle = '#171A20';
@@ -2805,6 +3314,11 @@
       if (t.open) return;
       ctx.fillStyle = '#5FBF87';
       ctx.fillRect(x0 + t.x * sc - 1, y0 + t.y * sc - 1, 2, 2);
+    });
+    H.civilians.forEach(c => {
+      if (c.dead) return;
+      ctx.fillStyle = 'rgba(200,210,220,0.5)';
+      ctx.fillRect(x0 + c.x * sc - 1, y0 + c.y * sc - 1, 2, 2);
     });
     H.crew.forEach(c => {
       if (c.dead) return;
@@ -2935,12 +3449,14 @@
     const obj = hudEl('hud-objective');
     const openVaults = H.world.vaults.filter(v => v.open).length;
     const tills = H.world.registers.filter(t => !t.open).length;
-    if (H.canExtract) obj.textContent = 'Press E to drive off';
+    if (H.extractPhase && H.stragglers > 0)
+      obj.textContent = 'Waiting on ' + H.stragglers + ' — press E again to go without them';
+    else if (H.canExtract) obj.textContent = 'Press E to drive off';
     else if (openVaults < H.world.vaults.length)
       obj.textContent = tills
-        ? 'Drill the vault — or pry the ' + tills + ' register' + (tills > 1 ? 's' : '') + ' on the way'
-        : 'Drill the vault (E at the drill point)';
-    else obj.textContent = 'Grab the cash, then get back to the car';
+        ? 'Drill the vault. ' + tills + ' till' + (tills > 1 ? 's' : '') + ' still shut, if you have time'
+        : 'Drill the vault — press E at the drill point';
+    else obj.textContent = 'Grab what you can carry, then back to the car';
   }
 
   // ==================== TOUCH ====================

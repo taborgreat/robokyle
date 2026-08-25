@@ -39,6 +39,8 @@
     down:      'down.ogg',
     revive:    'revive.ogg',
     alarm:     'alarm.ogg',
+    screamA:   'civ_scream_a.ogg',
+    screamB:   'civ_scream_b.ogg',
     // firearms
     gunPistol: 'gun_pistol.wav',
     gunRifle:  'gun_rifle.wav',

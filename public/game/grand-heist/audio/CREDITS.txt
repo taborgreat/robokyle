@@ -22,6 +22,16 @@ sfx/gun_*.wav
     Licence: CC0 1.0
     Downmixed to mono, resampled to 24 kHz, trimmed and normalised.
 
+sfx/civ_scream_a.ogg
+    "Female Scream 1" - OpenGameArt
+    https://opengameart.org/content/female-scream-1
+    Licence: CC0 1.0
+
+sfx/civ_scream_b.ogg
+    "Female high pitched scream SFX" - OpenGameArt
+    https://opengameart.org/content/female-high-pitched-scream-sfx
+    Licence: CC0 1.0
+
 music/planning.ogg
     "Covert Action" — OpenGameArt
     https://opengameart.org/content/covert-action

@@ -29,7 +29,23 @@ window.GH = (() => {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   const GH = {};
-  const sfx = (n) => { if (GH.audio) GH.audio.play(n); };
+
+  // Rebuilding a list fires mouseenter on every card that lands under the
+  // cursor, which used to machine-gun the hover sound. Rate-limit each
+  // cue, and go quiet for a moment after any re-render.
+  const lastPlayed = {};
+  let hoverMuteUntil = 0;
+  const sfx = (n) => {
+    if (!GH.audio) return;
+    const now = performance.now();
+    if (n === 'hover' && now < hoverMuteUntil) return;
+    const gap = n === 'hover' ? 110 : 45;
+    if (now - (lastPlayed[n] || 0) < gap) return;
+    lastPlayed[n] = now;
+    GH.audio.play(n);
+  };
+  // call before repopulating any list of hoverable cards
+  const quietRerender = () => { hoverMuteUntil = performance.now() + 420; };
 
   // ==================== SETTINGS ====================
   GH.settings = { sfx: 0.6, music: 0.4, shake: true };
@@ -231,6 +247,7 @@ window.GH = (() => {
     const visible = D.BANKS.filter(b =>
       GH.showAllBanks || b.id <= s.unlocked + 2);
 
+    quietRerender();
     const wrap = $('map-list');
     wrap.innerHTML = '';
 
@@ -334,6 +351,7 @@ window.GH = (() => {
     if (GH.editing >= chars.length) GH.editing = 0;
 
     // ---- squad row ----
+    quietRerender();
     const row = $('squad-row');
     row.innerHTML = '';
     chars.forEach((c, i) => {
@@ -444,6 +462,7 @@ window.GH = (() => {
     });
 
     const slot = SLOTS.find(x => x.key === GH.shopTab);
+    quietRerender();
     const list = $('loadout-list');
     list.innerHTML = '';
 
@@ -515,6 +534,7 @@ window.GH = (() => {
     const cost = GH.hireCost();
     $('recruit-cost').textContent = cost === 0 ? 'Free' : money(cost);
     $('recruit-cash').textContent = money(GH.state.cash);
+    quietRerender();
     const wrap = $('recruit-list');
     wrap.innerHTML = '';
     GH.recruitOffers.forEach(c => {

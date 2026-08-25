@@ -72,7 +72,7 @@
                         <span class="l1">GRAND</span>
                         <span class="l2">HEIST</span>
                     </h1>
-                    <p class="title-strap">Twenty banks. One crew. Everything you can carry.</p>
+                    <p class="title-strap">Twenty banks. Three crew. Whatever you can carry out.</p>
 
                     <ul class="menu-list">
                         <li><button class="menu-btn is-primary" id="btn-continue">Continue Run</button></li>
@@ -111,7 +111,7 @@
                     </div>
                 </div>
 
-                <p class="warn-note" id="crew-warn">You are short of a full crew. Recruiting is free while you are down a body.</p>
+                <p class="warn-note" id="crew-warn">You are a body short. Recruiting is free until the crew is back to three.</p>
 
                 <div class="squad-row" id="squad-row"></div>
 
@@ -138,7 +138,7 @@
                     <button class="menu-back" data-goto="crew">Crew</button>
                     <div class="topbar-mid">
                         <h2 class="screen-title">Three people <span class="accent">need work</span></h2>
-                        <p class="topbar-note">Hiring costs <b id="recruit-cost">Free</b> — stats are rolled, traits are permanent.</p>
+                        <p class="topbar-note">Hiring costs <b id="recruit-cost">Free</b>. Stats are rolled once and traits never change.</p>
                     </div>
                     <span class="cash-pill">Bank <b id="recruit-cash">$0</b></span>
                 </div>
@@ -228,8 +228,8 @@
                 </div>
                 <h3 class="sec-title">The loop</h3>
                 <p class="body-text">
-                    Pick a bank, pick three crew, spend your cash on their loadout, then pull the job.
-                    Money you carry out is both your score and your budget for the next one.
+                    Pick a bank, pick three crew, spend the take on their loadout, then pull the job.
+                    What you carry out is both your score and the budget for the next one.
                 </p>
                 <h3 class="sec-title">Controls</h3>
                 <div class="controls-grid">
@@ -237,7 +237,7 @@
                     <div><kbd>Mouse</kbd> Aim</div>
                     <div><kbd>Click</kbd> Shoot or swing</div>
                     <div><kbd>R</kbd> Reload</div>
-                    <div><kbd>E</kbd> Drill, grab, revive, break a register</div>
+                    <div><kbd>E</kbd> Drill, grab, revive, pry a till, lift a wallet</div>
                     <div><kbd>Q</kbd> Swap to melee</div>
                     <div><kbd>Space</kbd> Dodge roll</div>
                     <div><kbd>F</kbd> Crew: follow / hold</div>
@@ -247,13 +247,16 @@
                 </div>
                 <h3 class="sec-title">Things worth knowing</h3>
                 <ul class="tips">
-                    <li><b>Melee is silent.</b> Guns are not. Knife an isolated guard before anyone hits the alarm.</li>
-                    <li><b>Cash registers are optional money.</b> Break them open for a fast, quiet grab before you touch the vault.</li>
-                    <li><b>The alarm starts the clock.</b> Police arrive when it runs out, set up outside, then breach if you linger.</li>
-                    <li><b>Carry capacity caps your greed.</b> Bigger bags and the Carry stat decide how much you can take.</li>
+                    <li><b>Melee is silent, guns are not.</b> A clean knife takedown never gets called in &mdash; but a guard who survives it will radio you straight away.</li>
+                    <li><b>Tills are optional money.</b> Pry one by hand and nobody hears it. Shoot it open and everybody does.</li>
+                    <li><b>The alarm starts the clock.</b> Police arrive when it runs out, take the street, then breach if you stay.</li>
+                    <li><b>Your bag is the limit.</b> Carry stat plus whatever bag you bought decides how much leaves with you.</li>
                     <li><b>Crew death is permanent.</b> They drop their bag where they fall — grab it before you leave.</li>
-                    <li><b>Their gear is not lost.</b> Equipment returns to your armory as long as you extract.</li>
-                    <li><b>RoboKyle cannot permanently die.</b> One self-revive per job; after that a crew member must reach him.</li>
+                    <li><b>Their gear survives them.</b> Equipment comes back to the armory as long as somebody gets out.</li>
+                    <li><b>The bank is full of people.</b> Tellers and customers panic, scream, and run for the door. One who gets out, or reaches a phone, calls the police himself.</li>
+                    <li><b>Customers carry wallets.</b> Hold E next to one to take it. Quiet, quick, and free &mdash; unless a guard is watching.</li>
+                    <li><b>Guards have to notice you first.</b> Walking in armed or masked builds their suspicion; a body on the floor removes all doubt.</li>
+                    <li><b>RoboKyle cannot die for good.</b> One self-revive a job. After that somebody has to reach him.</li>
                 </ul>
             </section>
 
