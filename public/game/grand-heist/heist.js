@@ -18,6 +18,11 @@
 
   // ==================== UTIL ====================
   const rand  = (a, b) => a + Math.random() * (b - a);
+
+  // Cash is picked up from a comfortable distance, and a pile that has
+  // just been spilled is the player's alone for a moment.
+  const PICKUP_REACH = 56;
+  const LOOT_GRACE = 2600;
   const rint  = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const dist  = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -98,6 +103,23 @@
   };
   const STREET = 230;
   const WALL = 18;
+
+  // Put a cash pile on open floor near a prop rather than inside it.
+  // Tries a few angles outward, then falls back to the nearest free cell,
+  // so nothing ever spawns clipped into a wall or a counter.
+  function spillSpot(x, y, preferAngle, away) {
+    const d0 = away == null ? 34 : away;
+    const tries = [];
+    if (preferAngle != null) tries.push(preferAngle);
+    for (let i = 0; i < 8; i++) tries.push(preferAngle == null ? i * Math.PI / 4
+                                                              : preferAngle + (i + 1) * Math.PI / 4);
+    for (const a of tries) {
+      const sx = x + Math.cos(a) * d0, sy = y + Math.sin(a) * d0;
+      if (!navBlockedAt(H.world.nav, sx, sy) && !blocked(sx, sy, 10)) return { x: sx, y: sy };
+    }
+    const cell = nearestFree(H.world.nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL));
+    return cell ? { x: cellCentre(cell[0]), y: cellCentre(cell[1]) } : { x, y };
+  }
 
   // Split `total` into n randomised-but-exact parts. Piles vary in size
   // for looks, but the sum still matches the haul advertised on the intel
@@ -755,9 +777,11 @@
     b.open = true;
     b.shake = 10;
     sfx.register();
+    const spot = spillSpot(b.x, b.y, Math.PI / 2, 40);
     H.world.loot.push({
-      x: b.x + rand(-6, 6), y: b.y + 22, r: 13,
+      x: spot.x, y: spot.y, r: 13,
       amount: b.amount, kind: 'box', locked: false, taken: false,
+      claimAt: H.t + LOOT_GRACE,
     });
     for (let i = 0; i < 8; i++) {
       H.particles.push({
@@ -774,9 +798,11 @@
     a.shake = 12;
     sfx.register();
     sfx.glass();
+    const spot = spillSpot(a.x, a.y, a.facing, 44);
     H.world.loot.push({
-      x: a.x + Math.cos(a.facing) * 30, y: a.y + 18, r: 14,
+      x: spot.x, y: spot.y, r: 14,
       amount: a.amount, kind: 'atm', locked: false, taken: false,
+      claimAt: H.t + LOOT_GRACE,
     });
     for (let i = 0; i < 12; i++) {
       H.particles.push({
@@ -803,9 +829,11 @@
     t.shake = 12;
     sfx.register();
     if (loud) { sfx.glass(); if (!H.alarm) trip('teller'); }
+    const spot = spillSpot(t.x, t.y, Math.PI / 2, 40);
     H.world.loot.push({
-      x: t.x + rand(-6, 6), y: t.y + 20, r: 13,
+      x: spot.x, y: spot.y, r: 13,
       amount: t.amount, kind: 'till', locked: false, taken: false,
+      claimAt: H.t + LOOT_GRACE,
     });
     for (let i = 0; i < 9; i++) {
       H.particles.push({
@@ -817,7 +845,7 @@
   }
 
   function grabNearbyLoot(a, manual) {
-    const reach = manual ? 52 : 40;
+    const reach = manual ? PICKUP_REACH + 10 : PICKUP_REACH;
     let got = 0;
     for (const l of H.world.loot) {
       if (l.taken || l.locked) continue;
@@ -827,7 +855,7 @@
       const take = Math.min(room, l.amount);
       a.carried += take; l.amount -= take;
       got += take;
-      if (l.amount <= 1) l.taken = true;
+      if (l.amount <= 1) { l.taken = true; if (l.claimedBy) { l.claimedBy.claim = null; l.claimedBy = null; } }
       sfx.cash();
       floatText(l.x, l.y - 20, '+' + money(take), '#7BC59A');
 
@@ -1529,21 +1557,31 @@
       let target = null, td = c.stance === 'hold' ? 220 : 460;
 
       if (room) {
-        for (const l of H.world.loot) {
-          if (l.taken || l.locked) continue;
+        const consider = (l) => {
+          if (l.taken) return;
+          if (l.locked) return;
+          // fresh out of a till or a machine: the player gets first refusal
+          if (l.claimAt && H.t < l.claimAt) return;
+          // one earner per pile — three of them converging on your feet is
+          // what made this so irritating
+          if (l.claimedBy && l.claimedBy !== c && !l.claimedBy.dead && !l.claimedBy.downed) return;
           const d = dist(c, l);
           if (d < td) { td = d; target = l; }
-        }
-        for (const d2 of H.drops) {
-          if (d2.taken) continue;
-          const d = dist(c, d2);
-          if (d < td) { td = d; target = d2; }
-        }
+        };
+        H.world.loot.forEach(consider);
+        H.drops.forEach(consider);
       }
+
+      // release anything this crew member was going for but no longer is
+      if (c.claim && c.claim !== target) { c.claim.claimedBy = null; c.claim = null; }
+      if (target) { target.claimedBy = c; c.claim = target; }
 
       if (target) {
         c.state = 'loot';
-        navigateTo(c, target.x, target.y, speed, dt);
+        // Stop as soon as it is in reach. Walking the last few pixels into
+        // a pile half-tucked behind a counter is how they used to end up
+        // grinding against a wall forever.
+        if (dist(c, target) > PICKUP_REACH - 6) navigateTo(c, target.x, target.y, speed, dt);
         c.angle = lerp(c.angle, Math.atan2(target.y - c.y, target.x - c.x), 0.14);
       } else if (c.stance === 'follow') {
         c.state = 'follow';
@@ -3311,6 +3349,15 @@
       ctx.beginPath(); ctx.arc(H.ping.x, H.ping.y, rr, 0, Math.PI * 2); ctx.stroke();
     }
 
+    // ---- who is who ----
+    // A soft ring on the floor under everyone, colour-coded by side, so a
+    // glance tells you what you are looking at in a crowded lobby. Drawn
+    // as one pass before any sprite, so a marker never covers a body.
+    for (const c of H.civilians) if (!c.dead) drawMarker(c, MARK.civilian);
+    for (const e of H.enemies) if (!e.dead) drawMarker(e, MARK.hostile);
+    for (const c of H.crew) if (!c.dead) drawMarker(c, c.downed ? MARK.downed : MARK.crew);
+    if (!H.robo.dead) drawMarker(H.robo, H.robo.downed ? MARK.downed : MARK.player);
+
     // ---- actors ----
     for (const c of H.civilians) drawCivilian(c);
     for (const e of H.enemies) drawEnemy(e);
@@ -4026,6 +4073,54 @@
     ctx.textAlign = 'center';
     ctx.fillText('$', 0, 7);
     ctx.textAlign = 'left';
+    ctx.restore();
+  }
+
+  // ==================== SIDE MARKERS ====================
+  // Green is yours, red will shoot you, grey is a bystander. RoboKyle
+  // gets a brighter ring than the rest of the crew so you can always
+  // pick yourself out of a scrum.
+  const MARK = {
+    player:   { rgb: '110,235,165', ring: 0.95, fill: 0.30 },
+    crew:     { rgb: '95,191,135',  ring: 0.80, fill: 0.22 },
+    hostile:  { rgb: '224,72,60',   ring: 0.80, fill: 0.22 },
+    civilian: { rgb: '168,182,196', ring: 0.62, fill: 0.15 },
+    downed:   { rgb: '224,180,76',  ring: 0.90, fill: 0.26 },
+  };
+
+  function drawMarker(a, m) {
+    // Sized to sit clearly OUTSIDE the sprite and its own drop shadow —
+    // tucked underneath, the ring was invisible at any real zoom.
+    const r = (a.r || 14) * 2.15;
+    const SQ = 0.55;                       // flatten: it lies on the floor
+    ctx.save();
+    ctx.translate(a.x, a.y + (a.r || 14) * 0.42);
+    ctx.scale(1, SQ);
+
+    const g = ctx.createRadialGradient(0, 0, r * 0.35, 0, 0, r);
+    g.addColorStop(0, 'rgba(' + m.rgb + ',0)');
+    g.addColorStop(0.62, 'rgba(' + m.rgb + ',' + (m.fill * 0.5) + ')');
+    g.addColorStop(0.9, 'rgba(' + m.rgb + ',' + m.fill + ')');
+    g.addColorStop(1, 'rgba(' + m.rgb + ',0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+
+    // a dark backing line first, so the ring holds up on a pale floor
+    ctx.strokeStyle = 'rgba(6,10,14,0.45)';
+    ctx.lineWidth = 3.6 / SQ;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.86, 0, Math.PI * 2); ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(' + m.rgb + ',' + m.ring + ')';
+    ctx.lineWidth = 2.2 / SQ;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.86, 0, Math.PI * 2); ctx.stroke();
+
+    if (m === MARK.player) {
+      // a second, slowly pulsing ring so you can always find yourself
+      const pulse = 0.55 + Math.sin(H.t / 420) * 0.2;
+      ctx.strokeStyle = 'rgba(' + m.rgb + ',' + pulse.toFixed(2) + ')';
+      ctx.lineWidth = 1.6 / SQ;
+      ctx.beginPath(); ctx.arc(0, 0, r * 1.04, 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.restore();
   }
 
