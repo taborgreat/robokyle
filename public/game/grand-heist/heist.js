@@ -851,7 +851,7 @@
       alarm: false, alarmT: 0,
       policeLeft: bank.respond * 1000,
       copsHere: false, breachLeft: bank.breach * 1000, breached: false,
-      waveTimer: 0, waveNo: 0,
+      waveTimer: 0, waveNo: 0, waveGap: T.copWaveInterval,
       cam: { x: spawn0.x, y: spawn0.y, zoom: 1 },
       shake: 0,
       extracted: false, failed: false, over: false,
@@ -1730,15 +1730,23 @@
         // What they do with the space between them and you depends on the
         // sort of fighter they are.
         if (e.role === 'anchor') {
-          // Does not leave his post. Takes the best cover near it and
-          // shoots from there; only gives ground if pushed off it.
-          const spot = coverNear(e, goal);
-          const post = { x: e.postX, y: e.postY };
-          const far = Math.hypot(e.x - post.x, e.y - post.y);
-          if (spot && Math.hypot(spot.x - post.x, spot.y - post.y) < 240) goal = spot;
-          else if (far > 210) goal = post;
-          else goal = { x: e.x, y: e.y };            // stand your ground
-        } else if (e.role === 'flank' && los && d < wpn.range * 1.1) {
+          // Holds his post: takes the best cover near it and shoots from
+          // there. But he will not stand in an empty back room forever
+          // while the front of the building is being robbed - if nothing
+          // has come near him for a while, he gives up the post for good
+          // and goes to find the fight.
+          if (!los && d > 600 && (e.searchT || 0) > 9000) {
+            e.role = 'hold';
+          } else {
+            const spot = coverNear(e, goal);
+            const post = { x: e.postX, y: e.postY };
+            const far = Math.hypot(e.x - post.x, e.y - post.y);
+            if (spot && Math.hypot(spot.x - post.x, spot.y - post.y) < 240) goal = spot;
+            else if (far > 210) goal = post;
+            else goal = { x: e.x, y: e.y };          // stand your ground
+          }
+        }
+        if (e.role === 'flank' && los && d < wpn.range * 1.1) {
           // Come at it from the side rather than straight up the middle.
           const toE = Math.atan2(e.y - goal.y, e.x - goal.x);
           const off = toE + e.flankSide * 1.15;
@@ -1746,7 +1754,7 @@
             x: goal.x + Math.cos(off) * wantRange,
             y: goal.y + Math.sin(off) * wantRange,
           };
-        } else if (los && d < wantRange * 1.4) {
+        } else if (e.role !== 'anchor' && los && d < wantRange * 1.4) {
           const spot = coverNear(e, goal);
           if (spot) goal = spot;
         }
@@ -1768,6 +1776,8 @@
         moveActor(e, Math.cos(ang) * sp * drift, Math.sin(ang) * sp * drift, dt);
       }
       separate(e, H.enemies, e.r * 3.0, 0.42, dt);
+      // and push through the people in the room rather than into them
+      shoveAside(e, H.civilians, dt);
     }
 
     // shooting
@@ -3095,9 +3105,45 @@
       return false;
     }
     if (self.side === 'civ') return false;    // and they never block anyone
+
+    // Hostiles cannot stand inside a bystander. Skipped while they are
+    // jammed (ghost) so a crowd can never trap one in a doorway.
+    if (self.side === 'foe' && !(self.ghost > 0)) {
+      const r2 = self.r * 0.7;
+      for (let i = 0; i < H.civilians.length; i++) {
+        const c = H.civilians[i];
+        if (c.dead) continue;
+        const rr2 = r2 + c.r * 0.7;
+        if ((x - c.x) ** 2 + (y - c.y) ** 2 < rr2 * rr2) return true;
+      }
+    }
+
     if (player.dead || player.downed) return false;
+    // A jammed agent may squeeze past the player too. Without this a body
+    // pressed against RoboKyle in a doorway had nowhere at all to go.
+    if (self.ghost > 0) return false;
     const rr = self.r * 0.82 + player.r * 0.82;
     return (x - player.x) ** 2 + (y - player.y) ** 2 < rr * rr;
+  }
+
+  // Walking into somebody shoulders them aside rather than stopping dead.
+  // Used by the player and by the police; the person being shoved is only
+  // moved onto floor they could stand on anyway.
+  function shoveAside(a, list, dt) {
+    for (let i = 0; i < list.length; i++) {
+      const c = list[i];
+      if (c === a || c.dead) continue;
+      const dx = c.x - a.x, dy = c.y - a.y;
+      const rr = a.r + c.r * 0.9;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > rr * rr || d2 < 0.01) continue;
+      const d = Math.sqrt(d2);
+      const push = (rr - d) * 0.4;
+      const nx = c.x + dx / d * push, ny = c.y + dy / d * push;
+      if (!blocked(nx, c.y, c.r)) c.x = nx;
+      if (!blocked(c.x, ny, c.r)) c.y = ny;
+      if (c.side === 'civ') scare(c, 'shoved', a);
+    }
   }
 
   function moveActor(a, dx, dy, dt) {
@@ -3240,19 +3286,8 @@
 
     // Walking into a bystander or one of your own shoulders them out of
     // the way rather than stopping you dead.
-    for (const c of H.civilians.concat(H.crew)) {
-      if (c.dead) continue;
-      const dx = c.x - p.x, dy = c.y - p.y;
-      const rr = p.r + c.r * 0.9;
-      const d2 = dx * dx + dy * dy;
-      if (d2 > rr * rr || d2 < 0.01) continue;
-      const d = Math.sqrt(d2);
-      const push = (rr - d) * 0.4;
-      const nx = c.x + dx / d * push, ny = c.y + dy / d * push;
-      if (!blocked(nx, c.y, c.r)) c.x = nx;
-      if (!blocked(c.x, ny, c.r)) c.y = ny;
-      scare(c, 'shoved');
-    }
+    shoveAside(p, H.civilians, dt);
+    shoveAside(p, H.crew, dt);
 
     // ---- passive loot pickup while standing on it ----
     grabNearbyLoot(p, false);
@@ -3633,8 +3668,12 @@
       if (H.policeLeft <= 0) {
         H.copsHere = true;
         startSiren();
-        spawnCopWave(T.copWaveSizeBase, false);
-        banner('POLICE ARE HERE', 'They have the street. The car is covered.');
+        spawnCopWave(T.copFirstWave, false);
+        // Start the clock for the NEXT wave. It used to be zero, which
+        // fired wave two on the same frame as the first response.
+        H.waveGap = T.copWaveInterval;
+        H.waveTimer = H.waveGap;
+        banner('POLICE ARE HERE', 'First car on the street. More behind it.');
       }
     }
 
@@ -3642,16 +3681,21 @@
       H.waveTimer -= dt;
       if (H.waveTimer <= 0) {
         H.waveNo++;
-        H.waveTimer = T.copWaveInterval;
+        // Each wave comes a little sooner than the last, down to a floor.
+        // The pressure builds over the job rather than arriving with it.
+        H.waveGap = Math.max(T.copWaveIntervalMin,
+                             (H.waveGap || T.copWaveInterval) - T.copWaveIntervalStep);
+        H.waveTimer = H.waveGap;
         const n = Math.round(T.copWaveSizeBase + H.waveNo * T.copWaveSizeGrowth);
         spawnCopWave(n, H.breached);
+        if (H.waveNo === 1) banner('MORE UNITS', 'They are still coming.');
       }
       if (!H.breached) {
         H.breachLeft -= dt;
         if (H.breachLeft <= 0) {
           H.breached = true;
           banner('BREACH', 'SWAT is coming through the front door.');
-          spawnCopWave(4, true);
+          spawnCopWave(T.copBreachWave, true);
         }
       }
     }

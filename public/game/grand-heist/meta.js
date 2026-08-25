@@ -293,10 +293,21 @@ window.GH = (() => {
 
   // ---- health between jobs ----
   GH.curHp = (c) => (c.hp == null ? GH.maxHp(c) : clamp(c.hp, 0, GH.maxHp(c)));
-  GH.healCost = (c) => Math.round((GH.maxHp(c) - GH.curHp(c)) * T.healCostPerHp);
+  // What the doctor charges. The first few points are free, so a graze
+  // does not cost you a job's takings, and the rate is per point missing
+  // rather than a flat fee - a crew member who nearly died is the
+  // expensive one, which is the way round it should be.
+  GH.healCost = (c) => {
+    const missing = GH.maxHp(c) - GH.curHp(c);
+    const billed = Math.max(0, missing - (T.healFreeHp || 0));
+    return Math.round(billed * T.healCostPerHp);
+  };
   GH.healUp = (c) => {
     const cost = GH.healCost(c);
-    if (cost <= 0) return false;
+    // A free patch-up is still a patch-up: only refuse if they are already
+    // in one piece.
+    if (GH.curHp(c) >= GH.maxHp(c)) return false;
+    if (cost < 0) return false;
     if (GH.state.cash < cost) return false;
     GH.state.cash -= cost;
     c.hp = GH.maxHp(c);
@@ -596,8 +607,9 @@ window.GH = (() => {
         gearChips(c) +
         '<div class="mate-actions">' +
           '<button class="btn-edit">' + (i === GH.editing ? 'Editing' : 'Edit loadout') + '</button>' +
-          (GH.healCost(c) > 0
-            ? '<button class="btn-heal">Patch up ' + money(GH.healCost(c)) + '</button>'
+          (GH.curHp(c) < GH.maxHp(c)
+            ? '<button class="btn-heal">Patch up ' +
+              (GH.healCost(c) > 0 ? money(GH.healCost(c)) : 'free') + '</button>'
             : (c.isRobo ? '' : '<button class="btn-bench">Bench</button>')) +
         '</div>';
 

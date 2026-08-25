@@ -254,7 +254,11 @@ window.GH_DATA = (() => {
   // guards      : how many pre-placed guards inside
   // guardWpn    : which ENEMIES key those guards use
   // copWaves    : enemy keys the police draw from, with weights
-  // respond     : seconds from alarm to police arriving
+  // respond     : seconds from alarm to police arriving. What actually
+  //               sets the difficulty is respond minus drill: the time you
+  //               have left once the vault is open. That margin runs 78s
+  //               at bank 1 down to 16s at bank 20 and never goes back up,
+  //               so a late job is tight without being unwinnable.
   // breach      : seconds after police arrive before SWAT storms the building
   // haul        : approximate total cash in the building
   // size        : 'small' | 'mid' | 'large' | 'huge' - drives layout generation
@@ -282,72 +286,72 @@ window.GH_DATA = (() => {
       blurb: 'ACT ONE FINALE. An armoured captain holds the vault floor and rallies the guards.' },
 
     { id: 6,  name: 'Harbor Federal',           act: 2, size: 'mid',   guards: 4, guardWpn: 'guard_pistol',
-      copWaves: [['riot', 2], ['swat', 1]], respond: 40, breach: 60, haul: 6500, drill: 18, atms: 2, vaults: 1, boxes: 4,
+      copWaves: [['riot', 2], ['swat', 1]], respond: 48, breach: 60, haul: 6500, drill: 18, atms: 2, vaults: 1, boxes: 4,
       blurb: 'SWAT debuts. They move as a unit and they actually aim.' },
 
     { id: 7,  name: 'Uptown Holdings',          act: 2, size: 'large', guards: 4, guardWpn: 'guard_pistol',
-      copWaves: [['swat', 2], ['riot', 1]], respond: 38, breach: 58, haul: 8500, drill: 20, atms: 2, vaults: 1, boxes: 5,
+      copWaves: [['swat', 2], ['riot', 1]], respond: 49, breach: 58, haul: 8500, drill: 20, atms: 2, vaults: 1, boxes: 5,
       blurb: 'Big floor plan. The vault is a long, exposed run from the door.' },
 
     { id: 8,  name: 'Diamond Exchange',         act: 2, size: 'large', guards: 5, guardWpn: 'guard_smg',
-      copWaves: [['swat', 3], ['riot', 1]], respond: 36, breach: 56, haul: 11000, drill: 22, atms: 2, vaults: 1, boxes: 6,
+      copWaves: [['swat', 3], ['riot', 1]], respond: 50, breach: 56, haul: 11000, drill: 22, atms: 2, vaults: 1, boxes: 6,
       blurb: 'Guards carry SMGs now. The gear gap starts to bite.' },
 
     { id: 9,  name: 'Continental Bank',         act: 2, size: 'large', guards: 5, guardWpn: 'guard_smg',
-      copWaves: [['swat', 3], ['heavy', 1]], respond: 34, breach: 54, haul: 14000, drill: 20, atms: 2, vaults: 2, boxes: 6,
+      copWaves: [['swat', 3], ['heavy', 1]], respond: 47, breach: 54, haul: 14000, drill: 20, atms: 2, vaults: 2, boxes: 6,
       blurb: 'Two vaults. Twice the drilling, twice the exposure, twice the money.' },
 
     { id: 10, name: 'Gold Reserve Depository',  act: 2, size: 'large', guards: 6, guardWpn: 'guard_smg',
-      copWaves: [['heavy', 2], ['swat', 2]], respond: 32, breach: 52, haul: 24000, drill: 24, atms: 3, vaults: 2, boxes: 6,
+      copWaves: [['heavy', 2], ['swat', 2]], respond: 50, breach: 52, haul: 24000, drill: 24, atms: 3, vaults: 2, boxes: 6,
       boss: 'nest', bossName: 'Minigun Nest',
       blurb: 'ACT TWO FINALE. A minigun nest covers the street between you and the car.' },
 
     { id: 11, name: 'Skyline Private Bank',     act: 3, size: 'large', guards: 5, guardWpn: 'guard_smg',
-      copWaves: [['heavy', 2], ['swat', 3]], respond: 30, breach: 50, haul: 20000, drill: 22, atms: 3, vaults: 2, boxes: 7,
+      copWaves: [['heavy', 2], ['swat', 3]], respond: 47, breach: 50, haul: 20000, drill: 22, atms: 3, vaults: 2, boxes: 7,
       blurb: 'Private money, private army. Everything here is tougher than it looks.' },
 
     { id: 12, name: 'The Vault Club',           act: 3, size: 'huge',  guards: 6, guardWpn: 'guard_smg',
-      copWaves: [['heavy', 3], ['swat', 3]], respond: 28, breach: 48, haul: 27000, drill: 25, atms: 3, vaults: 2, boxes: 8,
+      copWaves: [['heavy', 3], ['swat', 3]], respond: 49, breach: 48, haul: 27000, drill: 25, atms: 3, vaults: 2, boxes: 8,
       breachWalls: true,
       blurb: 'Some walls here are thin enough to blow. An RPG turns the layout inside out.' },
 
     { id: 13, name: 'Metro Central',            act: 3, size: 'huge',  guards: 6, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 3], ['swat', 3]], respond: 26, breach: 46, haul: 34000, drill: 26, atms: 3, vaults: 2, boxes: 8,
+      copWaves: [['heavy', 3], ['swat', 3]], respond: 49, breach: 46, haul: 34000, drill: 26, atms: 3, vaults: 2, boxes: 8,
       breachWalls: true,
       blurb: 'Flashbangs come standard. Expect to fight half-blind.' },
 
     { id: 14, name: 'Titan National',           act: 3, size: 'huge',  guards: 7, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 4], ['swat', 2]], respond: 25, breach: 44, haul: 44000, drill: 28, atms: 3, vaults: 2, boxes: 9,
+      copWaves: [['heavy', 4], ['swat', 2]], respond: 50, breach: 44, haul: 44000, drill: 28, atms: 3, vaults: 2, boxes: 9,
       breachWalls: true,
       blurb: 'Armour everywhere. Bring something that punches through it.' },
 
     { id: 15, name: 'The Federal Reserve',      act: 3, size: 'huge',  guards: 8, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 4], ['swat', 3]], respond: 25, breach: 42, haul: 78000, drill: 30, atms: 3, vaults: 2, boxes: 9,
+      copWaves: [['heavy', 4], ['swat', 3]], respond: 51, breach: 42, haul: 78000, drill: 30, atms: 3, vaults: 2, boxes: 9,
       boss: 'apc', bossName: 'Police APC', breachWalls: true,
       blurb: 'ACT THREE FINALE. An APC parks itself on your extraction and dares you to leave.' },
 
     { id: 16, name: 'Fort Knox Annex',          act: 4, size: 'huge',  guards: 8, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 5], ['swat', 3]], respond: 25, breach: 40, haul: 88000, drill: 30, atms: 3, vaults: 2, boxes: 10,
+      copWaves: [['heavy', 5], ['swat', 3]], respond: 50, breach: 40, haul: 88000, drill: 30, atms: 3, vaults: 2, boxes: 10,
       breachWalls: true,
       blurb: 'Post-campaign. The response never really stops coming.' },
 
     { id: 17, name: 'Blacksite Depository',     act: 4, size: 'huge',  guards: 9, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 5], ['swat', 3]], respond: 25, breach: 38, haul: 100000, drill: 31, atms: 3, vaults: 2, boxes: 10,
+      copWaves: [['heavy', 5], ['swat', 3]], respond: 50, breach: 38, haul: 100000, drill: 31, atms: 3, vaults: 2, boxes: 10,
       breachWalls: true,
       blurb: 'Officially this building does not exist. Neither will you.' },
 
     { id: 18, name: 'The Gilded Vault',         act: 4, size: 'huge',  guards: 9, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 6], ['swat', 3]], respond: 25, breach: 36, haul: 115000, drill: 32, atms: 3, vaults: 3, boxes: 11,
+      copWaves: [['heavy', 6], ['swat', 3]], respond: 50, breach: 36, haul: 115000, drill: 32, atms: 3, vaults: 3, boxes: 11,
       breachWalls: true,
       blurb: 'Three vaults, and enough gold to buy something that fires plasma.' },
 
     { id: 19, name: 'Continental Reserve',      act: 4, size: 'huge',  guards: 10, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 6], ['swat', 4]], respond: 25, breach: 34, haul: 130000, drill: 33, atms: 3, vaults: 3, boxes: 11,
+      copWaves: [['heavy', 6], ['swat', 4]], respond: 50, breach: 34, haul: 130000, drill: 33, atms: 3, vaults: 3, boxes: 11,
       breachWalls: true,
       blurb: 'The last stop before the big one. Treat it as a dress rehearsal.' },
 
     { id: 20, name: 'The Treasury',             act: 4, size: 'huge',  guards: 10, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 7], ['swat', 4]], respond: 25, breach: 32, haul: 190000, drill: 35, atms: 3, vaults: 3, boxes: 12,
+      copWaves: [['heavy', 7], ['swat', 4]], respond: 51, breach: 32, haul: 190000, drill: 35, atms: 3, vaults: 3, boxes: 12,
       boss: 'warden', bossName: 'The Warden', breachWalls: true,
       blurb: 'THE FINALE. The Warden runs the federal response personally. Clear it and the Singularity is yours.' },
   ];
@@ -425,12 +429,23 @@ window.GH_DATA = (() => {
     hireBaseCost: 0,            // first re-hire free (arcade)
     hireCostPerBank: 220,
 
-    copWaveInterval: 15000,     // ms between police waves once they arrive
-    copWaveSizeBase: 3,
-    copWaveSizeGrowth: 0.6,
+    // ---- police response ----
+    // The first car brings very few. What makes a job hard is the waves
+    // that follow, and they start slow and tighten up, so you get a real
+    // window to work in before it becomes a running fight.
+    copFirstWave: 2,            // officers in the first response
+    copWaveInterval: 26000,     // ms to the wave after that...
+    copWaveIntervalMin: 14000,  // ...tightening to this
+    copWaveIntervalStep: 2600,  // by this much per wave
+    copWaveSizeBase: 2,
+    copWaveSizeGrowth: 0.5,
+    copBreachWave: 3,           // extra bodies through the door on a breach
     maxEnemies: 34,             // performance cap for in-browser
 
-    healCostPerHp: 14,          // patching crew up between jobs
+    // Patching crew up. Early on a full heal used to cost most of a job's
+    // take, which meant the punishment for a bad first mission compounded.
+    healCostPerHp: 6,
+    healFreeHp: 18,             // the first scratches are on the house
   };
 
   return {
