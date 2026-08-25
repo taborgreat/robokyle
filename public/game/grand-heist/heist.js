@@ -68,7 +68,7 @@
     cash()   { A() && GH.audio.playVaried('cash', 0.7); },
     register(){ A() && GH.audio.playVaried('register', 0.9); },
     glass()  { A() && GH.audio.playVaried('glass', 0.8); },
-    drill()  { A() && GH.audio.play('drill', { rate: 1.6 + Math.random() * 0.3, vol: 0.28 }); },
+    drill()  { A() && GH.audio.play('drill', { rate: 0.94 + Math.random() * 0.12, vol: 0.34 }); },
     alarm()  { A() && GH.audio.play('alarm', { vol: 1 }); },
     boom()   { A() && GH.audio.play('gunHeavy', { rate: 0.45, vol: 1 }); },
     down()   { A() && GH.audio.play('down', { vol: 0.9 }); },
@@ -140,10 +140,15 @@
       [gap1 + gapW / 2, gap2 - gapW / 2],
       [gap2 + gapW / 2, bx + bw - WALL],
     ];
+    const counterSegs = [];
     segs.forEach(([x0, x1]) => {
-      if (x1 - x0 > 10) obstacles.push({ x: x0, y: counterY, w: x1 - x0, h: 16, low: true, kind: 'counter' });
+      if (x1 - x0 > 10) {
+        obstacles.push({ x: x0, y: counterY, w: x1 - x0, h: 16, low: true, kind: 'counter' });
+        counterSegs.push([x0, x1]);
+      }
     });
     world.counterY = counterY;
+    world.counterSegs = counterSegs;
 
     // ---- teller drawers: quick, low-risk cash on the lobby side ----
     // Split the haul across drawers / vault / boxes. Banks with no deposit
@@ -160,15 +165,30 @@
     // quick, and quiet if you pry them by hand.
     const tills = Math.max(4, Math.round(bw / 210));
     world.registers = [];
-    const tillAmounts = splitCash(bank.haul * drawerShare, tills, 0.2);
-    for (let i = 0; i < tills; i++) {
-      const x = bx + WALL + 60 + (bw - 2 * WALL - 120) * (i / Math.max(1, tills - 1));
+    // Lay them out along the counter segments only. Spacing them evenly
+    // across the full width dropped tills into the walkway gaps, standing
+    // in the middle of the floor with nothing behind them.
+    const tillSpots = [];
+    const totalCounter = counterSegs.reduce((sum, sg) => sum + (sg[1] - sg[0]), 0);
+    counterSegs.forEach(sg => {
+      const segLen = sg[1] - sg[0];
+      const want = Math.max(1, Math.round(tills * segLen / totalCounter));
+      for (let i = 0; i < want; i++) {
+        const t = (i + 0.5) / want;
+        const x = sg[0] + 28 + (segLen - 56) * t;
+        if (x > sg[0] + 16 && x < sg[1] - 16) tillSpots.push(x);
+      }
+    });
+    const tillAmounts = splitCash(bank.haul * drawerShare, Math.max(1, tillSpots.length), 0.2);
+    tillSpots.forEach((x, i) => {
       world.registers.push({
         x, y: counterY - 22, r: 20,
         amount: tillAmounts[i],
         open: false, hp: 45, prying: 0, shake: 0,
       });
-    }
+      // a till is a solid object on the counter
+      obstacles.push({ x: x - 15, y: counterY - 30, w: 30, h: 16, low: true, kind: 'till' });
+    });
 
     // ---- vault rooms across the back ----
     const vaultCount = bank.vaults || 1;
@@ -251,6 +271,7 @@
         amount: 0,                       // filled in below, exactly
         open: false, prog: 0, hp: 90, shake: 0,
       });
+      obstacles.push({ x: ax - 17, y: ay - 19, w: 34, h: 38, low: true, kind: 'atm' });
     }
 
     // ATM money comes out of the advertised take, so the intel figure on
@@ -272,7 +293,7 @@
 
     // ---- street + getaway car ----
     world.street = { x: 0, y: Hh - STREET, w: W, h: STREET };
-    world.car = { x: W / 2, y: Hh - STREET * 0.48, r: 46 };
+    world.car = { x: W / 2, y: Hh - STREET * 0.44, r: 78 };
 
     // parked cars for cover on the street
     for (let i = 0; i < 4; i++) {
@@ -365,7 +386,7 @@
       bank, world, robo, crew,
       all: [robo].concat(crew),
       enemies: [], bullets: [], particles: [], drops: [], decals: [], floats: [],
-      bodies: [], civilians: [],
+      bodies: [], civilians: [], labels: [],
       t: 0, last: performance.now(), running: true, paused: false,
       civKills: 0,
       alarm: false, alarmT: 0,
@@ -481,7 +502,9 @@
   function placePing() {
     if (!H) return;
     H.ping = { x: mouse.wx, y: mouse.wy };
-    H.pingT = 6000;
+    H.pingT = 9000;
+    sfx.pickup();
+    banner('MOVE UP', 'Crew are taking the mark.');
   }
 
   function quickMelee() {
@@ -772,7 +795,7 @@
       if (dist(o, from) > radius) continue;
       o.alerted = true;
       o.suspicion = 1;
-      o.draw = o.wpn.melee ? 260 : 520;
+      o.draw = o.drawMax = o.wpn.melee ? 260 : 520;
       o.lastSeen = from.lastSeen || { x: from.x, y: from.y };
       if (o.radio == null || o.radio > 1400) o.radio = 1400;
     }
@@ -989,7 +1012,7 @@
       if (e.suspicion >= 1) {
         e.alerted = true;
         e.radio = 900;
-        e.draw = e.wpn.melee ? 260 : 520;   // time spent pulling the weapon
+        e.draw = e.drawMax = e.wpn.melee ? 260 : 520;   // time spent pulling the weapon
         alertNearby(e, 260);
         floatText(e.x, e.y - e.r - 16, '!', '#E0B44C');
       } else {
@@ -1023,7 +1046,16 @@
       const outside = e.y > B.y + B.h - 4;
       const targetInside = goal.y < B.y + B.h - 4;
       if (outside && targetInside) {
-        goal = { x: dr.x + dr.w / 2, y: dr.y - 26 };
+        // Each officer takes their own lane through the doorway instead of
+        // queueing on one pixel, which is what made them file in nose to
+        // tail. They also stage a moment before going in.
+        if (e.lane == null) e.lane = (Math.random() * 2 - 1) * (dr.w * 0.34);
+        goal = { x: dr.x + dr.w / 2 + e.lane, y: dr.y - 30 };
+      } else if (!outside && los && d < wantRange * 1.4) {
+        // Inside and in contact: work toward cover rather than standing in
+        // the open trading shots.
+        const spot = coverNear(e, goal);
+        if (spot) goal = spot;
       }
       if (d > wantRange || !los) {
         // route around walls instead of pressing into them
@@ -1033,12 +1065,13 @@
         const ang = Math.atan2(goal.y - e.y, goal.x - e.x);
         moveActor(e, -Math.cos(ang) * sp * 0.6, -Math.sin(ang) * sp * 0.6, dt);
       } else if (los) {
-        // in position: strafe a little so a firing line is not a queue
-        const ang = Math.atan2(goal.y - e.y, goal.x - e.x) + Math.PI / 2;
-        const drift = Math.sin((H.t + (e.seed || 0)) / 900) * 0.55;
+        // In contact: sidestep along the firing line rather than standing
+        // still. Each one drifts on its own phase so they do not sync up.
+        const ang = Math.atan2(tgt.y - e.y, tgt.x - e.x) + Math.PI / 2;
+        const drift = Math.sin((H.t + (e.seed || 0)) / 760) * 0.8;
         moveActor(e, Math.cos(ang) * sp * drift, Math.sin(ang) * sp * drift, dt);
       }
-      separate(e, H.enemies, e.r * 2.0, 0.32, dt);
+      separate(e, H.enemies, e.r * 3.0, 0.42, dt);
     }
 
     // shooting
@@ -1072,6 +1105,36 @@
     }
   }
 
+  // Nearest bit of low cover that still faces the threat. Cached briefly,
+  // because scanning the prop list every frame for every officer is waste.
+  function coverNear(e, threat) {
+    if (e.coverAt && H.t - e.coverAt < 2200 && e.cover) return e.cover;
+    e.coverAt = H.t;
+    e.cover = null;
+    let best = null, bestScore = 1e9;
+    for (const o of H.world.obstacles) {
+      if (!o.low) continue;
+      const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+      const d = Math.hypot(cx - e.x, cy - e.y);
+      if (d > 340) continue;
+      // stand on the far side of it from whoever is shooting
+      const ang = Math.atan2(cy - threat.y, cx - threat.x);
+      const sx = cx + Math.cos(ang) * 26;
+      const sy = cy + Math.sin(ang) * 26;
+      if (navBlockedAt(H.world.nav, sx, sy)) continue;
+      // prefer close cover, and cover that is not already crowded
+      let taken = 0;
+      for (const o2 of H.enemies) {
+        if (o2 === e || o2.dead) continue;
+        if (Math.hypot(o2.x - sx, o2.y - sy) < 46) taken++;
+      }
+      const score = d + taken * 150;
+      if (score < bestScore) { bestScore = score; best = { x: sx, y: sy }; }
+    }
+    e.cover = best;
+    return best;
+  }
+
   function patrol(e, dt) {
     e.repathe -= dt;
     if (e.repathe <= 0 || !e.patrolTo) {
@@ -1084,6 +1147,44 @@
     navigateTo(e, e.patrolTo.x, e.patrolTo.y, e.speed * 0.42, dt);
     // reached it (or gave up) — pick somewhere new next tick
     if (Math.hypot(e.patrolTo.x - e.x, e.patrolTo.y - e.y) < 30) e.repathe = 0;
+  }
+
+  // Idle behaviour. Somebody waiting on a job does not stand to attention:
+  // they shift about a bit and keep an eye on the room. Each crew member
+  // gets their own timing so they never move in unison.
+  function idleAbout(c, anchorX, anchorY, speed, dt) {
+    if (c.seed == null) c.seed = Math.random() * 1000;
+    c.idleT = (c.idleT || 0) - dt;
+
+    if (!c.idle || c.idleT <= 0) {
+      c.idleT = rand(1600, 4200);
+      const r = rand(14, 46);
+      const a = rand(0, Math.PI * 2);
+      c.idle = { x: anchorX + Math.cos(a) * r, y: anchorY + Math.sin(a) * r };
+      // pick something to look at: a teammate, a body, or just the room
+      const pool = H.all.filter(o => o !== c && !o.dead)
+        .concat(H.civilians.filter(o => !o.dead));
+      c.lookAt = (pool.length && Math.random() < 0.55)
+        ? pool[Math.floor(Math.random() * pool.length)]
+        : null;
+      c.lookAngle = rand(0, Math.PI * 2);
+    }
+
+    // drift toward the loitering spot, slowly
+    const d = Math.hypot(c.idle.x - c.x, c.idle.y - c.y);
+    if (d > 8) {
+      const ang = Math.atan2(c.idle.y - c.y, c.idle.x - c.x);
+      moveActor(c, Math.cos(ang) * speed * 0.34, Math.sin(ang) * speed * 0.34, dt);
+    } else {
+      // small weight shift so they are never perfectly still
+      c.walkPhase += dt * 0.0016;
+    }
+
+    // look around: at somebody, or a slow sweep of the room
+    const want = c.lookAt && !c.lookAt.dead
+      ? Math.atan2(c.lookAt.y - c.y, c.lookAt.x - c.x)
+      : c.lookAngle + Math.sin((H.t + c.seed) / 1400) * 0.5;
+    c.angle = lerp(c.angle, want, 0.05);
   }
 
   // ---- crew AI ----
@@ -1130,6 +1231,28 @@
       if (pf) { foe = pf; fd = dist(c, pf); }
     }
 
+    // ---------- 1b. a ping is an order ----------
+    // Move to the mark and hold it. Anything hostile near it is the
+    // priority; if it is empty ground, they go and stand on it anyway.
+    const ping = (H.ping && H.pingT > 0) ? H.ping : null;
+    if (ping) {
+      const pd = Math.hypot(ping.x - c.x, ping.y - c.y);
+      if (pd > 70) {
+        c.state = 'ping';
+        navigateTo(c, ping.x, ping.y, speed * 1.1, dt);
+        if (foe && fd < (w.range || w.reach + 20)) {
+          c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
+          if (w.mag && c.mag <= 0) tryReload(c);
+          else fire(c, foe.x, foe.y);
+        } else {
+          c.angle = lerp(c.angle, Math.atan2(ping.y - c.y, ping.x - c.x), 0.16);
+        }
+        separate(c, H.all, c.r * 3.0, 0.45, dt);
+        grabNearbyLoot(c, false);
+        return;
+      }
+    }
+
     // ---------- 2. a mate on the floor outranks everything but survival ----------
     let rescue = null;
     if (!foe || fd > 240) {
@@ -1145,6 +1268,7 @@
     // Extraction wins over everything. They will still shoot on the move,
     // but they stop chasing money and start running for the car.
     if (H.extractPhase) {
+      c.holdX = c.holdY = null;
       c.state = 'extract';
       const car = H.world.car;
       const d = dist(c, car);
@@ -1214,25 +1338,29 @@
       } else if (c.stance === 'follow') {
         c.state = 'follow';
         // loose formation, offset behind RoboKyle rather than on top of him
-        const off = [[-52, 44], [52, 44], [0, 70]][c.slot - 1] || [0, 56];
+        // Well back and well apart, so the player can always see himself
+        // and what he is standing on.
+        const off = [[-96, 82], [96, 82], [0, 124]][c.slot - 1] || [0, 100];
         const tx = p.x + off[0], ty = p.y + off[1];
         const d = Math.hypot(tx - c.x, ty - c.y);
-        if (d > 38) {
+        if (d > 54) {
           navigateTo(c, tx, ty, clamp(d / 55, 0.7, 1) * speed, dt);
           c.angle = lerp(c.angle, Math.atan2(ty - c.y, tx - c.x), 0.14);
+          c.idle = null;
         } else {
-          c.angle = lerp(c.angle, p.angle, 0.1);
+          idleAbout(c, tx, ty, speed, dt);
         }
       } else {
         c.state = 'hold';
-        c.angle = lerp(c.angle, p.angle, 0.06);
+        idleAbout(c, c.holdX == null ? c.x : c.holdX, c.holdY == null ? c.y : c.holdY, speed, dt);
+        if (c.holdX == null) { c.holdX = c.x; c.holdY = c.y; }
       }
 
       if (w.mag && c.mag < w.mag) tryReload(c);
     }
 
     // never bunch up on each other or on RoboKyle
-    separate(c, H.all, c.r * 2.2, 0.34, dt);
+    separate(c, H.all, c.r * 3.4, 0.5, dt);
 
     // whatever they are doing, they hoover up cash they walk over
     grabNearbyLoot(c, false);
@@ -1257,15 +1385,15 @@
       walkPhase: 0, hitFlash: 0,
       panic: 0,                   // 0..1
       robbed: false, robProg: 0,
-      wallet: kind === 'customer'
-        ? Math.round(rand(LO.walletMin, LO.walletMax))
-        : Math.round(rand(0, LO.tellerWalletMax)),
+      // Only customers have pockets worth going through. Staff are behind
+      // the counter with a till, not a wallet.
+      wallet: kind === 'customer' ? Math.round(rand(LO.walletMin, LO.walletMax)) : 0,
       callT: rand(9000, 15000),   // time to reach a phone once panicking
       idleT: rand(1200, 4000),
       screamed: false,
       name: pick(CIV_FIRST),
       skin: pick(D.SKIN_TONES),
-      outfit: kind === 'teller' ? '#7E2438' : pick(D.OUTFITS).color,
+      outfit: kind === 'teller' ? '#D7DFE8' : pick(D.OUTFITS).color,
       seed: Math.random() * 1000,
     };
   }
@@ -1321,7 +1449,9 @@
     if (c.heldUp > 0) {
       c.heldUp -= dt;
       c.state = 'cower';
-      if (c.heldUp <= 0) c.state = c.wasFleeing ? 'flee' : (c.kind === 'teller' ? 'cower' : 'flee');
+      if (c.heldUp <= 0) {
+        c.state = c.kind === 'teller' ? 'cower' : (c.wasFleeing ? 'flee' : 'flee');
+      }
     }
 
     // Anything frightening nearby: a drawn gun, a body, the alarm.
@@ -1353,6 +1483,9 @@
     }
 
     const speed = 1.9;
+    // Staff comply and stay put. Only customers run for the door.
+    if (c.kind === 'teller' && c.state === 'flee') { c.state = 'cower'; c.handsUp = true; }
+
     if (c.state === 'flee') {
       // head for the front door and out onto the street
       const dr = H.world.door;
@@ -1417,6 +1550,7 @@
     let target = null, td = 54;
     for (const c of H.civilians) {
       if (c.dead || c.robbed) continue;
+      if (c.kind !== 'customer' || c.wallet <= 0) continue;   // staff are not marks
       const d = dist(p, c);
       if (d < td) { td = d; target = c; }
     }
@@ -1486,53 +1620,91 @@
     ctx.beginPath(); ctx.ellipse(-1, 0, CH + 1, SH, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
     if (c.kind === 'teller') {
-      // pale shirt front under a burgundy waistcoat, plus a name badge —
-      // nothing like the navy/black of anyone carrying a weapon
-      ctx.fillStyle = '#EDF1F5';
-      ctx.beginPath(); ctx.roundRect(CH * 0.05, -SH * 0.5, CH * 0.85, SH * 1.0, 2); ctx.fill();
-      ctx.fillStyle = shade(c.outfit, -0.08);
-      ctx.beginPath(); ctx.roundRect(-CH * 0.1, -SH * 0.72, CH * 0.5, SH * 1.44, 2); ctx.fill();
-      ctx.beginPath(); ctx.roundRect(-CH * 0.1, SH * 0.28, CH * 0.5, SH * 0.44, 2); ctx.fill();
+      // Bank uniform, built to be unmistakable from directly above: the
+      // only pale torso in a level where every threat is dark, a slate
+      // waistcoat over it, a gold name badge, and a tie down the middle.
+      ctx.fillStyle = '#33404E';                            // waistcoat
+      ctx.beginPath(); ctx.roundRect(-CH * 0.55, -SH * 0.80, CH * 0.72, SH * 1.60, 2.5); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-CH * 0.55, -SH * 0.80, CH * 1.35, SH * 0.34, 2.5); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-CH * 0.55,  SH * 0.46, CH * 1.35, SH * 0.34, 2.5); ctx.fill();
+      // tie
+      ctx.fillStyle = '#1F6E7A';
+      ctx.beginPath(); ctx.roundRect(CH * 0.45, -SH * 0.16, CH * 0.55, SH * 0.32, 1.5); ctx.fill();
+      // collar points
+      ctx.fillStyle = '#F3F7FA';
+      ctx.beginPath();
+      ctx.moveTo(CH * 0.30, -SH * 0.34); ctx.lineTo(CH * 0.92, -SH * 0.06);
+      ctx.lineTo(CH * 0.30, -SH * 0.02); ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(CH * 0.30,  SH * 0.34); ctx.lineTo(CH * 0.92,  SH * 0.06);
+      ctx.lineTo(CH * 0.30,  SH * 0.02); ctx.closePath(); ctx.fill();
+      // gold name badge
       ctx.fillStyle = '#E0B44C';
-      ctx.beginPath(); ctx.roundRect(CH * 0.3, -SH * 0.34, 3.4, 2.4, 0.8); ctx.fill();
-      // collar
-      ctx.strokeStyle = '#C9D3DC'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(CH * 0.55, -SH * 0.22); ctx.lineTo(CH * 0.85, 0);
-      ctx.lineTo(CH * 0.55, SH * 0.22); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-CH * 0.15, -SH * 0.52, 4.6, 2.6, 0.8); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(-CH * 0.15 + 0.8, -SH * 0.52 + 0.9, 3, 0.7);
     }
 
     // ---- arms ----
-    // Two segments with a visible elbow and hand. Hands go up and slightly
-    // forward when they surrender, which is legible from above; the old
-    // single curve just splayed sideways and looked broken.
     const up = c.state === 'cower' || c.state === 'scared' || c.handsUp;
     const armSwing = up ? 0 : Math.sin(c.walkPhase) * 2.2;
+    // a small nervous tremble while they are held up
+    const shake = up ? Math.sin(H.t / 90 + c.seed) * 0.5 : 0;
+    const raised = [];
+
     ctx.lineCap = 'round';
     [1, -1].forEach(function (side) {
       const shoulderY = side * SH * 0.72;
-      const elbowX = up ? CH * 0.15 : CH * 0.35;
-      const elbowY = side * (up ? SH * 0.95 : SH * 0.85) + armSwing * side;
-      const handX  = up ? CH * 0.95 : CH * 0.55;
-      const handY  = side * (up ? SH * 0.62 : SH * 0.78) + armSwing * side;
 
-      ctx.strokeStyle = c.outfit;          // sleeve
-      ctx.lineWidth = 5.4;
-      ctx.beginPath();
-      ctx.moveTo(-1, shoulderY);
-      ctx.lineTo(elbowX, elbowY);
-      ctx.stroke();
+      if (up) {
+        // Elbow stays tucked beside the shoulder; the forearm comes back
+        // toward the head, because from above a raised arm foreshortens
+        // almost to nothing. The hands end up level with the head.
+        const elbowX = -CH * 0.10;
+        const elbowY = side * SH * 1.02;
+        const handX  = CH * 0.60 + shake;
+        const handY  = side * SH * 0.44;
 
-      ctx.strokeStyle = c.skin;            // forearm
-      ctx.lineWidth = 4.6;
-      ctx.beginPath();
-      ctx.moveTo(elbowX, elbowY);
-      ctx.lineTo(handX, handY);
-      ctx.stroke();
+        ctx.strokeStyle = c.outfit;
+        ctx.lineWidth = 5.6;
+        ctx.beginPath();
+        ctx.moveTo(-1, shoulderY);
+        ctx.lineTo(elbowX, elbowY);
+        ctx.stroke();
 
-      ctx.fillStyle = c.skin;              // hand
-      ctx.beginPath();
-      ctx.arc(handX, handY, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.strokeStyle = shade(c.skin, -0.12);   // forearm, shaded: it is
+        ctx.lineWidth = 4.8;                      // angled away from us
+        ctx.beginPath();
+        ctx.moveTo(elbowX, elbowY);
+        ctx.lineTo(handX, handY);
+        ctx.stroke();
+
+        raised.push({ x: handX, y: handY });
+      } else {
+        const elbowX = CH * 0.35;
+        const elbowY = side * SH * 0.85 + armSwing * side;
+        const handX  = CH * 0.55;
+        const handY  = side * SH * 0.78 + armSwing * side;
+
+        ctx.strokeStyle = c.outfit;
+        ctx.lineWidth = 5.4;
+        ctx.beginPath();
+        ctx.moveTo(-1, shoulderY);
+        ctx.lineTo(elbowX, elbowY);
+        ctx.stroke();
+
+        ctx.strokeStyle = c.skin;
+        ctx.lineWidth = 4.6;
+        ctx.beginPath();
+        ctx.moveTo(elbowX, elbowY);
+        ctx.lineTo(handX, handY);
+        ctx.stroke();
+
+        ctx.fillStyle = c.skin;
+        ctx.beginPath();
+        ctx.arc(handX, handY, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
     });
     ctx.lineCap = 'butt';
 
@@ -1540,11 +1712,66 @@
     ctx.fillStyle = c.skin;
     ctx.strokeStyle = shade(c.skin, -0.4); ctx.lineWidth = 1.1;
     ctx.beginPath(); ctx.arc(CH * 0.5, 0, c.r * 0.46, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    if (c.kind === 'teller') {
+      // headset — band across the crown, earpiece, and a mic on a boom
+      const hx = CH * 0.5, hr = c.r * 0.46;
+      ctx.strokeStyle = '#20262E'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(hx, 0, hr * 1.05, -Math.PI * 0.62, Math.PI * 0.62); ctx.stroke();
+      ctx.fillStyle = '#20262E';
+      ctx.beginPath(); ctx.ellipse(hx - hr * 0.1, -hr * 1.05, 1.9, 1.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx - hr * 0.1,  hr * 1.05, 1.9, 1.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2C343E'; ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(hx - hr * 0.1, hr * 1.0);
+      ctx.quadraticCurveTo(hx + hr * 1.5, hr * 0.9, hx + hr * 1.5, hr * 0.15);
+      ctx.stroke();
+      ctx.fillStyle = '#3E4954';
+      ctx.beginPath(); ctx.arc(hx + hr * 1.5, hr * 0.1, 1.1, 0, Math.PI * 2); ctx.fill();
+    }
     // a suggestion of hair so they are not featureless
     ctx.fillStyle = shade(c.skin, -0.5);
     ctx.beginPath();
     ctx.arc(CH * 0.5 - 1.4, 0, c.r * 0.44, Math.PI * 0.45, Math.PI * 1.55);
     ctx.closePath(); ctx.fill();
+
+    // Hands last, drawn over everything else. From straight above, the
+    // only cue that something is raised is that it occludes what is below
+    // it and casts a shadow onto it — so the palms overlap the head and
+    // sit on their own drop shadow. Everything scales off c.r.
+    const hr = c.r * 0.30;                       // palm radius
+    raised.forEach(function (h) {
+      ctx.fillStyle = 'rgba(0,0,0,0.34)';        // shadow cast down
+      ctx.beginPath();
+      ctx.ellipse(h.x - hr * 0.45, h.y + hr * 0.5, hr * 1.02, hr * 0.88, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // fingers first, so the palm sits on top of their roots
+      ctx.strokeStyle = shade(c.skin, 0.02);
+      ctx.lineWidth = hr * 0.46;
+      ctx.lineCap = 'round';
+      [-0.62, -0.21, 0.21, 0.62].forEach(function (a) {
+        ctx.beginPath();
+        ctx.moveTo(h.x + Math.cos(a) * hr * 0.4, h.y + Math.sin(a) * hr * 0.4);
+        ctx.lineTo(h.x + Math.cos(a) * hr * 1.85, h.y + Math.sin(a) * hr * 1.85);
+        ctx.stroke();
+      });
+      // thumb, tucked back toward the body
+      ctx.lineWidth = hr * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(h.x, h.y);
+      ctx.lineTo(h.x - hr * 0.9, h.y - Math.sign(h.y || 1) * hr * 1.1);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      ctx.fillStyle = shade(c.skin, 0.13);       // palm, lit from above
+      ctx.strokeStyle = shade(c.skin, -0.4);
+      ctx.lineWidth = Math.max(0.8, hr * 0.16);
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, hr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
 
     if (c.hitFlash > 0) {
       ctx.fillStyle = 'rgba(255,110,80,0.45)';
@@ -1553,25 +1780,13 @@
     ctx.restore();
 
     // status above the head, upright
-    if ((c.state === 'cower' || c.handsUp) && !c.robbed) {
-      ctx.font = '700 9px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(159,176,191,0.85)';
-      ctx.fillText('HANDS UP', c.x, c.y - c.r - 12);
-      ctx.textAlign = 'left';
-    } else if (c.panic > 0 || c.robbed) {
-      ctx.font = '700 11px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      if (c.robbed) { ctx.fillStyle = 'rgba(107,124,139,0.9)'; ctx.fillText('EMPTY', c.x, c.y - c.r - 12); }
-      else { ctx.fillStyle = 'rgba(224,180,76,0.95)'; ctx.fillText('!', c.x, c.y - c.r - 12); }
-      ctx.textAlign = 'left';
+    if (c.panic > 0 || c.robbed) {
+      if (c.robbed) label(c.x, c.y - c.r - 12, 'EMPTY', '#6B7C8B', { size: 9, alpha: 0.85 });
+      else label(c.x, c.y - c.r - 12, '!', '#E0B44C', { size: 11 });
     }
     // prompt when you can take their wallet
     if (!c.robbed && c.wallet > 0 && H.robo && dist(H.robo, c) < 54) {
-      ctx.font = '700 9px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(95,191,135,0.95)';
-      ctx.fillText('E  TAKE WALLET', c.x, c.y - c.r - 24);
+      label(c.x, c.y - c.r - 26, 'E   TAKE WALLET', '#5FBF87', { size: 9 });
       if (c.robProg > 0) {
         ctx.strokeStyle = '#5FBF87'; ctx.lineWidth = 3;
         ctx.beginPath();
@@ -1943,15 +2158,45 @@
       n++;
     }
     if (!n) return;
-    moveActor(a, sx * push, sy * push, dt);
+    // Push directly rather than through moveActor: this nudge exists to
+    // resolve overlap, and body collision would veto the very move that
+    // separates them.
+    const step = dt / 16.67;
+    const nx = a.x + sx * push * step, ny = a.y + sy * push * step;
+    if (!blocked(nx, a.y, a.r)) a.x = nx;
+    if (!blocked(a.x, ny, a.r)) a.y = ny;
   }
 
   // ==================== MOVEMENT ====================
+  // Solid-body check against every other living actor.
+  function bodyBlocked(self, x, y) {
+    const r = self.r * 0.82;
+    for (let i = 0; i < H.all.length; i++) {
+      const o = H.all[i];
+      if (o === self || o.dead || o.downed) continue;
+      const rr = r + o.r * 0.82;
+      if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
+    }
+    for (let i = 0; i < H.enemies.length; i++) {
+      const o = H.enemies[i];
+      if (o === self || o.dead) continue;
+      const rr = r + o.r * 0.82;
+      if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
+    }
+    for (let i = 0; i < H.civilians.length; i++) {
+      const o = H.civilians[i];
+      if (o === self || o.dead) continue;
+      const rr = r + o.r * 0.82;
+      if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
+    }
+    return false;
+  }
+
   function moveActor(a, dx, dy, dt) {
     const step = dt / 16.67;
     const nx = a.x + dx * step, ny = a.y + dy * step;
-    if (!blocked(nx, a.y, a.r)) a.x = nx;
-    if (!blocked(a.x, ny, a.r)) a.y = ny;
+    if (!blocked(nx, a.y, a.r) && !bodyBlocked(a, nx, a.y)) a.x = nx;
+    if (!blocked(a.x, ny, a.r) && !bodyBlocked(a, a.x, ny)) a.y = ny;
     a.x = clamp(a.x, a.r, H.world.w - a.r);
     a.y = clamp(a.y, a.r, H.world.h - a.r);
     a.walkPhase += Math.hypot(dx, dy) * 0.09 * step;
@@ -2066,7 +2311,7 @@
       const a = p.atm;
       a.prog += dt;
       a.shake = 4;
-      if (Math.random() < 0.10) sfx.drill();
+      if (Math.random() < 0.05) sfx.drill();
       if (a.prog >= LO.atmDrill) openATM(a, p);
     } else if (p.atm) {
       p.atm.prog = Math.max(0, p.atm.prog - dt * 2);   // slips back if you walk off
@@ -2197,6 +2442,48 @@
     }
   }
 
+  // ==================== WORLD LABELS ====================
+  // Anything readable in the world is queued here and drawn last, on top
+  // of every actor and prop, on a translucent plate. Drawing text inline
+  // meant a crew member could stand in front of a prompt and hide it.
+  function label(x, y, text, color, opts) {
+    const o = opts || {};
+    H.labels.push({
+      x, y, text,
+      color: color || '#E8EDF2',
+      size: o.size || 10,
+      alpha: o.alpha == null ? 1 : o.alpha,
+      plate: o.plate !== false,
+    });
+  }
+
+  function drawLabels() {
+    ctx.textAlign = 'center';
+    for (let i = 0; i < H.labels.length; i++) {
+      const l = H.labels[i];
+      ctx.font = '700 ' + l.size + 'px Oswald, Impact, sans-serif';
+      if (l.plate) {
+        const w = ctx.measureText(l.text).width;
+        const padX = 4.5, h = l.size + 4;
+        ctx.globalAlpha = 0.62 * l.alpha;
+        ctx.fillStyle = '#05080B';
+        ctx.beginPath();
+        ctx.roundRect(l.x - w / 2 - padX, l.y - l.size + 1, w + padX * 2, h, 3);
+        ctx.fill();
+        ctx.globalAlpha = 0.30 * l.alpha;
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = l.alpha;
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.text, l.x, l.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    H.labels.length = 0;
+  }
+
   // ==================== FX ====================
   function spark(x, y, n) {
     for (let i = 0; i < n; i++) {
@@ -2214,7 +2501,7 @@
     for (const v of H.world.vaults) {
       if (v.drilling && !v.open) {
         v.progress += dt / (H.bank.drill * 1000);
-        if (Math.random() < 0.14) sfx.drill();
+        if (Math.random() < 0.05) sfx.drill();
         if (v.progress >= 1) openVault(v);
       }
     }
@@ -2569,11 +2856,8 @@
         ctx.strokeRect(v.x + 2, v.y + 2, v.w - 4, v.h - 4);
         ctx.setLineDash([]);
         // label
-        ctx.font = '700 12px Oswald, Impact, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(224,180,76,0.55)';
-        ctx.fillText('VAULT — SEALED', v.x + v.w / 2, v.y + v.h / 2 + 4);
-        ctx.textAlign = 'left';
+        label(v.x + v.w / 2, v.y + v.h / 2 + 4, 'VAULT — SEALED', '#E0B44C',
+              { size: 12, alpha: 0.8, plate: false });
       }
     });
 
@@ -2584,6 +2868,7 @@
       if (o.kind === 'counter')        { fill = '#4A3521'; top = '#5E442B'; edge = '#2A1D12'; }
       else if (o.kind === 'desk')      { fill = '#3A2E20'; top = '#4B3B29'; edge = '#221A12'; }
       else if (o.kind === 'car')       { fill = '#242B34'; top = '#333C47'; edge = '#141920'; }
+      else if (o.kind === 'till' || o.kind === 'atm') { continue; }   // drawn as props
       else if (o.kind === 'vaultwall') { fill = '#464F59'; top = '#5A6570'; edge = '#252B32'; }
       else if (o.kind === 'vaultdoor') { fill = '#8A6520'; top = '#C79A3C'; edge = '#4A360F'; }
 
@@ -2684,16 +2969,11 @@
     }
 
     // ---- floating numbers ----
-    ctx.font = '700 13px Inter, sans-serif';
-    ctx.textAlign = 'center';
     for (const f of H.floats) {
-      ctx.globalAlpha = Math.min(1, f.life / 400);
-      ctx.fillStyle = f.color;
-      ctx.fillText(f.text, f.x, f.y);
+      label(f.x, f.y, f.text, f.color, { size: 12, alpha: Math.min(1, f.life / 400) });
     }
-    ctx.globalAlpha = 1;
-    ctx.textAlign = 'left';
 
+    drawLabels();          // always on top of every actor and prop
     ctx.restore();
 
     if (H.showMap) drawMinimapLarge();
@@ -2702,41 +2982,114 @@
   }
 
   function drawCar(car) {
+    const ready = H.canExtract;
     ctx.save();
     ctx.translate(car.x, car.y);
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.beginPath(); ctx.ellipse(0, 6, 52, 26, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2E1F1C';
-    ctx.beginPath(); ctx.roundRect(-52, -24, 104, 48, 9); ctx.fill();
-    ctx.fillStyle = '#3E2A24';
-    ctx.beginPath(); ctx.roundRect(-34, -17, 60, 34, 6); ctx.fill();
-    ctx.fillStyle = '#6FBFCB';
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath(); ctx.roundRect(-28, -13, 24, 26, 4); ctx.fill();
-    ctx.globalAlpha = 1;
-    // extraction glow when you can leave
-    if (H.canExtract) {
-      ctx.strokeStyle = 'rgba(123,197,154,' + (0.5 + Math.sin(H.t / 150) * 0.3) + ')';
+
+    // ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(3, 9, 74, 32, 0, 0, Math.PI * 2); ctx.fill();
+
+    // wheels first, so the body sits over them
+    ctx.fillStyle = '#0C0F13';
+    [[-42, -30], [-42, 30], [40, -30], [40, 30]].forEach(function (w) {
+      ctx.beginPath(); ctx.roundRect(w[0] - 11, w[1] - 6, 22, 12, 4); ctx.fill();
+    });
+
+    // body: a long saloon, nose to the left ready to pull away
+    const grd = ctx.createLinearGradient(0, -28, 0, 28);
+    grd.addColorStop(0, '#3A2A24');
+    grd.addColorStop(0.45, '#2A1D19');
+    grd.addColorStop(1, '#1B1211');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.roundRect(-68, -27, 136, 54, 13); ctx.fill();
+    ctx.strokeStyle = '#0E0A09'; ctx.lineWidth = 2; ctx.stroke();
+
+    // roof
+    ctx.fillStyle = '#43312A';
+    ctx.beginPath(); ctx.roundRect(-30, -22, 58, 44, 9); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.4; ctx.stroke();
+    // roof highlight
+    ctx.fillStyle = 'rgba(255,235,210,0.07)';
+    ctx.beginPath(); ctx.roundRect(-26, -18, 50, 12, 6); ctx.fill();
+
+    // windows
+    ctx.fillStyle = 'rgba(120,180,205,0.30)';
+    ctx.beginPath(); ctx.roundRect(-38, -19, 10, 38, 4); ctx.fill();   // windscreen
+    ctx.beginPath(); ctx.roundRect(28, -19, 9, 38, 4); ctx.fill();     // rear
+    ctx.fillStyle = 'rgba(120,180,205,0.18)';
+    ctx.beginPath(); ctx.roundRect(-24, -23, 44, 5, 2); ctx.fill();    // side glass
+    ctx.beginPath(); ctx.roundRect(-24, 18, 44, 5, 2); ctx.fill();
+
+    // door seams + handles
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-2, -27); ctx.lineTo(-2, 27); ctx.stroke();
+    ctx.fillStyle = '#6B564A';
+    ctx.beginPath(); ctx.roundRect(-14, -26.5, 7, 2.2, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(6, -26.5, 7, 2.2, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-14, 24.3, 7, 2.2, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(6, 24.3, 7, 2.2, 1); ctx.fill();
+
+    // headlights on, engine running
+    ctx.fillStyle = '#FFE9B0';
+    ctx.beginPath(); ctx.roundRect(-70, -20, 6, 9, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-70, 11, 6, 9, 2); ctx.fill();
+    const beam = ctx.createLinearGradient(-70, 0, -150, 0);
+    beam.addColorStop(0, 'rgba(255,233,176,0.20)');
+    beam.addColorStop(1, 'rgba(255,233,176,0)');
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(-68, -20); ctx.lineTo(-150, -44); ctx.lineTo(-150, 44); ctx.lineTo(-68, 20);
+    ctx.closePath(); ctx.fill();
+    // tail lights
+    ctx.fillStyle = '#B4322A';
+    ctx.beginPath(); ctx.roundRect(64, -20, 5, 9, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(64, 11, 5, 9, 2); ctx.fill();
+
+    // exhaust puff, so it reads as idling and waiting
+    if (Math.random() < 0.25) {
+      H.particles.push({
+        x: car.x + 70, y: car.y + 22 + rand(-3, 3),
+        vx: rand(0.2, 0.8), vy: rand(-0.5, -0.1),
+        life: rand(18, 34), r: rand(2, 4.5),
+        color: 'rgba(180,185,195,0.20)',
+      });
+    }
+
+    // extraction ring
+    if (ready) {
+      ctx.strokeStyle = 'rgba(95,191,135,' + (0.55 + Math.sin(H.t / 160) * 0.3) + ')';
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(0, 0, car.r, 0, Math.PI * 2); ctx.stroke();
     } else {
-      ctx.strokeStyle = 'rgba(227,85,43,0.28)'; ctx.lineWidth = 2;
-      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = 'rgba(224,180,76,0.22)'; ctx.lineWidth = 2;
+      ctx.setLineDash([10, 10]);
       ctx.beginPath(); ctx.arc(0, 0, car.r, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
     }
     ctx.restore();
+
+    // Prompt. The car is where the job ends, so never make the player
+    // guess whether they can go.
+    if (ready) {
+      label(car.x, car.y - car.r - 12,
+            H.extractPhase && H.stragglers > 0
+              ? 'E   GO WITHOUT THEM (' + H.stragglers + ' MISSING)'
+              : 'E   DRIVE OFF',
+            '#5FBF87', { size: 12 });
+    } else {
+      label(car.x, car.y - car.r - 12, 'GETAWAY CAR', '#E0B44C', { size: 9, alpha: 0.7 });
+    }
   }
 
   // A cash register you can actually break into: closed it is a solid
   // till with a screen and keys; open it is a sprung drawer with notes
-  // spilling out. Far more legible than a green square on the floor.
+  // spilling out. The whole prop is flipped so the business end faces
+  // the staff side of the counter, not the lobby.
   function drawRegister(t) {
     const shake = t.shake > 0 ? (Math.random() - 0.5) * t.shake * 0.5 : 0;
     ctx.save();
     ctx.translate(t.x + shake, t.y);
-    // The till belongs to the teller, so it faces the counter — screen and
-    // keys toward the staff side, drawer opening away from the lobby.
     ctx.scale(1, -1);
 
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -2766,29 +3119,17 @@
     }
 
     if (t.open) {
-      // sprung drawer
       ctx.fillStyle = '#2A3038';
       ctx.beginPath(); ctx.roundRect(-13, 11, 26, 11, 2); ctx.fill();
       ctx.fillStyle = '#1A1F25';
       ctx.beginPath(); ctx.roundRect(-11, 13, 22, 7, 1.5); ctx.fill();
-      // note compartments, emptied
       ctx.fillStyle = '#3E4750';
       for (let i = 0; i < 4; i++) ctx.fillRect(-10 + i * 5.4, 14, 4.2, 5);
-      ctx.save();
-      ctx.scale(1, -1);                     // un-flip so the label reads
-      ctx.fillStyle = 'rgba(224,180,76,0.5)';
-      ctx.font = '700 8px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('EMPTY', 0, -17);
-      ctx.textAlign = 'left';
-      ctx.restore();
     } else {
-      // drawer front, still shut
       ctx.fillStyle = '#39424B';
       ctx.beginPath(); ctx.roundRect(-13, 8, 26, 5, 1.5); ctx.fill();
       ctx.fillStyle = '#C79A3C';
       ctx.beginPath(); ctx.roundRect(-4, 9.4, 8, 2.2, 1); ctx.fill();
-      // damage cracks as it takes hits
       if (t.hp < 45) {
         ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1;
         const n = t.hp < 20 ? 4 : 2;
@@ -2799,19 +3140,14 @@
           ctx.stroke();
         }
       }
-      // prompt when you are close enough to pry it
-      if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 52) {
-        ctx.save();
-        ctx.scale(1, -1);                   // un-flip so the prompt reads
-        ctx.fillStyle = 'rgba(224,180,76,0.95)';
-        ctx.font = '700 9px Oswald, Impact, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('E  PRY OPEN', 0, 26);
-        ctx.textAlign = 'left';
-        ctx.restore();
-      }
     }
     ctx.restore();
+
+    if (t.open) {
+      label(t.x, t.y - 22, 'EMPTY', '#6B7C8B', { size: 8, alpha: 0.85 });
+    } else if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 52) {
+      label(t.x, t.y - 24, 'E   PRY OPEN', '#E0B44C', { size: 9 });
+    }
   }
 
   function drawATM(a) {
@@ -2847,20 +3183,10 @@
     ctx.beginPath(); ctx.roundRect(0, 10, 12, 2.6, 1.2); ctx.fill();
 
     if (a.open) {
-      ctx.save(); ctx.rotate(-a.facing);
-      ctx.fillStyle = 'rgba(224,180,76,0.5)';
-      ctx.font = '700 8px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('EMPTIED', 0, -24);
-      ctx.textAlign = 'left';
-      ctx.restore();
+      label(a.x, a.y - 26, 'EMPTIED', '#6B7C8B', { size: 8, alpha: 0.85 });
     } else if (H.robo && dist(H.robo, a) < 56) {
+      label(a.x, a.y - 28, 'E   CRACK ATM', '#5FBF87', { size: 9 });
       ctx.save(); ctx.rotate(-a.facing);
-      ctx.fillStyle = 'rgba(95,191,135,0.95)';
-      ctx.font = '700 9px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('E  CRACK ATM', 0, -26);
-      ctx.textAlign = 'left';
       if (a.prog > 0) {
         ctx.strokeStyle = '#5FBF87'; ctx.lineWidth = 3;
         ctx.beginPath();
@@ -2945,9 +3271,10 @@
       ctx.beginPath(); ctx.ellipse(0, 4, c.r + 6, c.r * 0.7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#8E0F14';
       ctx.beginPath(); ctx.ellipse(0, 0, c.r * 0.95, c.r * 0.62, 0.4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#F1E4D2';
-      ctx.font = '700 11px Inter, sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('DOWN', 0, -c.r - 10);
+      ctx.restore();
+      label(c.x, c.y - c.r - 12, 'DOWN', '#E0B44C', { size: 11 });
+      ctx.save();
+      ctx.translate(c.x, c.y);
       const frac = c.isRobo ? (c.reviveProg || 0) / T.reviveTime : 1 - c.downTimer / T.downedBleedout;
       ctx.strokeStyle = '#E3552B'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(0, 0, c.r + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(frac, 0, 1)); ctx.stroke();
@@ -3028,12 +3355,7 @@
     ctx.restore();
 
     // name + carry pill above crew
-    if (!c.isRobo) {
-      ctx.font = '600 10px Inter, sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(241,228,210,0.62)';
-      ctx.fillText(c.name, c.x, c.y - c.r - 12);
-      ctx.textAlign = 'left';
-    }
+    if (!c.isRobo) label(c.x, c.y - c.r - 13, c.name, '#9FB0BF', { size: 9, alpha: 0.9 });
   }
 
   function drawHead(c, hx) {
@@ -3241,11 +3563,7 @@
       ctx.fillRect(e.x - bw / 2, e.y - e.r - 22, bw, 7);
       ctx.fillStyle = '#C4453A';
       ctx.fillRect(e.x - bw / 2, e.y - e.r - 22, bw * clamp(e.hp / e.maxHp, 0, 1), 7);
-      ctx.font = '700 10px Oswald, Impact, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#E8EDF2';
-      ctx.fillText(e.name.toUpperCase(), e.x, e.y - e.r - 28);
-      ctx.textAlign = 'left';
+      label(e.x, e.y - e.r - 27, e.name.toUpperCase(), '#E8EDF2', { size: 10 });
     }
     ctx.globalAlpha = 1;
   }
@@ -3298,12 +3616,44 @@
       ctx.beginPath(); ctx.roundRect(-CH * 0.2, SH - 3.5, CH * 0.9, 5, 2); ctx.fill();
     }
 
-    // arms converging on the weapon
+    // ---- arms ----
+    // `ready` is 0 with the weapon stowed and 1 once it is up, so the arms
+    // travel onto the grip across the draw instead of snapping. An idle
+    // guard used to stand permanently braced around an invisible weapon.
     const gx = CH + 9;
-    ctx.strokeStyle = shade(e.body, 0.06);
-    ctx.lineWidth = heavy ? 6 : 5; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-1, SH * 0.74); ctx.quadraticCurveTo(CH * 0.7, SH * 0.55, gx - 3, 3.4); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-1, -SH * 0.74); ctx.quadraticCurveTo(CH * 0.7, -SH * 0.55, gx - 1, -3); ctx.stroke();
+    let ready;
+    if (!e.alerted) ready = 0;
+    else if (e.draw > 0 && e.drawMax) ready = 1 - clamp(e.draw / e.drawMax, 0, 1);
+    else ready = 1;
+
+    // a melee swing throws the weapon arm forward with the weapon
+    const swingT = (e.swing > 0 && e.wpn.melee) ? Math.sin((1 - e.swing / 220) * Math.PI) : 0;
+    const sway = Math.sin(e.walkPhase || 0) * 2.4;
+
+    ctx.lineWidth = heavy ? 6 : 5;
+    ctx.lineCap = 'round';
+    [1, -1].forEach(function (side) {
+      const shoulderY = side * SH * 0.74;
+      const restX = -CH * 0.35, restY = side * SH * 1.06 + sway * side;
+      const gripX = gx - (side > 0 ? 3 : 1), gripY = side > 0 ? 3.4 : -3;
+
+      const lead = side > 0 ? swingT * 13 : swingT * 5;   // leading arm drives the swing
+      const handX = lerp(restX, gripX, ready) + lead;
+      const handY = lerp(restY, gripY, ready);
+      const ctrlX = lerp(CH * 0.05, CH * 0.7, ready) + lead * 0.5;
+      const ctrlY = side * lerp(SH * 1.0, SH * 0.55, ready);
+
+      ctx.strokeStyle = shade(e.body, 0.06);
+      ctx.beginPath();
+      ctx.moveTo(-1, shoulderY);
+      ctx.quadraticCurveTo(ctrlX, ctrlY, handX, handY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#C79A6E';
+      ctx.beginPath();
+      ctx.arc(handX, handY, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.lineCap = 'butt';
 
     drawEnemyGun(e, gx);

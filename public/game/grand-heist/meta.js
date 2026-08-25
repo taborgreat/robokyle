@@ -30,24 +30,69 @@ window.GH = (() => {
   const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+  const HAIR_COLORS = ['#2A1E18', '#40291B', '#6B4A2A', '#8A6134', '#C79A4E',
+                      '#3A3A3E', '#6E6E74', '#A8A29A', '#5A2418', '#1E1A1A'];
+  const HAIR_STYLE_KEYS = ['short', 'crop', 'swept', 'bun', 'braids', 'bald', 'curls'];
+
   const GH = {};
 
-  // Rebuilding a list fires mouseenter on every card that lands under the
-  // cursor, which used to machine-gun the hover sound. Rate-limit each
-  // cue, and go quiet for a moment after any re-render.
   const lastPlayed = {};
-  let hoverMuteUntil = 0;
-  const sfx = (n) => {
+  const sfx = (n, opts) => {
     if (!GH.audio) return;
     const now = performance.now();
-    if (n === 'hover' && now < hoverMuteUntil) return;
-    const gap = n === 'hover' ? 110 : 45;
+    const gap = n === 'hover' ? 55 : 40;
     if (now - (lastPlayed[n] || 0) < gap) return;
     lastPlayed[n] = now;
-    GH.audio.play(n);
+    GH.audio.play(n, opts);
   };
-  // call before repopulating any list of hoverable cards
-  const quietRerender = () => { hoverMuteUntil = performance.now() + 420; };
+
+  // ---- interface sound, delegated ----
+  // Every control gets hover and press feedback from one place, so new UI
+  // is never silent by omission. The hover cue only fires if the pointer
+  // has genuinely moved since the last one: rebuilding a list under a
+  // still cursor fires an enter event per card, and those are not hovers.
+  const HOVERABLE = 'button, .game-card, .bank-card, .mate-card, .item, .ltab, ' +
+                    '.atab, .bench-chip, .menu-btn, .menu-back, .ghost-btn, ' +
+                    '.btn-edit, .btn-bench, .btn-heal, input[type="range"], input[type="checkbox"]';
+  let pointerMoved = false;
+  let lastHovered = null;
+
+  function bindInterfaceSound() {
+    document.addEventListener('pointermove', () => { pointerMoved = true; }, { passive: true });
+
+    document.addEventListener('pointerover', (e) => {
+      const t = e.target.closest && e.target.closest(HOVERABLE);
+      if (!t || t === lastHovered) return;
+      lastHovered = t;
+      if (!pointerMoved) return;        // a re-render, not a real hover
+      pointerMoved = false;
+      if (t.disabled || t.classList.contains('is-locked')) return;
+      // a lighter, higher tick for hover so it sits under the click
+      sfx('hover', { rate: 1.25, vol: 0.35 });
+    }, { passive: true });
+
+    document.addEventListener('pointerout', (e) => {
+      if (e.target === lastHovered) lastHovered = null;
+    }, { passive: true });
+
+    // press feedback on anything clickable that has not asked for its own
+    document.addEventListener('pointerdown', (e) => {
+      const t = e.target.closest && e.target.closest(HOVERABLE);
+      if (!t || t.disabled) return;
+      if (t.dataset && t.dataset.noclick === '1') return;
+      sfx('select', { vol: 0.7 });
+
+      // press animation, driven from here so every control gets it
+      t.classList.remove('is-pressed');
+      void t.offsetWidth;                 // restart the animation
+      t.classList.add('is-pressed');
+      const clear = () => t.classList.remove('is-pressed');
+      t.addEventListener('animationend', clear, { once: true });
+      setTimeout(clear, 400);             // belt and braces if it never fires
+    }, { passive: true });
+  }
+
+  const quietRerender = () => {};   // no longer needed: hovers are gated on movement
 
   // ==================== SETTINGS ====================
   GH.settings = { sfx: 0.6, music: 0.4, shake: true };
@@ -175,6 +220,7 @@ window.GH = (() => {
       hpStat:   rint(0, 2),
       trait: Math.random() < 0.65 ? pick(D.TRAIT_KEYS.slice(1)) : 'none',
       skin: pick(D.SKIN_TONES), outfit: pick(D.OUTFITS).color,
+      hair: pick(HAIR_COLORS), hairStyle: pick(HAIR_STYLE_KEYS),
       mask: 'none', weapon: 'knife', bag: 'none', armor: 'none',
       owns: freshOwns(), morale: MO.start, hp: null,
     };
@@ -380,7 +426,6 @@ window.GH = (() => {
         (unlocks ? '<div class="bank-unlock">Clearing unlocks ' + unlocks + '</div>' : '');
 
       if (!locked) {
-        card.addEventListener('mouseenter', () => sfx('hover'));
         card.addEventListener('click', () => {
           GH.pendingBank = bank.id;
           sfx('select');
@@ -407,28 +452,46 @@ window.GH = (() => {
 
   const boardChars = () => [GH.state.robo].concat(GH.squad());
 
+  // A drawn bust rather than a coloured square: their own skin, hair,
+  // outfit and whatever mask they are actually wearing.
   function avatarHtml(c, big) {
-    const mask = D.MASKS[c.mask] || D.MASKS.none;
-    const face = mask.color || (c.isRobo ? '#D9A97A' : c.skin);
-    const fit  = c.isRobo ? '#15171F' : (c.outfit || '#2A2E38');
-    return '<span class="avatar' + (big ? ' big' : '') + '"' +
-           ' style="--skin:' + (c.isRobo ? '#D9A97A' : c.skin) + ';--fit:' + fit + ';--face:' + face + '">' +
-           (c.isRobo ? '<i class="rk-tuft"></i>' : '') + '</span>';
+    if (!c.hair) {
+      // older saves and RoboKyle have no hair recorded; derive it stably
+      const seed = (c.id || 0) + (c.name || '').length;
+      c.hair = HAIR_COLORS[seed % HAIR_COLORS.length];
+      c.hairStyle = HAIR_STYLE_KEYS[(seed * 7) % HAIR_STYLE_KEYS.length];
+    }
+    return GH.portrait(c, { big: !!big });
+  }
+
+  // One stat, spelled out: icon, name, value, and a plain-English note
+  // about what it changes. `tone` colours the row when something is wrong.
+  function statRow(icon, name, value, note, tone) {
+    return '<div class="stat-row' + (tone ? ' is-' + tone : '') + '">' +
+      '<span class="stat-ico">' + GH.icon.stat(icon) + '</span>' +
+      '<span class="stat-name">' + name + '</span>' +
+      '<span class="stat-val">' + value + '</span>' +
+      (note ? '<span class="stat-note">' + note + '</span>' : '') +
+      '</div>';
   }
 
   function statChips(c) {
     const hp = GH.curHp(c), max = GH.maxHp(c);
-    const hurt = hp < max;
     const mm = GH.moraleMul(c);
-    const moraleCls = c.morale >= MO.comfortable ? '' : (c.morale >= 40 ? ' is-warn' : ' is-bad');
-    return '<div class="chips">' +
-      '<span class="chip" title="Shooting">' + GH.icon.stat('shooting') + '<b>' + c.shooting + '</b><small>SHT</small></span>' +
-      '<span class="chip' + (hurt ? ' is-warn' : '') + '" title="Health">' + GH.icon.stat('health') +
-        '<b>' + hp + '</b><small>/ ' + max + '</small></span>' +
-      '<span class="chip" title="Carry capacity">' + GH.icon.stat('carry') + '<b>' + money(GH.carryCap(c)) + '</b></span>' +
-      '<span class="chip' + moraleCls + '" title="Morale — below 70 every stat suffers">' +
-        GH.icon.stat('morale') + '<b>' + Math.round(c.morale == null ? MO.start : c.morale) + '</b>' +
-        '<small>' + GH.moraleLabel(c) + (mm < 1 ? ' ×' + mm.toFixed(2) : '') + '</small></span>' +
+    const morale = Math.round(c.morale == null ? MO.start : c.morale);
+
+    const hpTone = hp === max ? '' : (hp > max * 0.5 ? 'warn' : 'bad');
+    const moraleTone = morale >= MO.comfortable ? '' : (morale >= 40 ? 'warn' : 'bad');
+
+    return '<div class="stat-rows">' +
+      statRow('shooting', 'Shooting', c.shooting,
+              'Damage and aim', '') +
+      statRow('health', 'Health', hp + ' / ' + max,
+              hp < max ? 'Wounded' : 'Unhurt', hpTone) +
+      statRow('carry', 'Carry', money(GH.carryCap(c)),
+              'Most they can take out', '') +
+      statRow('morale', 'Morale', morale + ' / 100',
+              GH.moraleLabel(c) + (mm < 1 ? ' — all stats ×' + mm.toFixed(2) : ''), moraleTone) +
       '</div>';
   }
 
@@ -481,7 +544,7 @@ window.GH = (() => {
         '</div>';
 
       card.querySelector('.btn-edit').addEventListener('click', () => {
-        GH.editing = i; sfx('select'); RENDER.crew();
+        GH.editing = i; RENDER.crew();
       });
       const healBtn = card.querySelector('.btn-heal');
       if (healBtn) healBtn.addEventListener('click', () => {
@@ -492,7 +555,7 @@ window.GH = (() => {
       if (bench) bench.addEventListener('click', () => {
         const idx = s.selected.indexOf(c.id);
         if (idx >= 0) s.selected.splice(idx, 1);
-        GH.editing = 0; sfx('toggle'); GH.save(); RENDER.crew();
+        GH.editing = 0; GH.save(); RENDER.crew();
       });
       row.appendChild(card);
     });
@@ -500,9 +563,16 @@ window.GH = (() => {
     // empty slots
     for (let i = chars.length; i <= T.crewPerHeist; i++) {
       if (i === 0) continue;
-      const slot = el('div', 'mate-card is-empty');
-      slot.innerHTML = '<p class="empty-slot">Empty slot</p>' +
-        '<p class="empty-note">Bring someone, or run a person short.</p>';
+      const slot = el('button', 'mate-card is-empty');
+      slot.innerHTML =
+        '<span class="empty-plus">+</span>' +
+        '<p class="empty-slot">Empty slot</p>' +
+        '<p class="empty-note">Click to recruit somebody, or run a person short.</p>';
+      slot.addEventListener('click', () => {
+        GH.recruitOffers = null;
+        sfx('select');
+        GH.go('recruit');
+      });
       row.appendChild(slot);
     }
 
@@ -517,13 +587,17 @@ window.GH = (() => {
       b.disabled = s.selected.length >= T.crewPerHeist;
       b.addEventListener('click', () => {
         if (s.selected.length >= T.crewPerHeist) return;
-        s.selected.push(c.id); sfx('toggle'); GH.save(); RENDER.crew();
+        s.selected.push(c.id); GH.save(); RENDER.crew();
       });
       benchWrap.appendChild(b);
     });
 
     // ---- loadout panel for the selected character ----
     renderLoadout(chars[GH.editing]);
+    $('crew-primer').innerHTML =
+      '<b>Shooting</b> is damage and aim. <b>Carry</b> caps what they can take out of the bank. ' +
+      '<b>Health</b> does not refill on its own &mdash; pay to patch them up, or bench them to mend. ' +
+      '<b>Morale</b> drops when bystanders get hurt, and drags every other stat down with it.';
 
     // ---- header state ----
     const short = s.roster.length < T.crewPerHeist;
@@ -609,8 +683,6 @@ window.GH = (() => {
           '</small>' +
         '</span>' +
         '<span class="item-act">' + (equipped ? 'Equipped' : owned ? 'Equip' : money(cost)) + '</span>';
-
-      card.addEventListener('mouseenter', () => sfx('hover'));
       card.addEventListener('click', () => {
         if (!owned) {
           if (!afford) { sfx('error'); flash('crew-cash'); return; }
@@ -663,8 +735,8 @@ window.GH = (() => {
           (c.trait !== 'none' ? '<p class="trait-note">' + tr.blurb + '</p>' : '') +
           '</div></div>' +
         statChips(c) +
+        '<p class="recruit-note">Starts with a knife and nothing else. Anything you buy them is theirs alone.</p>' +
         '<div class="mate-actions"><span class="btn-edit">Hire</span></div>';
-      card.addEventListener('mouseenter', () => sfx('hover'));
       card.addEventListener('click', () => {
         const s = GH.state, c2 = GH.hireCost();
         if (s.cash < c2) { sfx('error'); flash('recruit-cash'); return; }
@@ -903,10 +975,11 @@ window.GH = (() => {
     $('btn-howto').addEventListener('click', () => GH.go('howto'));
     $('btn-settings').addEventListener('click', () => GH.go('settings'));
     document.querySelectorAll('[data-goto]').forEach(b =>
-      b.addEventListener('click', () => { sfx('back'); GH.go(b.dataset.goto); }));
+      b.addEventListener('click', () => GH.go(b.dataset.goto)));
 
     $('map-toggle').addEventListener('click', () => {
-      GH.showAllBanks = !GH.showAllBanks; sfx('scroll'); RENDER.map();
+      GH.showAllBanks = !GH.showAllBanks;
+      RENDER.map();                       // press sound comes from delegation
     });
 
     $('btn-hire').addEventListener('click', () => { GH.recruitOffers = null; GH.go('recruit'); });
@@ -955,6 +1028,7 @@ window.GH = (() => {
     });
     s3.addEventListener('change', () => { GH.settings.shake = s3.checked; GH.saveSettings(); sfx('toggle'); });
 
+    bindInterfaceSound();
     GH.show('title');
   };
 

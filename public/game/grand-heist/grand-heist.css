@@ -172,6 +172,68 @@ body.gh-body::before {
 .ghost-btn { display: block; margin: 1rem auto 0; }
 .ghost-btn.small { display: inline-block; margin: 0; }
 
+/* ============================================================
+   INTERFACE FEEL
+   Hover lifts and lights a control; pressing it gives a short,
+   physical squash. Applied to every interactive class so new UI
+   inherits it rather than feeling dead.
+   ============================================================ */
+.menu-btn, .menu-back, .ghost-btn, .bank-card, .mate-card, .item,
+.ltab, .atab, .bench-chip, .btn-edit, .btn-bench, .btn-heal {
+    position: relative;
+    will-change: transform;
+}
+
+/* a highlight that sweeps across on hover */
+.menu-btn::after, .bank-card::after, .item::after, .mate-card.is-offer::after {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.10) 50%, transparent 62%);
+    background-size: 260% 100%;
+    background-position: 130% 0;
+    opacity: 0;
+    transition: opacity .18s ease, background-position .55s ease;
+}
+.menu-btn:hover:not(:disabled)::after,
+.bank-card:hover:not(:disabled)::after,
+.item:hover::after,
+.mate-card.is-offer:hover::after {
+    opacity: 1;
+    background-position: -30% 0;
+}
+
+.menu-back:hover, .ghost-btn:hover,
+.btn-edit:hover, .btn-bench:hover, .btn-heal:hover,
+.ltab:hover, .atab:hover, .bench-chip:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+.item:hover { transform: translateY(-1px); }
+
+/* press: quick squash, then settle */
+.is-pressed { animation: pressPop .18s cubic-bezier(.3,.9,.4,1); }
+@keyframes pressPop {
+    0%   { transform: scale(1); }
+    38%  { transform: scale(.955); }
+    100% { transform: scale(1); }
+}
+.menu-btn.is-pressed { animation-name: pressPopBtn; }
+@keyframes pressPopBtn {
+    0%   { transform: translateX(0) scale(1); }
+    38%  { transform: translateX(1px) scale(.97); }
+    100% { transform: translateX(0) scale(1); }
+}
+.bank-card.is-pressed, .mate-card.is-pressed, .item.is-pressed {
+    animation-name: pressPopCard;
+}
+@keyframes pressPopCard {
+    0%   { transform: translateY(0) scale(1); }
+    38%  { transform: translateY(1px) scale(.985); }
+    100% { transform: translateY(-3px) scale(1); }
+}
+button:active:not(:disabled) { filter: brightness(1.08); }
+
 /* ---------- top bar ---------- */
 .topbar {
     display: flex; align-items: center; justify-content: space-between;
@@ -277,18 +339,77 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .mate-sub b { color: var(--teal); }
 .trait-note { margin: .18rem 0 0; font-size: .66rem; color: var(--ink-mute); line-height: 1.4; }
 
-.avatar {
-    width: 34px; height: 34px; border-radius: 6px; flex: none; position: relative;
-    background:
-        radial-gradient(circle at 50% 34%, var(--face) 0 30%, transparent 31%),
-        linear-gradient(180deg, var(--fit) 0 100%);
-    border: 1px solid var(--line);
+/* drawn portrait bust, one per character */
+.portrait {
+    width: 36px; height: 36px; flex: none; display: block;
+    border-radius: 7px; border: 1px solid var(--line);
 }
-.avatar.big { width: 44px; height: 44px; border-radius: 8px; }
-.avatar .rk-tuft {
-    position: absolute; left: 50%; top: 8%; transform: translateX(-50%);
-    width: 42%; height: 18%; border-radius: 40% 40% 0 0; background: #F2C75E;
+.portrait.big { width: 50px; height: 50px; border-radius: 8px; }
+.atab .portrait { width: 24px; height: 24px; border-radius: 5px; }
+.bench-chip .portrait { width: 24px; height: 24px; border-radius: 5px; }
+.loadout-who .portrait { width: 26px; height: 26px; border-radius: 5px; }
+
+/* ---------- readable stat rows ----------
+   Icon, the stat's actual name, its value, and a plain note about what
+   it changes. The old three-letter chips meant nothing to a new player. */
+.stat-rows {
+    display: grid; gap: 1px;
+    background: var(--line-soft);
+    border: 1px solid var(--line-soft);
+    border-radius: 7px; overflow: hidden;
 }
+.stat-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    grid-template-areas: "ico name val" ".  note note";
+    align-items: center;
+    gap: 0 .5rem;
+    background: rgba(8,12,16,.55);
+    padding: .4rem .55rem;
+}
+.stat-ico  { grid-area: ico; display: grid; place-items: center; color: var(--teal); }
+.stat-ico .ico { font-size: 1.05rem; }
+.stat-name { grid-area: name; font-size: .78rem; color: var(--ink-soft); }
+.stat-val  {
+    grid-area: val; font-size: .85rem; font-weight: 700;
+    color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.stat-note {
+    grid-area: note; font-size: .65rem; color: var(--ink-mute);
+    margin-top: .1rem; line-height: 1.35;
+}
+.stat-row.is-warn .stat-ico { color: var(--gold); }
+.stat-row.is-warn .stat-val { color: var(--gold); }
+.stat-row.is-warn .stat-note { color: var(--gold); opacity: .85; }
+.stat-row.is-bad  { background: rgba(196,69,58,.10); }
+.stat-row.is-bad .stat-ico,
+.stat-row.is-bad .stat-val { color: var(--red); }
+.stat-row.is-bad .stat-note { color: #FFAFA6; }
+
+/* the one-line primer above the squad */
+.crew-primer {
+    margin: 0 0 .9rem; font-size: .76rem; line-height: 1.6;
+    color: var(--ink-mute);
+    background: rgba(8,12,16,.45); border-left: 2px solid var(--teal);
+    border-radius: 0 6px 6px 0; padding: .5rem .7rem;
+}
+.crew-primer b { color: var(--ink-soft); }
+
+.recruit-note {
+    margin: .1rem 0 0; font-size: .66rem; color: var(--ink-mute); line-height: 1.4;
+}
+
+/* empty squad slot is a button now */
+.mate-card.is-empty {
+    cursor: pointer; color: inherit; gap: .2rem;
+    transition: border-color .14s, background .14s;
+}
+.mate-card.is-empty:hover { border-color: var(--gold); background: rgba(224,180,76,.05); }
+.empty-plus {
+    font-family: 'Big Shoulders Display', Impact, sans-serif;
+    font-size: 2rem; line-height: 1; color: var(--ink-mute);
+}
+.mate-card.is-empty:hover .empty-plus { color: var(--gold); }
 
 .chips { display: flex; gap: .35rem; flex-wrap: wrap; }
 .chip {
@@ -330,7 +451,7 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 }
 .bench-chip:hover:not(:disabled) { border-color: var(--gold); color: var(--ink); }
 .bench-chip:disabled { opacity: .4; cursor: not-allowed; }
-.bench-chip .avatar { width: 22px; height: 22px; border-radius: 4px; }
+
 .bench-chip small { color: var(--ink-mute); font-size: .62rem; }
 
 /* ---------- loadout ---------- */

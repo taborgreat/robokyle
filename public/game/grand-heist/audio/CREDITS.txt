@@ -22,6 +22,11 @@ sfx/gun_*.wav
     Licence: CC0 1.0
     Downmixed to mono, resampled to 24 kHz, trimmed and normalised.
 
+sfx/drill_bit.mp3
+    "Quick drill fix" - OpenGameArt
+    https://opengameart.org/content/quick-drill-fix
+    Licence: CC0 1.0
+
 sfx/civ_scream_a.ogg
     "Female Scream 1" - OpenGameArt
     https://opengameart.org/content/female-scream-1

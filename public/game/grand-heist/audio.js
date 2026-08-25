@@ -33,7 +33,7 @@
     meleeSwing:'melee_swing.ogg',
     meleeHit:  'melee_hit.ogg',
     metal:     'metal_hit.ogg',
-    drill:     'drill.ogg',
+    drill:     'drill_bit.mp3',   // a real drill, not a mining impact
     vault:     'vault_open.ogg',
     step:      'step.ogg',
     down:      'down.ogg',
