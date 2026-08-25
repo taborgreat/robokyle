@@ -475,23 +475,52 @@ window.GH = (() => {
       '</div>';
   }
 
+  // Green through amber to a deep red. t = 1 is fine, 0 is as bad as it gets.
+  function conditionColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    const stops = [
+      [0.00, [96, 18, 18]], [0.28, [178, 48, 40]], [0.55, [214, 148, 58]],
+      [0.80, [176, 190, 90]], [1.00, [95, 191, 135]],
+    ];
+    for (let i = 1; i < stops.length; i++) {
+      if (t > stops[i][0] && i < stops.length - 1) continue;
+      const a = stops[i - 1], b = stops[i];
+      const k = Math.max(0, Math.min(1, (t - a[0]) / ((b[0] - a[0]) || 1)));
+      const mix = (j) => Math.round(a[1][j] + (b[1][j] - a[1][j]) * k);
+      return 'rgb(' + mix(0) + ',' + mix(1) + ',' + mix(2) + ')';
+    }
+    return 'rgb(95,191,135)';
+  }
+
+  // A stat row with a filled meter behind it, tinted by how bad things
+  // are. Seeing morale sit deep in red says more than reading "35 / 100".
+  function meterRow(icon, name, value, note, frac, color) {
+    const pct = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1);
+    return '<div class="stat-row has-meter" style="--cond:' + color + '">' +
+      '<span class="stat-meter" style="width:' + pct + '%"></span>' +
+      '<span class="stat-ico">' + GH.icon.stat(icon) + '</span>' +
+      '<span class="stat-name">' + name + '</span>' +
+      '<span class="stat-val">' + value + '</span>' +
+      (note ? '<span class="stat-note">' + note + '</span>' : '') +
+      '</div>';
+  }
+
   function statChips(c) {
     const hp = GH.curHp(c), max = GH.maxHp(c);
     const mm = GH.moraleMul(c);
     const morale = Math.round(c.morale == null ? MO.start : c.morale);
-
-    const hpTone = hp === max ? '' : (hp > max * 0.5 ? 'warn' : 'bad');
-    const moraleTone = morale >= MO.comfortable ? '' : (morale >= 40 ? 'warn' : 'bad');
+    const hpFrac = max ? hp / max : 1;
+    const moraleFrac = morale / MO.start;
+    const hpNote = hpFrac >= 1 ? 'Unhurt' : hpFrac > 0.6 ? 'Grazed'
+                 : hpFrac > 0.3 ? 'Wounded' : 'In a bad way';
 
     return '<div class="stat-rows">' +
-      statRow('shooting', 'Shooting', c.shooting,
-              'Damage and aim', '') +
-      statRow('health', 'Health', hp + ' / ' + max,
-              hp < max ? 'Wounded' : 'Unhurt', hpTone) +
-      statRow('carry', 'Carry', money(GH.carryCap(c)),
-              'Most they can take out', '') +
-      statRow('morale', 'Morale', morale + ' / 100',
-              GH.moraleLabel(c) + (mm < 1 ? ' — all stats ×' + mm.toFixed(2) : ''), moraleTone) +
+      statRow('shooting', 'Shooting', c.shooting, 'Damage and aim', '') +
+      meterRow('health', 'Health', hp + ' / ' + max, hpNote, hpFrac, conditionColor(hpFrac)) +
+      statRow('carry', 'Carry', money(GH.carryCap(c)), 'Most they can take out', '') +
+      meterRow('morale', 'Morale', morale + ' / 100',
+               GH.moraleLabel(c) + (mm < 1 ? ' — all stats ×' + mm.toFixed(2) : ''),
+               moraleFrac, conditionColor(moraleFrac)) +
       '</div>';
   }
 
@@ -523,7 +552,8 @@ window.GH = (() => {
     row.innerHTML = '';
     chars.forEach((c, i) => {
       const tr = D.TRAITS[c.trait];
-      const card = el('div', 'mate-card' + (i === GH.editing ? ' is-editing' : '') + (c.isRobo ? ' is-robo' : ''));
+      const card = el('div', 'mate-card is-selectable' +
+        (i === GH.editing ? ' is-editing' : '') + (c.isRobo ? ' is-robo' : ''));
       card.innerHTML =
         '<div class="mate-head">' +
           avatarHtml(c, true) +
@@ -543,9 +573,14 @@ window.GH = (() => {
             : (c.isRobo ? '' : '<button class="btn-bench">Bench</button>')) +
         '</div>';
 
-      card.querySelector('.btn-edit').addEventListener('click', () => {
-        GH.editing = i; RENDER.crew();
-      });
+      // clicking anywhere on the card starts editing them; the button
+      // stays because it is what tells you that is possible
+      const startEdit = (ev) => {
+        if (ev.target.closest && ev.target.closest('.btn-bench, .btn-heal')) return;
+        GH.editing = i;
+        RENDER.crew();
+      };
+      card.addEventListener('click', startEdit);
       const healBtn = card.querySelector('.btn-heal');
       if (healBtn) healBtn.addEventListener('click', () => {
         if (GH.healUp(c)) { sfx('confirm'); GH.save(); RENDER.crew(); }
@@ -636,15 +671,26 @@ window.GH = (() => {
       '<div><dt>Carry</dt><dd>' + money(GH.carryCap(c)) + '</dd></div>' +
       '<div><dt>Speed</dt><dd>×' + GH.moveMul(c).toFixed(2) + '</dd></div>';
 
-    // tabs
+    // ---- category picker ----
+    // Names the slot AND what is in it right now, so the whole loadout is
+    // legible without clicking through four unlabelled buttons.
     const tabs = $('loadout-tabs');
     tabs.innerHTML = '';
     SLOTS.forEach(slot => {
-      const b = el('button', 'ltab' + (GH.shopTab === slot.key ? ' is-on' : ''));
-      b.innerHTML = GH.icon.forSlot(slot.key, c[slot.key]) + '<span>' + slot.label + '</span>';
-      b.addEventListener('click', () => { GH.shopTab = slot.key; sfx('click'); renderLoadout(c); });
+      const on = GH.shopTab === slot.key;
+      const b = el('button', 'ltab' + (on ? ' is-on' : ''));
+      b.innerHTML =
+        '<span class="ltab-ico">' + GH.icon.forSlot(slot.key, c[slot.key]) + '</span>' +
+        '<span class="ltab-text"><small>' + slot.label + '</small>' +
+        '<b>' + slot.table[c[slot.key]].name + '</b></span>';
+      b.addEventListener('click', () => { GH.shopTab = slot.key; renderLoadout(c); });
       tabs.appendChild(b);
     });
+
+    const activeSlot = SLOTS.find(x => x.key === GH.shopTab);
+    $('loadout-heading').innerHTML =
+      'Choose a <b>' + activeSlot.label.toLowerCase() + '</b> for ' + c.name +
+      ' — bought for them alone, and theirs until they die.';
 
     const slot = SLOTS.find(x => x.key === GH.shopTab);
     quietRerender();
@@ -768,7 +814,8 @@ window.GH = (() => {
 
     const wrap = $('debrief-body');
     wrap.innerHTML = '';
-    $('debrief-title').textContent = result.escaped ? 'Clean Getaway' : 'Job Blown';
+    $('debrief-title').textContent = result.escaped ? 'Clean Getaway'
+                                    : result.abandoned ? 'Walked Away' : 'Job Blown';
     $('debrief-title').className = 'screen-title ' + (result.escaped ? 'good' : 'bad');
 
     let haul = 0;
@@ -792,7 +839,8 @@ window.GH = (() => {
 
     const haulRow = el('div', 'debrief-haul');
     haulRow.innerHTML =
-      '<span class="k">' + (result.escaped ? 'Extracted with' : 'Left on the floor') + '</span>' +
+      '<span class="k">' + (result.escaped ? 'Extracted with'
+                            : result.abandoned ? 'Walked away from' : 'Left on the floor') + '</span>' +
       '<span class="v">' + money(result.escaped ? haul : result.haul) + '</span>';
     wrap.appendChild(haulRow);
 
@@ -864,11 +912,16 @@ window.GH = (() => {
       wrap.appendChild(row);
     });
 
+    // Only the people who are actually gone, and why. Gear is not listed
+    // as recovered because it never is — it belongs to the person and it
+    // goes with them.
     result.perChar.filter(pc => !pc.survived && pc.char).forEach(pc => {
       const row = el('div', 'debrief-row is-dead');
+      const what = pc.fate === 'left' ? 'Left behind' : 'Killed in action';
       row.innerHTML = '<span class="who">' + pc.char.name + '</span>' +
-        '<span class="xp">Killed in action</span>' +
-        '<span class="lv">' + (pc.cash > 0 ? money(pc.cash) + ' lost' : 'Gear recovered') + '</span>';
+        '<span class="xp">' + what + '</span>' +
+        '<span class="mo down">' + (pc.cash > 0 ? money(pc.cash) + ' gone with them' : 'Gear lost') + '</span>' +
+        '<span class="lv">Off the roster</span>';
       wrap.appendChild(row);
     });
 

@@ -78,6 +78,11 @@
     boom()   { A() && GH.audio.play('gunHeavy', { rate: 0.45, vol: 1 }); },
     down()   { A() && GH.audio.play('down', { vol: 0.9 }); },
     revive() { A() && GH.audio.play('revive', { vol: 0.9 }); },
+    reload() {
+      // magazine out, magazine in
+      A() && GH.audio.play('metal', { rate: 1.35, vol: 0.35 });
+      setTimeout(() => { A() && GH.audio.play('metal', { rate: 0.95, vol: 0.45 }); }, 130);
+    },
     vault()  { A() && GH.audio.play('vault', { vol: 1 }); },
     scream() {
       A() && GH.audio.play(Math.random() < 0.5 ? 'screamA' : 'screamB',
@@ -85,6 +90,16 @@
     },
     step()   { A() && GH.audio.play('step', { rate: 0.9 + Math.random() * 0.25, vol: 0.18 }); },
   };
+  // Any cue this table does not define resolves to a no-op instead of a
+  // TypeError. A sound is never worth losing the game over.
+  const sfxSafe = new Proxy(sfx, {
+    get(t, k) {
+      const v = t[k];
+      if (typeof v === 'function') return v;
+      return function () {};
+    },
+  });
+
   // Siren is a looping bed rather than a one-shot; the music engine owns it.
   function startSiren() { if (A()) GH.audio.music('heist'); }
   function stopSiren() {}
@@ -206,12 +221,13 @@
     const tillAmounts = splitCash(bank.haul * drawerShare, Math.max(1, tillSpots.length), 0.2);
     tillSpots.forEach((x, i) => {
       world.registers.push({
-        x, y: counterY - 22, r: 20,
+        x, y: counterY - 4, r: 20,
         amount: tillAmounts[i],
         open: false, hp: 45, prying: 0, shake: 0,
       });
       // a till is a solid object on the counter
-      obstacles.push({ x: x - 15, y: counterY - 30, w: 30, h: 16, low: true, kind: 'till' });
+      // no separate obstacle: the counter underneath already blocks, and
+      // stacking another box here squeezed the walkway
     });
 
     // ---- vault rooms across the back ----
@@ -288,7 +304,11 @@
     // and each ATM, on the customer side.
     world.registers.forEach(t => {
       const spots = [];
-      for (let i = 0; i < 4; i++) spots.push({ x: t.x, y: counterY + 46 + i * 34 });
+      // offset to one side so the window itself stays walk-up-able
+      const lean = (world.registers.indexOf(t) % 2) ? 30 : -30;
+      for (let i = 0; i < 4; i++) {
+        spots.push({ x: t.x + lean, y: counterY + 62 + i * 36 });
+      }
       world.queues.push({ kind: 'till', x: t.x, y: counterY + 30, spots });
     });
 
@@ -379,6 +399,9 @@
     const gapLanes = [[gap1 - gapW, gap1 + gapW], [gap2 - gapW, gap2 + gapW]];
     const inLane = (x, y) => {
       if (y < by || y > by + bh) return false;               // outside is fine
+      // the strip in front of the counter has to stay walkable, or you
+      // cannot get to your own tills
+      if (y > counterY + 10 && y < counterY + 54) return true;
       if (x > doorLane[0] && x < doorLane[1]) return true;
       for (const g of gapLanes) if (x > g[0] && x < g[1]) return true;
       return false;
@@ -466,20 +489,20 @@
     if (tier === 'low') {
       for (let i = 0; i < 10; i++) { const p = inLobby(); addDecor('scuff', p.x, p.y, { s: rand(0.8, 1.6) }); }
       for (let i = 0; i < 5; i++)  { const p = inLobby(); addDecor('litter', p.x, p.y, { rot: rand(0, 6.3), s: 0.8 }); }
-      addDecor('cooler', bx + 54, counterY + 60, { solid: [26, 26] });
+      addDecor('cooler', bx + 40, counterY + 56, { solid: [26, 26] });
       addDecor('chair', bx + 96, lobbyBot - 10, { solid: [26, 26] });
       addDecor('chair', bx + 132, lobbyBot - 10, { solid: [26, 26] });
       addDecor('board', bx + bw - 60, counterY + 54, { s: 1 });
     } else if (tier === 'mid') {
-      addDecor('plant', bx + 58, counterY + 62, { solid: [34, 34] });
-      addDecor('plant', bx + bw - 58, counterY + 62, { solid: [34, 34] });
+      addDecor('plant', bx + 44, counterY + 58, { solid: [34, 34] });
+      addDecor('plant', bx + bw - 44, counterY + 58, { solid: [34, 34] });
       addDecor('seating', bx + 74, lobbyBot - 16, { solid: [90, 30] });
       addDecor('seating', bx + bw - 74, lobbyBot - 16, { solid: [90, 30] });
-      addDecor('stand', bx + bw * 0.5, counterY + 62, { solid: [24, 24] });
+      addDecor('stand', bx + 96, counterY + 58, { solid: [24, 24] });
     } else {
       addDecor('rug', bx + bw * 0.5, (counterY + lobbyBot) / 2, { s: 1 });
-      addDecor('topiary', bx + 60, counterY + 62, { solid: [40, 40] });
-      addDecor('topiary', bx + bw - 60, counterY + 62, { solid: [40, 40] });
+      addDecor('topiary', bx + 46, counterY + 58, { solid: [40, 40] });
+      addDecor('topiary', bx + bw - 46, counterY + 58, { solid: [40, 40] });
       addDecor('flowers', bx + bw * 0.34, counterY - 40, { s: 1 });
       addDecor('flowers', bx + bw * 0.66, counterY - 40, { s: 1 });
       addDecor('rope', doorX - 70, by + bh - 90, { solid: [12, 12] });
@@ -683,6 +706,7 @@
   GH.resumeHeist = () => { if (H && H.paused) togglePause(); };
   GH.abandonHeist = () => {
     if (!H) return;
+    H.abandoned = true;
     H.paused = false;
     document.getElementById('heist-pause').classList.remove('active');
     finish(false);
@@ -699,7 +723,7 @@
     if (!H) return;
     H.ping = { x: mouse.wx, y: mouse.wy };
     H.pingT = 9000;
-    sfx.pickup();
+    sfxSafe.pickup();
     banner('MOVE UP', 'Crew are taking the mark.');
   }
 
@@ -764,7 +788,7 @@
     // pry open a cash register (quiet — no alarm)
     for (const t of H.world.registers) {
       if (t.open) continue;
-      if (Math.hypot(p.x - t.x, p.y - t.y) > 52) continue;
+      if (Math.hypot(p.x - t.x, p.y - t.y) > 68) continue;
       openRegister(t, false);
       return;
     }
@@ -776,7 +800,7 @@
     if (b.open) return;
     b.open = true;
     b.shake = 10;
-    sfx.register();
+    sfxSafe.register();
     const spot = spillSpot(b.x, b.y, Math.PI / 2, 40);
     H.world.loot.push({
       x: spot.x, y: spot.y, r: 13,
@@ -796,8 +820,8 @@
     if (a.open) return;
     a.open = true;
     a.shake = 12;
-    sfx.register();
-    sfx.glass();
+    sfxSafe.register();
+    sfxSafe.glass();
     const spot = spillSpot(a.x, a.y, a.facing, 44);
     H.world.loot.push({
       x: spot.x, y: spot.y, r: 14,
@@ -827,8 +851,8 @@
     if (t.open) return;
     t.open = true;
     t.shake = 12;
-    sfx.register();
-    if (loud) { sfx.glass(); if (!H.alarm) trip('teller'); }
+    sfxSafe.register();
+    if (loud) { sfxSafe.glass(); if (!H.alarm) trip('teller'); }
     const spot = spillSpot(t.x, t.y, Math.PI / 2, 40);
     H.world.loot.push({
       x: spot.x, y: spot.y, r: 13,
@@ -856,7 +880,7 @@
       a.carried += take; l.amount -= take;
       got += take;
       if (l.amount <= 1) { l.taken = true; if (l.claimedBy) { l.claimedBy.claim = null; l.claimedBy = null; } }
-      sfx.cash();
+      sfxSafe.cash();
       floatText(l.x, l.y - 20, '+' + money(take), '#7BC59A');
 
     }
@@ -869,7 +893,7 @@
       const take = Math.min(room, d.amount);
       a.carried += take; d.amount -= take;
       if (d.amount <= 1) d.taken = true;
-      sfx.pickup();
+      sfxSafe.pickup();
       floatText(d.x, d.y - 20, '+' + money(take), '#F5E5A0');
     }
     return got;
@@ -880,7 +904,7 @@
     if (H.alarm) return;
     H.alarm = true;
     H.alarmT = H.t;
-    sfx.alarm();
+    sfxSafe.alarm();
     H.enemies.forEach(e => { e.alerted = true; });
     const why = {
       gun: 'Gunfire heard',
@@ -904,7 +928,7 @@
     if (w.kind === 'melee') {
       a.cd = w.cd * (a.trait && a.trait.fireRate ? a.trait.fireRate : 1);
       a.swing = 160;
-      sfx.melee();
+      sfxSafe.melee();
       const ang = Math.atan2(targetY - a.y, targetX - a.x);
       // Only the player smashes tills with melee. Crew swinging at a guard
       // next to the counter should not quietly empty the registers for you.
@@ -946,7 +970,7 @@
 
     a.cd = w.cd * (a.trait && a.trait.fireRate ? a.trait.fireRate : 1);
     a.flash = 90;
-    sfx.shot(w);
+    sfxSafe.shot(w);
     if (!w.silent) {
       panicAll(a.x, a.y, 520, 'seen');
       if (!H.alarm) trip('gun');
@@ -983,7 +1007,7 @@
     const w = D.WEAPONS[a.weapon];
     if (!w.mag || a.reloading > 0 || a.mag === w.mag) return;
     a.reloading = w.reload * (a.trait && a.trait.reloadRate ? a.trait.reloadRate : 1);
-    sfx.reload();
+    sfxSafe.reload();
   }
 
   function damageEnemy(e, dmg, src, ang) {
@@ -1001,7 +1025,7 @@
     if (src) bloodSpray(e.x, e.y, e.x - src.x, e.y - src.y, Math.min(9, 3 + d / 12));
     e.bleed = Math.max(e.bleed || 0, 5200);
     e.alerted = true;
-    sfx.hit((e.dr || 0) > 0.15);
+    sfxSafe.hit((e.dr || 0) > 0.15);
     spark(e.x, e.y, 4);
     if (e.hp <= 0) {
       e.dead = true;
@@ -1046,7 +1070,7 @@
     a.hp -= d;
     a.hitFlash = 10;
     a.regen = 0;
-    sfx.hurt();
+    sfxSafe.hurt();
     if (fromX != null) bloodSpray(a.x, a.y, a.x - fromX, a.y - fromY, Math.min(9, 3 + d / 10));
     a.bleed = Math.max(a.bleed || 0, 6000);
     if (GH.settings.shake && a.isRobo) H.shake = Math.max(H.shake, 4);
@@ -1068,7 +1092,7 @@
     bloodPool(a.x, a.y, a.r * 0.95);
     a.bleed = 9000;
     a.downTimer = a.isRobo ? T.roboSelfRevive : T.downedBleedout;
-    sfx.down();
+    sfxSafe.down();
     // Whatever they were hauling hits the floor as a grabbable bag.
     if (a.carried > 0) {
       H.drops.push({ x: a.x, y: a.y, r: 18, amount: a.carried, taken: false, name: a.name });
@@ -1079,7 +1103,7 @@
 
   // ==================== EXPLOSIONS ====================
   function explode(x, y, radius, dmg, src) {
-    sfx.boom();
+    sfxSafe.boom();
     if (GH.settings.shake) H.shake = Math.max(H.shake, 12);
     for (let i = 0; i < 24; i++) {
       H.particles.push({
@@ -1128,7 +1152,7 @@
     H.world.navDirty = true;      // the vault is a doorway now
     H.world.loot.forEach(l => { if (l.kind === 'vault' && l.vaultId === v.id) l.locked = false; });
     banner('VAULT IS OPEN', money(v.cash) + ' in there. Fill the bags.');
-    sfx.revive();
+    sfxSafe.revive();
   }
 
   // ==================== POLICE ====================
@@ -1319,7 +1343,7 @@
         if (d < wpn.reach + tgt.r) {
           e.cd = wpn.cd;
           e.swing = 220;
-          sfx.melee();
+          sfxSafe.melee();
           damageActor(tgt, wpn.dmg, e.x, e.y);
         } else e.cd = 120;
       } else {
@@ -1338,7 +1362,7 @@
           });
         }
         e.muzzle = 70;
-        sfx.shot({ kind: e.key === 'nest' ? 'lmg' : 'pistol' });
+        sfxSafe.shot({ kind: e.key === 'nest' ? 'lmg' : 'pistol' });
       }
     }
   }
@@ -1546,7 +1570,7 @@
           rescue.downed = false;
           rescue.hp = rescue.maxHp * 0.5;
           c.reviveProg = 0;
-          sfx.revive();
+          sfxSafe.revive();
           banner(rescue.name + ' IS UP', c.name + ' got them.');
         }
       } else c.reviveProg = 0;
@@ -1651,7 +1675,7 @@
     // one teller per till, standing on the staff side of the counter
     world.registers.forEach((t, i) => {
       if (i % 2 && world.registers.length > 4) return;   // not every till is staffed
-      list.push(makeCivilian('teller', t.x + rand(-8, 8), t.y - 26));
+      list.push(makeCivilian('teller', t.x + rand(-6, 6), t.y - 44));
     });
     // Customers, each queueing for something. Nobody is here for a stroll.
     const custs = clamp(2 + Math.round(bank.guards * 0.8), 3, 9);
@@ -1682,7 +1706,7 @@
     if (c.state === 'idle') c.state = 'scared';
     if (!c.screamed) {
       c.screamed = true;
-      sfx.scream();
+      sfxSafe.scream();
     }
     // Staff are trained to comply: hands up, stay put. Customers run.
     if (c.kind === 'teller') { c.state = 'cower'; c.handsUp = true; }
@@ -1837,7 +1861,7 @@
       const take = Math.min(target.wallet, Math.max(0, p.carryCap - p.carried));
       if (take > 0) {
         p.carried += take;
-        sfx.pickup();
+        sfxSafe.pickup();
         floatText(target.x, target.y - 26, '+' + money(take), '#5FBF87');
       } else {
         floatText(target.x, target.y - 26, 'BAG FULL', '#E0B44C');
@@ -2457,8 +2481,10 @@
     const player = H.robo;
     if (self === player) {
       const r = self.r * 0.82;
-      const lists = [H.all, H.enemies, H.civilians];
-      for (let l = 0; l < 3; l++) {
+      // Crew and hostiles are solid. Bystanders are not: you push through
+      // a queue rather than being walled out of a counter by one.
+      const lists = [H.all, H.enemies];
+      for (let l = 0; l < 2; l++) {
         const arr = lists[l];
         for (let i = 0; i < arr.length; i++) {
           const o = arr[i];
@@ -2469,6 +2495,7 @@
       }
       return false;
     }
+    if (self.side === 'civ') return false;    // and they never block anyone
     if (player.dead || player.downed) return false;
     const rr = self.r * 0.82 + player.r * 0.82;
     return (x - player.x) ** 2 + (y - player.y) ** 2 < rr * rr;
@@ -2508,7 +2535,7 @@
           p.downed = false;
           p.hp = p.maxHp * 0.45;
           p.iframes = 1200;
-          sfx.revive();
+          sfxSafe.revive();
           banner('ON YOUR FEET', 'That was the only free one.');
         } else {
           finish(false);
@@ -2520,7 +2547,7 @@
           p.reviveProg = (p.reviveProg || 0) + dt;
           if (p.reviveProg > T.reviveTime) {
             p.downed = false; p.hp = p.maxHp * 0.5; p.reviveProg = 0; p.iframes = 900;
-            sfx.revive(); banner('ON YOUR FEET', c.name + ' pulled you up.');
+            sfxSafe.revive(); banner('ON YOUR FEET', c.name + ' pulled you up.');
           }
           break;
         }
@@ -2581,7 +2608,7 @@
         p.reviveProg = (p.reviveProg || 0) + dt;
         if (p.reviveProg > T.reviveTime) {
           c.downed = false; c.hp = c.maxHp * 0.5; p.reviving = null; p.reviveProg = 0;
-          sfx.revive(); banner(c.name + ' IS UP', '');
+          sfxSafe.revive(); banner(c.name + ' IS UP', '');
         }
       }
     }
@@ -2595,11 +2622,27 @@
       const a = p.atm;
       a.prog += dt;
       a.shake = 4;
-      if (Math.random() < 0.05) sfx.drill();
+      if (Math.random() < 0.05) sfxSafe.drill();
       if (a.prog >= LO.atmDrill) openATM(a, p);
     } else if (p.atm) {
       p.atm.prog = Math.max(0, p.atm.prog - dt * 2);   // slips back if you walk off
       if (!holding) p.atm = null;
+    }
+
+    // Walking into a bystander shoulders them out of the way rather than
+    // stopping you dead.
+    for (const c of H.civilians) {
+      if (c.dead) continue;
+      const dx = c.x - p.x, dy = c.y - p.y;
+      const rr = p.r + c.r * 0.9;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > rr * rr || d2 < 0.01) continue;
+      const d = Math.sqrt(d2);
+      const push = (rr - d) * 0.4;
+      const nx = c.x + dx / d * push, ny = c.y + dy / d * push;
+      if (!blocked(nx, c.y, c.r)) c.x = nx;
+      if (!blocked(c.x, ny, c.r)) c.y = ny;
+      scare(c, 'shoved');
     }
 
     // ---- passive loot pickup while standing on it ----
@@ -2642,7 +2685,7 @@
           if (dep.open) continue;
           if (Math.hypot(b.x - dep.x, b.y - dep.y) > dep.r) continue;
           dep.hp -= b.dmg; dep.shake = 7;
-          sfx.ricochet();
+          sfxSafe.ricochet();
           if (dep.hp <= 0) openDeposit(dep, b.owner);
           hit = true; break;
         }
@@ -2654,7 +2697,7 @@
           if (a.open) continue;
           if (Math.hypot(b.x - a.x, b.y - a.y) > a.r) continue;
           a.hp -= b.dmg; a.shake = 8;
-          sfx.ricochet();
+          sfxSafe.ricochet();
           if (a.hp <= 0) { openATM(a, b.owner); if (!H.alarm) trip('gun'); }
           hit = true; break;
         }
@@ -2666,7 +2709,7 @@
           if (t.open) continue;
           if (Math.hypot(b.x - t.x, b.y - t.y) > t.r) continue;
           t.hp -= b.dmg; t.shake = 8;
-          sfx.ricochet();
+          sfxSafe.ricochet();
           if (t.hp <= 0) openRegister(t, true);
           hit = true; break;
         }
@@ -2682,7 +2725,7 @@
           c.bleed = Math.max(c.bleed || 0, 6000);
           scare(c, 'shot');
           panicAll(c.x, c.y, 320, 'seen');
-          sfx.hit(false);
+          sfxSafe.hit(false);
           if (c.hp <= 0) {
             c.dead = true;
             bloodSpray(c.x, c.y, rand(-1, 1), rand(-1, 1), 18);
@@ -2874,7 +2917,7 @@
     for (const v of H.world.vaults) {
       if (v.drilling && !v.open) {
         v.progress += dt / (H.bank.drill * 1000);
-        if (Math.random() < 0.05) sfx.drill();
+        if (Math.random() < 0.05) sfxSafe.drill();
         if (v.progress >= 1) openVault(v);
       }
     }
@@ -2970,20 +3013,42 @@
     H.running = false;
     stopSiren();
 
+    // ---- work out each crew member's fate ----
+    // 'kia'  : killed outright during the job
+    // 'left' : still down when it ended, so they were left behind
+    // otherwise they walked away, whether or not the job paid.
+    const fate = {};
+    H.crew.forEach(c => {
+      const id = c.char.id;
+      if (c.dead) {
+        fate[id] = 'kia';
+        if (H.killedIds.indexOf(id) < 0) H.killedIds.push(id);
+      } else if (c.downed) {
+        // nobody got them up before the car left, or before you walked
+        c.dead = true;
+        fate[id] = 'left';
+        if (H.killedIds.indexOf(id) < 0) H.killedIds.push(id);
+      } else {
+        fate[id] = H.abandoned ? 'walked' : (escaped ? 'out' : 'walked');
+      }
+    });
+
     let haul = 0;
     const perChar = [];
     H.all.forEach(a => {
-      const survived = !a.dead && (escaped ? !a.downed || a.isRobo : false);
-      const cash = (escaped && survived) ? a.carried : 0;
+      if (!a.char) return;
+      const lost = !a.isRobo && (fate[a.char.id] === 'kia' || fate[a.char.id] === 'left');
+      // "survived" means they are still on the roster afterwards, which is
+      // not the same as the job having paid out.
+      const survived = !lost;
       if (escaped && survived) haul += a.carried;
-      perChar.push({ char: a.char, cash: a.carried, kills: a.kills || 0, survived });
-    });
-
-    // Crew who were still bleeding out when the car left do not make it.
-    H.crew.forEach(c => {
-      if (c.dead && H.killedIds.indexOf(c.char.id) < 0) H.killedIds.push(c.char.id);
-      if (!escaped && c.downed && !c.dead) { c.dead = true; H.killedIds.push(c.char.id); }
-      if (escaped && c.downed && !c.dead) { c.dead = true; H.killedIds.push(c.char.id); }
+      perChar.push({
+        char: a.char,
+        cash: a.carried,
+        kills: a.kills || 0,
+        survived,
+        fate: a.isRobo ? 'out' : fate[a.char.id],
+      });
     });
 
     const uncollected = H.all.reduce((s, a) => s + (escaped ? 0 : a.carried), 0);
@@ -3004,14 +3069,28 @@
       bankId: H.bank.id,
       civilians: H.civKills,
       hp: hpOut,
+      abandoned: !!H.abandoned,
     });
     H = null;
   }
 
   // ==================== LOOP ====================
+  let frameErrors = 0;
+
   function loop(now) {
     if (!H || !H.running) return;
     if (H.paused) return;
+    try {
+      frame(now);
+    } catch (err) {
+      // Keep the mission alive. A bug in one frame used to stop the whole
+      // loop and freeze the game with no way back except the pause menu.
+      if (frameErrors++ < 5 && typeof console !== 'undefined') console.error('frame error:', err);
+      if (H) { H.last = now; requestAnimationFrame(loop); }
+    }
+  }
+
+  function frame(now) {
     let dt = Math.min(50, now - H.last);
     H.last = now;
     H.t += dt;
@@ -3942,7 +4021,7 @@
 
     if (t.open) {
       label(t.x, t.y - 22, 'EMPTY', '#6B7C8B', { size: 8, alpha: 0.85 });
-    } else if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 52) {
+    } else if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 68) {
       label(t.x, t.y - 24, 'E   PRY OPEN', '#E0B44C', { size: 9 });
     }
   }
