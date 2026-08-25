@@ -1,5 +1,5 @@
 /* ============================================================
-   RoboKyle: Grand Heist — stylesheet
+   RoboKyle: Grand Heist - stylesheet
 
    Deliberately NOT the Undead Nightmare palette. That game is
    black/blood/ember with a hell-glow. This one is cold steel,
@@ -76,7 +76,7 @@ body.gh-body::before {
 .screen.is-title.active { display: grid; }
 
 /* ============================================================
-   TITLE — vault door + stencilled plate
+   TITLE - vault door + stencilled plate
    ============================================================ */
 .screen.is-title {
     grid-template-columns: 1fr;
@@ -515,6 +515,17 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .btn-edit:hover, .btn-bench:hover { border-color: var(--gold); color: var(--gold); }
 .mate-card.is-editing .btn-edit { border-color: var(--gold); color: var(--gold); }
 
+/* While the opening look round plays, the HUD and the key hint get out
+   of the way - they were sitting on top of the letterbox and the caption. */
+.heist-wrap.is-intro .hud,
+.heist-wrap.is-intro .heist-hint,
+.heist-wrap.is-intro .touch-ui,
+.heist-wrap.is-cine .hud,
+.heist-wrap.is-cine .heist-hint,
+.heist-wrap.is-cine .touch-ui { opacity: 0; pointer-events: none; }
+.heist-wrap .hud,
+.heist-wrap .heist-hint { transition: opacity .28s ease; }
+
 /* ---------- bench ---------- */
 .bench {
     display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
@@ -587,7 +598,7 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .loadout-future b { color: var(--teal); }
 
 /* ============================================================
-   MODAL — replaces every browser confirm()
+   MODAL - replaces every browser confirm()
    ============================================================ */
 .modal { position: absolute; inset: 0; z-index: 60; display: none; place-items: center; background: rgba(6,9,13,.82); backdrop-filter: blur(3px); }
 .modal.active { display: grid; animation: modalIn .18s ease; }
@@ -604,7 +615,7 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .modal-actions .menu-btn { width: auto; min-width: 130px; justify-content: center; text-align: center; }
 
 /* ============================================================
-   TRANSITION — curtain wipe + title card
+   TRANSITION - curtain wipe + title card
    ============================================================ */
 .transition { position: absolute; inset: 0; z-index: 70; pointer-events: none; display: grid; place-items: center; }
 .curtain {

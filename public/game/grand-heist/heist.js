@@ -1,5 +1,5 @@
 // ============================================================
-// RoboKyle: Grand Heist — in-mission engine
+// RoboKyle: Grand Heist - in-mission engine
 //
 // Spawn at the car, break in, trip the alarm, drill the vault,
 // grab everything you can carry, survive the response, drive off.
@@ -36,7 +36,7 @@
     return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
   }
 
-  // Segment vs axis-aligned rect — used for line of sight and bullet walls.
+  // Segment vs axis-aligned rect - used for line of sight and bullet walls.
   function segRect(x1, y1, x2, y2, R) {
     if (x1 >= R.x && x1 <= R.x + R.w && y1 >= R.y && y1 <= R.y + R.h) return true;
     const lines = [
@@ -83,6 +83,8 @@
         GH.audio.play('metal', { rate: 1.2 + t * 0.7, vol: 0.14 + t * 0.1 });
       }
     },
+    // "no" - an order that cannot be carried out
+    deny()   { A() && GH.audio.play('metal', { rate: 0.6, vol: 0.22 }); },
     alarm()  { A() && GH.audio.play('alarm', { vol: 1 }); },
     boom()   { A() && GH.audio.play('gunHeavy', { rate: 0.45, vol: 1 }); },
     down()   { A() && GH.audio.play('down', { vol: 0.9 }); },
@@ -164,7 +166,7 @@
   const mouse = { x: 0, y: 0, down: false, wx: 0, wy: 0 };
 
   // ==================== WORLD GENERATION ====================
-  // Heights include the street below the building, so they grew with it —
+  // Heights include the street below the building, so they grew with it -
   // the banks themselves are the same size they always were.
   const SIZES = {
     small: { w: 1250, h: 1030, lobby: 0.56 },
@@ -180,7 +182,7 @@
   // Put a cash pile on open floor near a prop rather than inside it.
   // Tries a few angles outward, then falls back to the nearest free cell,
   // so nothing ever spawns clipped into a wall or a counter.
-  // `mustPass` lets a caller insist on a side — a till has to drop its
+  // `mustPass` lets a caller insist on a side - a till has to drop its
   // takings where the customer is standing, not behind the counter.
   function spillSpot(x, y, preferAngle, away, mustPass) {
     const d0 = away == null ? 34 : away;
@@ -209,7 +211,7 @@
 
   // Split `total` into n randomised-but-exact parts. Piles vary in size
   // for looks, but the sum still matches the haul advertised on the intel
-  // card — otherwise the number the player planned around is a lie.
+  // card - otherwise the number the player planned around is a lie.
   function splitCash(total, n, spread) {
     const w = [];
     let sum = 0;
@@ -392,7 +394,7 @@
       const vault = {
         id: v, x: vx, y: vy, w: vw, h: vh, door,
         drillX: dX + dW / 2, drillY: vy + vh + 16,
-        progress: 0, drilling: false, open: false,
+        progress: 0, drilling: false, open: false, rig: false,
         cash: vaultCash,
       };
       world.vaults.push(vault);
@@ -525,7 +527,7 @@
     world.parkY = parkY;
 
     // The getaway car waits at the kerb. Normally that is right outside
-    // the entrance — but if this job has men posted on the street, park
+    // the entrance - but if this job has men posted on the street, park
     // at the other end of it. Walking up the pavement towards a guard is
     // a decision; spawning six feet from one is just an ambush.
     const entranceX = doorX + doorW / 2;
@@ -540,7 +542,7 @@
     world.entranceX = entranceX;
 
     // Other vehicles along the same kerb, never on top of the getaway car.
-    // A street's worth of different vehicles, all at full size — the old
+    // A street's worth of different vehicles, all at full size - the old
     // ones were scaled down and read as models parked next to the real car.
     world.vehicles = [];
     const PAINT = ['#2B3A4A', '#3A3038', '#243028', '#40382A', '#32323A', '#3B2A2A',
@@ -698,7 +700,7 @@
 
   // ---- prove you can actually walk from the car to the front door ----
   // The street furniture is placed by tier and by taste, and any given
-  // arrangement can wall the pavement off — especially now the car is not
+  // arrangement can wall the pavement off - especially now the car is not
   // always parked at the entrance. Rather than hand-tuning every prop,
   // check the route and take out whatever is in the way until it opens.
   // Only loose street furniture is ever removed; walls and vehicles stay.
@@ -811,6 +813,9 @@
     a.lastSeen = null;
     a.repathe = 0;
     a.seed = Math.random() * 10000;
+    a.role = pickRole(def, a.wpn);
+    a.postX = x; a.postY = y;          // where an anchor is unwilling to leave
+    a.flankSide = Math.random() < 0.5 ? 1 : -1;
     return a;
   }
 
@@ -852,8 +857,6 @@
       extracted: false, failed: false, over: false,
       banked: 0,
       killedIds: [],
-      pingT: 0, ping: null,
-      showMap: false,
       msg: null, msgT: 0,
     };
 
@@ -872,7 +875,7 @@
       if (!ok) { gx = b.x + b.w / 2; gy = world.counterY + 80; }   // lobby fallback
       H.enemies.push(makeEnemy(bank.guardWpn, gx, gy));
     }
-    // A couple of them stand outside on bigger jobs — by the doors they
+    // A couple of them stand outside on bigger jobs - by the doors they
     // are watching. Never within opening-fire distance of the car.
     if (bank.guards >= 4) {
       const post = world.entranceX;
@@ -900,7 +903,11 @@
 
     GH.show('heist');
     resize();
-    banner(bank.name, bank.boss ? bank.bossName + ' is inside' : 'In, vault, out.');
+    H.cam.x = H.robo.x;
+    H.cam.y = H.robo.y;
+    H.intro = makeIntro(world, bank);
+    const wrap = canvas.parentElement;
+    if (wrap) wrap.classList.add('is-intro');
     requestAnimationFrame(loop);
   };
 
@@ -908,6 +915,7 @@
   // test harness. Read-only in practice; nothing in the game uses it.
   GH.__debug = () => H;
   GH.__mouse = () => mouse;      // tests need to point somewhere before pinging
+  GH.skipIntro = () => endIntro();   // straight to the job
 
   function banner(text, sub) {
     H.msg = { text, sub };
@@ -918,9 +926,16 @@
   window.addEventListener('keydown', (e) => {
     if (!H || !H.running) return;
     const k = e.key.toLowerCase();
+    // Any key gets you out of the look round - including the one you were
+    // about to move with, which should not also fire an action.
+    if (H.intro) {
+      if (k === 'tab') e.preventDefault();
+      endIntro();
+      return;
+    }
+    if (H.death) { if (H.death.t > 1200) finish(false); return; }
     keys[k] = true;
     if (k === 'escape') togglePause();
-    if (k === 'tab') { e.preventDefault(); H.showMap = !H.showMap; }
     if (k === 'f') toggleStance();
     if (k === 'e') tryInteract();
     if (k === 'r') tryReload(H.robo);
@@ -929,12 +944,14 @@
     if (k === 'g') placePing();
   });
   window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('touchstart', () => { if (H && H.intro) endIntro(); }, { passive: true });
 
   canvas.addEventListener('mousemove', (e) => {
     const r = canvas.getBoundingClientRect();
     mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
   });
   canvas.addEventListener('mousedown', (e) => {
+    if (H && H.intro) { e.preventDefault(); endIntro(); return; }
     if (e.button === 0) mouse.down = true;
     if (e.button === 1) { e.preventDefault(); placePing(); }
   });
@@ -964,29 +981,26 @@
     banner(next === 'hold' ? 'HOLD HERE' : 'ON ME', '');
   }
 
+  // Marking is how you hand out work. It has to land on something worth
+  // opening; there is no "everybody go and stand over there" any more.
   function placePing() {
     if (!H) return;
-    const x = mouse.wx, y = mouse.wy;
-    H.pingSeq = (H.pingSeq || 0) + 1;
-    H.ping = { x, y, id: H.pingSeq };
-    H.pingT = 9000;
-    sfxSafe.pickup();
-
-    // Dropped on something worth opening? Put a name to the job.
-    const job = machineAt(x, y);
-    if (job) {
-      const hand = freestCrewFor(job.obj);
-      if (hand) {
-        hand.job = { kind: job.kind, obj: job.obj, pingId: H.pingSeq };
-        hand.pingAt = null;
-        banner(hand.name.toUpperCase() + ' IS ON IT', 'Cracking the ' + job.label + '.');
-        floatText(job.obj.x, job.obj.y - 34, hand.name, '#E0B44C');
-        return;
-      }
+    const job = machineAt(mouse.wx, mouse.wy);
+    if (!job) {
+      sfxSafe.deny();
+      banner('NOTHING TO CRACK THERE', 'Mark a till, a cash machine or a deposit box.');
+      return;
+    }
+    const hand = freestCrewFor(job.obj);
+    if (!hand) {
+      sfxSafe.deny();
       banner('NOBODY FREE', 'Everyone is busy \u2014 do it yourself.');
       return;
     }
-    banner('MOVE UP', 'Crew are taking the mark.');
+    hand.job = { kind: job.kind, obj: job.obj };
+    sfxSafe.pickup();
+    banner(hand.name.toUpperCase() + ' IS ON IT', 'Cracking the ' + job.label + '.');
+    floatText(job.obj.x, job.obj.y - 34, hand.name, '#E0B44C');
   }
 
   // What is under the mark, if anything: a till, a machine or a box.
@@ -1000,6 +1014,19 @@
     H.world.atms.forEach(a => test(a, 'atm', 'cash machine'));
     H.world.registers.forEach(t => test(t, 'register', 'till'));
     H.world.deposits.forEach(b => test(b, 'deposit', 'deposit box'));
+    // the vault too: mark it and somebody goes and sets the drill up
+    H.world.vaults.forEach(v => {
+      if (v.open || v.drilling) return;
+      const d = Math.hypot(v.drillX - x, v.drillY - y);
+      if (d < bd) { bd = d; best = { obj: v, kind: 'vault', label: 'vault' }; }
+    });
+    // and anyone with a wallet worth taking
+    H.civilians.forEach(civ => {
+      if (civ.dead || civ.robbed) return;              // dead also means walked out
+      if (civ.kind !== 'customer' || civ.wallet <= 0) return;
+      const d = Math.hypot(civ.x - x, civ.y - y);
+      if (d < bd) { bd = d; best = { obj: civ, kind: 'rob', label: 'customer' }; }
+    });
     return best;
   }
 
@@ -1055,14 +1082,14 @@
     for (const c of H.crew) {
       if (c.downed && !c.dead && dist(p, c) < 46) { p.reviving = c; return; }
     }
-    // start a drill on a vault
+    // set the drill up on a vault, then start it
     for (const v of H.world.vaults) {
       if (!v.open && Math.hypot(p.x - v.drillX, p.y - v.drillY) < 60) {
-        if (!v.drilling) { v.drilling = true; trip('drill'); banner('DRILL IS RUNNING', 'Keep it covered.'); }
+        if (!v.drilling) setDrill(v, p);
         return;
       }
     }
-    // lift a wallet — quiet, and quicker than the vault
+    // lift a wallet - quiet, and quicker than the vault
     if (tryRobCivilian(p, 0)) return;
 
     // lever a deposit box open
@@ -1073,7 +1100,7 @@
       return;
     }
 
-    // crack an ATM — a hold, and it takes a while
+    // crack an ATM - a hold, and it takes a while
     for (const a of H.world.atms) {
       if (a.open) continue;
       if (Math.hypot(p.x - a.x, p.y - a.y) > 56) continue;
@@ -1081,15 +1108,27 @@
       return;
     }
 
-    // pry open a cash register (quiet — no alarm)
+    // pry open a cash register (quiet - no alarm)
     for (const t of H.world.registers) {
       if (t.open) continue;
       if (Math.hypot(p.x - t.x, p.y - t.y) > 68) continue;
-      openRegister(t, false);
+      openRegister(t, false, p);      // spills onto the side you are standing on
       return;
     }
     // grab loot
     grabNearbyLoot(p, true);
+  }
+
+  // Bolt the rig to the vault door and start it cutting. Whoever does it
+  // is the one who carried it in, so a crew member can be sent to do it.
+  function setDrill(v, by) {
+    if (v.open || v.drilling) return;
+    v.rig = true;
+    v.drilling = true;
+    v.drillMul = perk(by, 'drill');       // whoever set it up knows the tool
+    trip('drill');
+    banner('DRILL IS RUNNING', by && !by.isRobo ? by.name + ' set it up. Keep it covered.'
+                                                : 'Keep it covered.');
   }
 
   function openDeposit(b, by) {
@@ -1102,6 +1141,7 @@
       x: spot.x, y: spot.y, r: 13,
       amount: b.amount, kind: 'box', locked: false, taken: false,
       claimAt: H.t + LOOT_GRACE,
+      openedBy: by && !by.isRobo ? by : null,
     });
     for (let i = 0; i < 8; i++) {
       H.particles.push({
@@ -1123,6 +1163,7 @@
       x: spot.x, y: spot.y, r: 14,
       amount: a.amount, kind: 'atm', locked: false, taken: false,
       claimAt: H.t + LOOT_GRACE,
+      openedBy: by && !by.isRobo ? by : null,
     });
     for (let i = 0; i < 12; i++) {
       H.particles.push({
@@ -1132,7 +1173,7 @@
       });
     }
     // ripping open a machine in the middle of the lobby is not subtle
-    panicAll(a.x, a.y, 300, 'seen');
+    panicAll(a.x, a.y, 300, 'seen', by);
     for (const e of H.enemies) {
       if (e.dead || e.alerted) continue;
       if (dist(e, a) < 340 && hasLOS(e, a)) {
@@ -1142,20 +1183,32 @@
     }
   }
 
-  // loud = smashed with a weapon rather than levered open by hand
-  function openRegister(t, loud) {
+  // loud = smashed with a weapon rather than levered open by hand.
+  // `by` is whoever did it - they get first refusal on what falls out.
+  function openRegister(t, loud, by) {
+    // Only crew get a reservation. The player already has first refusal
+    // through the grace window, and holding a pile against your own crew
+    // for eight seconds after you walked off helps nobody.
+    t.openedBy = by && !by.isRobo ? by : null;
     if (t.open) return;
     t.open = true;
     t.shake = 12;
     sfxSafe.register();
     if (loud) { sfxSafe.glass(); if (!H.alarm) trip('teller'); }
-    // straight out onto the customer's side of the counter
-    const lobbySide = (sx, sy) => sy > H.world.counterY + 26;
-    const spot = spillSpot(t.x, t.y, Math.PI / 2, 46, lobbySide);
+    // Onto the side of the counter whoever opened it is standing on. It
+    // used to always go to the lobby, so forcing a till from behind the
+    // counter threw the money over it and you had to walk right round.
+    const at = by || H.robo;
+    const cy2 = H.world.counterY;
+    const fromLobby = !at || at.y > cy2;
+    const sameSide = fromLobby ? (sx, sy) => sy > cy2 + 26
+                               : (sx, sy) => sy < cy2 - 20;
+    const spot = spillSpot(t.x, t.y, fromLobby ? Math.PI / 2 : -Math.PI / 2, 46, sameSide);
     H.world.loot.push({
       x: spot.x, y: spot.y, r: 13,
       amount: t.amount, kind: 'till', locked: false, taken: false,
       claimAt: H.t + LOOT_GRACE,
+      openedBy: t.openedBy || null,       // whoever forced it gets first claim
     });
     for (let i = 0; i < 9; i++) {
       H.particles.push({
@@ -1182,6 +1235,11 @@
     for (const l of H.world.loot) {
       if (l.taken || l.locked) continue;
       if (dist(a, l) > reach) continue;
+      // still the opener's, for a moment, unless they cannot come for it
+      if (!manual && l.openedBy && l.openedBy !== a &&
+          !l.openedBy.dead && !l.openedBy.downed &&
+          l.openedBy.carryCap - l.openedBy.carried > 200 &&
+          H.t < (l.claimAt || 0) + 5200) continue;
       const room = a.carryCap - a.carried;
       if (room <= 4) { if (manual) floatText(a.x, a.y - 26, 'BAG FULL', '#E0B44C'); return; }
       const take = Math.min(room, l.amount);
@@ -1245,8 +1303,9 @@
         if (Math.hypot(a.x - t.x, a.y - t.y) > w.reach + t.r) continue;
         const da = Math.abs(normAngle(Math.atan2(t.y - a.y, t.x - a.x) - ang));
         if (da > w.arc / 2) continue;
-        t.hp -= w.dmg * a.dmgMul; t.shake = 8;
-        if (t.hp <= 0) openRegister(t, false);   // melee stays quiet
+        t.hp -= w.dmg * a.dmgMul * perk(a, 'melee'); t.shake = 8;
+        // whoever smashed it gets first claim, same as levering it open
+        if (t.hp <= 0) openRegister(t, false, a.isRobo ? null : a);   // melee stays quiet
       }
       for (const e of H.enemies) {
         if (e.dead) continue;
@@ -1254,9 +1313,9 @@
         const da = Math.abs(normAngle(Math.atan2(e.y - a.y, e.x - a.x) - ang));
         if (da > w.arc / 2) continue;
         const silentKill = !H.alarm && !e.alerted;
-        damageEnemy(e, w.dmg * a.dmgMul, a, ang);
+        damageEnemy(e, w.dmg * a.dmgMul * perk(a, 'melee'), a, ang);
         bloodSpray(e.x, e.y, Math.cos(ang), Math.sin(ang), 10);
-        // Knock them back, but never into the scenery — shoving a body
+        // Knock them back, but never into the scenery - shoving a body
         // inside a wall is how things end up permanently stuck.
         if (w.knockback) {
           const kx = e.x + Math.cos(ang) * w.knockback;
@@ -1326,6 +1385,12 @@
     pulse: 'energy', arc: 'energy', plasma: 'energy', singularity: 'energy',
   };
 
+  // What an actor's mask is worth for a given perk. Actors carry their
+  // character sheet, so this is the same number the crew screen shows.
+  function perk(a, kind) {
+    return a && a.char ? GH.maskPerk(a.char, kind) : 1;
+  }
+
   function tryReload(a) {
     const w = D.WEAPONS[a.weapon];
     if (!w.mag || a.reloading > 0 || a.mag === w.mag) return;
@@ -1358,11 +1423,12 @@
       spark(e.x, e.y, 12);
       bloodSpray(e.x, e.y, rand(-1, 1), rand(-1, 1), 16);
       bloodPool(e.x, e.y, e.r * 0.9);
-      // A body on the floor is evidence. Anyone who walks past it reacts.
-      H.bodies.push({ x: e.x, y: e.y, seen: false });
+      // A body on the floor is evidence. Anyone who walks past it reacts -
+      // and it stays there for the rest of the job.
+      layBody(e, e.def && e.def.vehicle ? 'wreck' : 'cop');
       if (e.isBoss) banner(e.name + ' IS DOWN', 'Keep moving.');
     } else {
-      // Survived it — they shout, and they get on the radio.
+      // Survived it - they shout, and they get on the radio.
       e.suspicion = 1;
       if (e.radio == null || e.radio > 700) e.radio = 700;
       alertNearby(e, 300);
@@ -1408,6 +1474,22 @@
       }
       goDown(a);
     }
+  }
+
+  // Record somebody where they fell, with enough of their look to draw
+  // them. `seen` is the evidence flag the AI already used this list for.
+  function layBody(a, kind) {
+    H.bodies.push({
+      x: a.x, y: a.y, seen: false, kind,
+      angle: (a.angle || 0) + rand(-0.6, 0.6),
+      skin: a.skin || '#C79B76',
+      hair: a.hair || '#3A2A20',
+      outfit: a.outfit || (a.def && a.def.body) || '#3A4250',
+      accent: (a.def && a.def.accent) || null,
+      mask: a.char ? a.char.mask : null,
+      big: !!(a.def && a.def.r > 18),
+      t: H.t,
+    });
   }
 
   function goDown(a) {
@@ -1569,12 +1651,13 @@
         const wpn = D.WEAPONS[tgt.weapon];
         const armed  = wpn && wpn.kind !== 'melee';
         const masked = tgt.char && tgt.char.mask && tgt.char.mask !== 'none';
-        // facing matters — a guard notices what is in front of him faster
+        // facing matters - a guard notices what is in front of him faster
         const rel = Math.abs(normAngle(Math.atan2(tgt.y - e.y, tgt.x - e.x) - e.angle));
         const inView = rel < 1.1 ? 1 : 0.35;
         let rate = (1 - d / SIGHT) * inView;
         if (armed)  rate *= 3.2;
         if (masked) rate *= 2.0;
+        rate *= perk(tgt, 'unseen');      // a bare face reads as a customer
         if (H.alarm) rate = 4;
         e.suspicion = Math.min(1, e.suspicion + rate * dt / 1000);
         // turn toward whatever caught his eye
@@ -1619,7 +1702,12 @@
     e.angle = lerp(e.angle, Math.atan2((e.lastSeen || tgt).y - e.y, (e.lastSeen || tgt).x - e.x), 0.16);
 
     const wpn = e.wpn;
-    const wantRange = wpn.melee ? wpn.reach - 6 : Math.min(wpn.range * 0.62, 330);
+    // How close this one wants to be depends on how it fights. A room full
+    // of hostiles all wanting the same 330px was why they arrived as one
+    // crowd, every time.
+    const roleRange = ROLE_RANGE[e.role] || 0.62;
+    const wantRange = wpn.melee ? wpn.reach - 6
+                                : clamp(wpn.range * roleRange, 90, 420);
 
     if (!e.def.static && !(e.def.vehicle && d < 200)) {
       let goal = los ? tgt : (e.lastSeen || tgt);
@@ -1638,17 +1726,38 @@
         // tail. They also stage a moment before going in.
         if (e.lane == null) e.lane = (Math.random() * 2 - 1) * (dr.w * 0.34);
         goal = { x: dr.x + dr.w / 2 + e.lane, y: dr.y - 30 };
-      } else if (!outside && los && d < wantRange * 1.4) {
-        // Inside and in contact: work toward cover rather than standing in
-        // the open trading shots.
-        const spot = coverNear(e, goal);
-        if (spot) goal = spot;
+      } else if (!outside) {
+        // What they do with the space between them and you depends on the
+        // sort of fighter they are.
+        if (e.role === 'anchor') {
+          // Does not leave his post. Takes the best cover near it and
+          // shoots from there; only gives ground if pushed off it.
+          const spot = coverNear(e, goal);
+          const post = { x: e.postX, y: e.postY };
+          const far = Math.hypot(e.x - post.x, e.y - post.y);
+          if (spot && Math.hypot(spot.x - post.x, spot.y - post.y) < 240) goal = spot;
+          else if (far > 210) goal = post;
+          else goal = { x: e.x, y: e.y };            // stand your ground
+        } else if (e.role === 'flank' && los && d < wpn.range * 1.1) {
+          // Come at it from the side rather than straight up the middle.
+          const toE = Math.atan2(e.y - goal.y, e.x - goal.x);
+          const off = toE + e.flankSide * 1.15;
+          goal = {
+            x: goal.x + Math.cos(off) * wantRange,
+            y: goal.y + Math.sin(off) * wantRange,
+          };
+        } else if (los && d < wantRange * 1.4) {
+          const spot = coverNear(e, goal);
+          if (spot) goal = spot;
+        }
       }
+      const holdingBack = e.role === 'hold' || e.role === 'anchor';
       if (d > wantRange || !los) {
         // route around walls instead of pressing into them
-        navigateTo(e, goal.x, goal.y, sp, dt);
-      } else if (d < wantRange * 0.55 && los && !wpn.melee) {
-        // back off to a comfortable firing distance
+        navigateTo(e, goal.x, goal.y, sp * (holdingBack ? 0.82 : 1), dt);
+      } else if (los && !wpn.melee && d < wantRange * (holdingBack ? 0.85 : 0.55)) {
+        // Too close for comfort: give ground rather than trade at arm's
+        // length. The ones who hold do this a lot sooner.
         const ang = Math.atan2(goal.y - e.y, goal.x - e.x);
         moveActor(e, -Math.cos(ang) * sp * 0.6, -Math.sin(ang) * sp * 0.6, dt);
       } else if (los) {
@@ -1676,8 +1785,16 @@
         e.burstLeft--;
         e.cd = e.burstLeft > 0 ? Math.max(60, wpn.cd * 0.34) : wpn.cd;
         const base = Math.atan2(tgt.y - e.y, tgt.x - e.x);
+        // Anyone frightening within arm's reach of this shot widens it.
+        let fear = 1;
+        for (const a of H.all) {
+          if (a.dead || a.downed) continue;
+          const fm = perk(a, 'fear');
+          if (fm > fear && dist(a, e) < 260) fear = fm;
+        }
+        const sp2 = (wpn.spread || 0.01) * fear;
         for (let i = 0; i < (wpn.pellets || 1); i++) {
-          const ang = base + rand(-wpn.spread, wpn.spread);
+          const ang = base + rand(-sp2, sp2);
           H.bullets.push({
             x: e.x + Math.cos(base) * (e.r + 8), y: e.y + Math.sin(base) * (e.r + 8),
             vx: Math.cos(ang) * wpn.speed, vy: Math.sin(ang) * wpn.speed,
@@ -1694,6 +1811,26 @@
 
   // Nearest bit of low cover that still faces the threat. Cached briefly,
   // because scanning the prop list every frame for every officer is waste.
+  // How this one fights. Decided once, when they are made, so a guard
+  // does not change his mind about who he is halfway through a gunfight.
+  //
+  //   hold   : stays back at his weapon's range, works cover, gives ground
+  //   anchor : does not leave his post; takes cover near it and shoots
+  //   flank  : works round to one side before engaging
+  //   push   : closes. The only ones who charge, and there are few.
+  function pickRole(def, wpn) {
+    if (wpn && wpn.melee) return 'push';        // a baton has no other option
+    if (def && (def.static || def.vehicle)) return 'anchor';
+    const r = Math.random();
+    if (r < 0.42) return 'hold';
+    if (r < 0.70) return 'anchor';
+    if (r < 0.88) return 'flank';
+    return 'push';
+  }
+
+  // The distance this one wants to fight at, as a fraction of its range.
+  const ROLE_RANGE = { hold: 0.82, anchor: 0.80, flank: 0.66, push: 0.40 };
+
   function coverNear(e, threat) {
     if (e.coverAt && H.t - e.coverAt < 2200 && e.cover) return e.cover;
     e.coverAt = H.t;
@@ -1732,7 +1869,7 @@
     const ang = Math.atan2(e.patrolTo.y - e.y, e.patrolTo.x - e.x);
     e.angle = lerp(e.angle, ang, 0.06);
     navigateTo(e, e.patrolTo.x, e.patrolTo.y, e.speed * 0.42, dt);
-    // reached it (or gave up) — pick somewhere new next tick
+    // reached it (or gave up) - pick somewhere new next tick
     if (Math.hypot(e.patrolTo.x - e.x, e.patrolTo.y - e.y) < 30) e.repathe = 0;
   }
 
@@ -1786,6 +1923,7 @@
       c.downTimer -= dt;
       if (c.downTimer <= 0) {
         c.dead = true;
+        layBody(c, 'crew');
         H.killedIds.push(c.char.id);
         banner(c.name + ' DIDN\u2019T MAKE IT', 'That one is permanent.');
       }
@@ -1816,36 +1954,35 @@
       if (quiet && !e.alerted) continue;        // and only if it has noticed them
       if (d < fd && d < range && hasLOS(c, e)) { fd = d; foe = e; }
     }
-    // a ping overrides target choice
-    if (H.ping && H.pingT > 0) {
-      let pf = null, pd = 1e9;
-      for (const e of H.enemies) {
-        if (e.dead) continue;
-        const d = Math.hypot(e.x - H.ping.x, e.y - H.ping.y);
-        if (d < 170 && d < pd && hasLOS(c, e)) { pd = d; pf = e; }
-      }
-      if (pf) { foe = pf; fd = dist(c, pf); }
-    }
-
     // ---------- 1b. a job they were given ----------
     // Marked on a till or a machine: go and open it. This outranks the
     // plain move order and everything below it short of being shot at.
     if (c.job && c.job.obj) {
       const o = c.job.obj;
-      if (o.open) { c.job = null; }
+      const isVault = c.job.kind === 'vault';
+      const isRob = c.job.kind === 'rob';
+      // Done when the thing is open, the drill is cutting, or the mark has
+      // been emptied. Dropped if the mark left the building or died.
+      const finished = o.open || (isVault && o.drilling) ||
+                       (isRob && (o.robbed || o.wallet <= 0));
+      const lost = isRob && o.dead;                   // killed, or out of the door
+      if (finished || lost) { c.job = null; }
       else {
         c.state = 'crack';
-        const reach = c.job.kind === 'register' ? 60 : 50;
-        const d = dist(c, o);
+        const reach = isVault ? 56 : (isRob ? 40 : (c.job.kind === 'register' ? 60 : 50));
+        const tx = isVault ? o.drillX : o.x, ty = isVault ? o.drillY : o.y;
+        const d = Math.hypot(tx - c.x, ty - c.y);
         if (d > reach) {
-          navigateTo(c, o.x, o.y, speed * 1.1, dt);
+          navigateTo(c, tx, ty, speed * 1.1, dt);
         } else {
-          c.angle = lerp(c.angle, Math.atan2(o.y - c.y, o.x - c.x), 0.18);
-          if (c.job.kind === 'register') openRegister(o, false);
+          c.angle = lerp(c.angle, Math.atan2(ty - c.y, tx - c.x), 0.18);
+          if (isVault) setDrill(o, c);
+          else if (isRob) robCivilian(c, o, dt);
+          else if (c.job.kind === 'register') openRegister(o, false, c);
           else if (c.job.kind === 'deposit') openDeposit(o, c);
           else {
             // a machine is a hold, same as it is for the player
-            o.prog = (o.prog || 0) + dt;
+            o.prog = (o.prog || 0) + dt * perk(c, 'crack');
             o.shake = 4;
             crackNoise(o);
             if (o.prog >= LO.atmDrill) openATM(o, c);
@@ -1859,46 +1996,6 @@
         grabNearbyLoot(c, false);
         return;
       }
-    }
-
-    // ---------- 1c. a ping is an order ----------
-    // Move to the mark and then STAY on it. They used to arrive, drop back
-    // into follow, walk away and bounce between the two forever \u2014 so
-    // arriving is latched, and only a new mark or a timeout releases them.
-    const ping = (H.ping && H.pingT > 0) ? H.ping : null;
-    if (ping) {
-      if (c.pingAt !== ping.id) {
-        const pd = Math.hypot(ping.x - c.x, ping.y - c.y);
-        if (pd <= 74) {
-          c.pingAt = ping.id;                 // close enough. Stop.
-          c.holdX = c.x; c.holdY = c.y;
-        } else {
-          c.state = 'ping';
-          navigateTo(c, ping.x, ping.y, speed * 1.1, dt);
-          if (foe && fd < (w.range || w.reach + 20)) {
-            c.angle = lerp(c.angle, Math.atan2(foe.y - c.y, foe.x - c.x), 0.2);
-            if (w.mag && c.mag <= 0) tryReload(c);
-            else fire(c, foe.x, foe.y);
-          } else {
-            c.angle = lerp(c.angle, Math.atan2(ping.y - c.y, ping.x - c.x), 0.16);
-          }
-          separate(c, H.all, c.r * 3.0, 0.45, dt);
-          grabNearbyLoot(c, false);
-          return;
-        }
-      }
-      if (c.pingAt === ping.id && !foe) {
-        // holding the mark: settle, look around, pick up anything underfoot
-        c.state = 'onmark';
-        idleAbout(c, c.holdX == null ? c.x : c.holdX, c.holdY == null ? c.y : c.holdY, speed, dt);
-        separate(c, H.all, c.r * 3.4, 0.45, dt);
-        grabNearbyLoot(c, false);
-        if (w.mag && c.mag < w.mag) tryReload(c);
-        return;
-      }
-    } else if (c.pingAt != null) {
-      c.pingAt = null;                        // mark expired: back to normal
-      c.holdX = c.holdY = null;
     }
 
     // ---------- 2. a mate on the floor outranks everything but survival ----------
@@ -1972,6 +2069,14 @@
           if (l.locked) return;
           // fresh out of a till or a machine: the player gets first refusal
           if (l.claimAt && H.t < l.claimAt) return;
+          // The person who forced it open gets it, so long as they are
+          // still standing and still have room. Nobody else walks in on
+          // a till somebody else just did the work on.
+          if (l.openedBy && l.openedBy !== c &&
+              !l.openedBy.dead && !l.openedBy.downed &&
+              l.openedBy.carryCap - l.openedBy.carried > 200 &&
+              H.t < (l.claimAt || 0) + 5200) return;
+
           // One earner per pile. But a claim is not a deed: if somebody
           // else ends up clearly nearer, they take it over rather than the
           // pair of them crossing the room past each other.
@@ -2013,8 +2118,8 @@
         // and what he is standing on.
         const off = [[-132, 110], [132, 110], [0, 168]][c.slot - 1] || [0, 140];
         let tx = p.x + off[0], ty = p.y + off[1];
-        // A formation slot can land inside a wall — the corner vaults make
-        // that common — and they would hover outside it forever. Snap the
+        // A formation slot can land inside a wall - the corner vaults make
+        // that common - and they would hover outside it forever. Snap the
         // slot to the nearest ground they can actually stand on.
         if (navBlockedAt(H.world.nav, tx, ty)) {
           const cell = nearestFree(H.world.nav, Math.floor(tx / NAV_CELL), Math.floor(ty / NAV_CELL));
@@ -2046,7 +2151,7 @@
 
   // ==================== CIVILIANS ====================
   // Tellers behind the counter, customers in the lobby. They are not
-  // targets — they are pressure. They scream, they run for the door, and
+  // targets - they are pressure. They scream, they run for the door, and
   // if one gets out or reaches a phone they call the police themselves.
   // They also carry wallets, which is free money for anyone patient
   // enough to take it before the shooting starts.
@@ -2059,6 +2164,10 @@
       kind, x, y, r: 15,
       angle: kind === 'teller' ? Math.PI / 2 : rand(0, Math.PI * 2),
       state: 'idle',              // idle | scared | flee | cower | robbed
+      // How they take it when it goes off. Staff always comply; among
+      // customers it is close to a coin toss, which is what stops every
+      // job looking like the same stampede for the door.
+      nerve: kind === 'teller' ? 'freeze' : (Math.random() < 0.55 ? 'freeze' : 'run'),
       hp: 30, dead: false, downed: false, side: 'civ',
       walkPhase: 0, hitFlash: 0,
       panic: 0,                   // 0..1
@@ -2106,7 +2215,7 @@
     return list;
   }
 
-  function scare(c, why) {
+  function scare(c, why, by) {
     if (c.dead) return;
     c.panic = 1;
     if (c.state === 'idle') c.state = 'scared';
@@ -2114,16 +2223,40 @@
       c.screamed = true;
       sfxSafe.scream();
     }
-    // Staff are trained to comply: hands up, stay put. Customers run.
-    if (c.kind === 'teller') { c.state = 'cower'; c.handsUp = true; }
-    else if (why === 'seen' || why === 'alarm') c.state = 'flee';
+    // Staff are trained to comply: hands up, stay put.
+    if (c.kind === 'teller') { c.state = 'cower'; c.handsUp = true; return; }
+    if (why !== 'seen' && why !== 'alarm') return;
+
+    // Customers split by nerve. Runners make for the door; the rest go
+    // down where they stand and stay there. Somebody frightening enough
+    // standing over you settles the question either way.
+    if (c.nerve === 'freeze' || scariestNear(c) > 1) {
+      c.state = 'cower';
+      c.handsUp = true;
+      return;
+    }
+    c.state = 'flee';
   }
 
-  function panicAll(x, y, radius, why) {
+  // The strongest 'cow' perk worn by anyone close enough to be the reason
+  // this person is frightened.
+  function scariestNear(c) {
+    let worst = 1;
+    for (const a of H.all) {
+      if (a.dead || a.downed) continue;
+      const v = perk(a, 'cow');
+      if (v > worst && dist(a, c) < 300) worst = v;
+    }
+    return worst;
+  }
+
+  function panicAll(x, y, radius, why, by) {
+    // A quiet worker frightens a smaller circle of people.
+    const r = radius * (by ? perk(by, 'calm') : 1);
     for (const c of H.civilians) {
       if (c.dead) continue;
-      if (Math.hypot(c.x - x, c.y - y) > radius) continue;
-      scare(c, why);
+      if (Math.hypot(c.x - x, c.y - y) > r) continue;
+      scare(c, why, by);
     }
   }
 
@@ -2136,7 +2269,11 @@
       c.heldUp -= dt;
       c.state = 'cower';
       if (c.heldUp <= 0) {
-        c.state = c.kind === 'teller' ? 'cower' : (c.wasFleeing ? 'flee' : 'flee');
+        // Back to whatever they were going to do anyway. This used to send
+        // everyone to 'flee' regardless, which undid the whole split.
+        c.state = (c.kind === 'teller' || c.nerve === 'freeze') ? 'cower'
+                : (c.wasFleeing ? 'flee' : 'flee');
+        if (c.state === 'cower') c.handsUp = true;
       }
     }
 
@@ -2180,7 +2317,7 @@
         : { x: dr.x + dr.w / 2, y: dr.y + 40 };
       navigateTo(c, goal.x, goal.y, speed, dt);
       c.angle = lerp(c.angle, Math.atan2(goal.y - c.y, goal.x - c.x), 0.2);
-      // made it out — they will be telling the police everything
+      // made it out - they will be telling the police everything
       if (c.y > H.world.h - 80) {
         c.dead = true;                                    // leaves the level
         if (!H.alarm) trip('civilian');
@@ -2242,6 +2379,30 @@
 
   // Robbing: hold E next to someone. Quiet, but it terrifies them, and a
   // guard who sees it will not let it go.
+  // Take one named person's wallet. tryRobCivilian picks whoever is
+  // closest; this is for when somebody has been told to rob THAT one.
+  function robCivilian(by, target, dt) {
+    if (!target || target.dead || target.robbed) return;
+    target.robProg = (target.robProg || 0) + dt * perk(by, 'rob');
+    scare(target, 'rob');
+    target.wasFleeing = target.state === 'flee' || target.wasFleeing;
+    target.state = 'cower';
+    target.heldUp = 400;
+    if (target.robProg > 700) {
+      target.robbed = true;
+      target.robProg = 0;
+      const take = Math.min(target.wallet, Math.max(0, by.carryCap - by.carried));
+      if (take > 0) {
+        by.carried += take;
+        sfxSafe.pickup();
+        floatText(target.x, target.y - 26, '+' + money(take), '#5FBF87');
+      } else {
+        floatText(target.x, target.y - 26, 'BAG FULL', '#E0B44C');
+      }
+      target.wallet = 0;
+    }
+  }
+
   function tryRobCivilian(p, dt) {
     let target = null, td = 54;
     for (const c of H.civilians) {
@@ -2253,7 +2414,7 @@
     if (!target) { if (p.robbing) p.robbing.robProg = 0; p.robbing = null; return false; }
 
     p.robbing = target;
-    target.robProg += dt;
+    target.robProg += dt * perk(p, 'rob');
     scare(target, 'rob');
     // Hands up and rooted to the spot. A civilian who backs away from the
     // person robbing them makes the whole interaction impossible.
@@ -2410,7 +2571,7 @@
     ctx.beginPath(); ctx.arc(CH * 0.5, 0, c.r * 0.46, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
     if (c.kind === 'teller') {
-      // headset — band across the crown, earpiece, and a mic on a boom
+      // headset - band across the crown, earpiece, and a mic on a boom
       const hx = CH * 0.5, hr = c.r * 0.46;
       ctx.strokeStyle = '#20262E'; ctx.lineWidth = 1.8;
       ctx.beginPath(); ctx.arc(hx, 0, hr * 1.05, -Math.PI * 0.62, Math.PI * 0.62); ctx.stroke();
@@ -2433,7 +2594,7 @@
 
     // Hands last, drawn over everything else. From straight above, the
     // only cue that something is raised is that it occludes what is below
-    // it and casts a shadow onto it — so the palms overlap the head and
+    // it and casts a shadow onto it - so the palms overlap the head and
     // sit on their own drop shadow. Everything scales off c.r.
     const hr = c.r * 0.30;                       // palm radius
     raised.forEach(function (h) {
@@ -2482,7 +2643,7 @@
     }
     // prompt when you can take their wallet
     if (!c.robbed && c.wallet > 0 && H.robo && dist(H.robo, c) < 54) {
-      label(c.x, c.y - c.r - 26, 'E   TAKE WALLET', '#5FBF87', { size: 9 });
+      if (!beingWorked(c)) label(c.x, c.y - c.r - 26, 'E   TAKE WALLET', '#5FBF87', { size: 9 });
       if (c.robProg > 0) {
         ctx.strokeStyle = '#5FBF87'; ctx.lineWidth = 3;
         ctx.beginPath();
@@ -2558,7 +2719,7 @@
     return !nav.blocked[cy * nav.cols + cx];
   }
 
-  // O(1) walkability test at a world position — used instead of scanning
+  // O(1) walkability test at a world position - used instead of scanning
   // the obstacle list, which was the single most expensive thing here.
   function navBlockedAt(nav, x, y) {
     const cx = (x / NAV_CELL) | 0, cy = (y / NAV_CELL) | 0;
@@ -2579,7 +2740,7 @@
     return null;
   }
 
-  // Minimal binary heap — the open set gets hot with a dozen agents.
+  // Minimal binary heap - the open set gets hot with a dozen agents.
   function Heap() { this.a = []; }
   Heap.prototype.push = function (node) {
     const a = this.a; a.push(node);
@@ -2805,7 +2966,7 @@
         // past whoever is in the way
         requestPath(a, tx, ty, true);
         a.ghost = 700;
-        // No route at all means the search found nowhere to go from here —
+        // No route at all means the search found nowhere to go from here -
         // a pocket the grid cannot reason about. Slide toward the goal
         // ignoring collision until they are back on open floor.
         if (!a.path || !a.path.length) {
@@ -2823,11 +2984,11 @@
     }
   }
 
-  // If an agent ends up inside geometry — spawned there, shoved there by
-  // separation, or left behind when a wall was rebuilt — normal movement
+  // If an agent ends up inside geometry - spawned there, shoved there by
+  // separation, or left behind when a wall was rebuilt - normal movement
   // can never free them, because every candidate step is blocked too.
   // Slide them out toward open floor, ignoring collision for that nudge.
-  // Ease a body out of anything it has ended up inside — knockback from a
+  // Ease a body out of anything it has ended up inside - knockback from a
   // burst of fire is the usual way it happens. Pushes out of the NEAREST
   // face of each prop, so a wall pushes you back the way you came instead
   // of through to the other side, which an "any open floor" search would
@@ -2923,7 +3084,7 @@
     if (self === player) {
       const r = self.r * 0.82;
       // Only hostiles are solid to you. Your own crew and the bystanders
-      // get shouldered out of the way instead — nothing is worse than
+      // get shouldered out of the way instead - nothing is worse than
       // being pinned in a doorway by the people you brought with you.
       for (let i = 0; i < H.enemies.length; i++) {
         const o = H.enemies[i];
@@ -2976,7 +3137,7 @@
           sfxSafe.revive();
           banner('ON YOUR FEET', 'That was the only free one.');
         } else {
-          finish(false);
+          startDeathSequence();
         }
       }
       // a standing crew member can pull him up
@@ -3068,7 +3229,7 @@
 
     if (holding && p.atm && !p.atm.open && Math.hypot(p.x - p.atm.x, p.y - p.atm.y) < 60) {
       const a = p.atm;
-      a.prog += dt;
+      a.prog += dt * perk(p, 'crack');
       a.shake = 4;
       crackNoise(a);
       if (a.prog >= LO.atmDrill) openATM(a, p);
@@ -3158,7 +3319,7 @@
           if (Math.hypot(b.x - t.x, b.y - t.y) > t.r) continue;
           t.hp -= b.dmg; t.shake = 8;
           sfxSafe.ricochet();
-          if (t.hp <= 0) openRegister(t, true);
+          if (t.hp <= 0) openRegister(t, true, b.owner && !b.owner.isRobo ? b.owner : null);
           hit = true; break;
         }
       }
@@ -3179,7 +3340,7 @@
             bloodSpray(c.x, c.y, rand(-1, 1), rand(-1, 1), 18);
             bloodPool(c.x, c.y, c.r);
             H.civKills++;
-            H.bodies.push({ x: c.x, y: c.y, seen: false });
+            layBody(c, c.kind === 'teller' ? 'teller' : 'civ');
             if (!H.alarm) trip('civilian');
             floatText(c.x, c.y - 24, 'CIVILIAN KILLED', '#C4453A');
             banner('BYSTANDER DOWN', 'The crew will not forget that.');
@@ -3290,6 +3451,103 @@
                moving > 1.5 ? rand(1.8, 3.6) : rand(2.6, 5), moving > 1.5 ? 0.42 : 0.5);
   }
 
+  // Somebody face down on the floor. Same build as the living so the
+  // room reads consistently, but slack: limbs out, no weapon up, and
+  // blood that keeps spreading for a while after.
+  function drawBody(b) {
+    const r = b.big ? 20 : 15;
+    const spread = r * 1.2;
+    const age = Math.min(1, (H.t - b.t) / 9000);
+
+    ctx.save();
+    ctx.translate(b.x, b.y);
+
+    // pool, still growing early on
+    ctx.fillStyle = 'rgba(88,10,14,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(-2, 3, spread * (1 + age * 0.5), r * 0.72 * (1 + age * 0.45),
+                b.angle, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.rotate(b.angle);
+
+    // legs
+    ctx.strokeStyle = shade(b.outfit, -0.34);
+    ctx.lineWidth = r * 0.4;
+    ctx.lineCap = 'round';
+    for (const sp of [-0.5, 0.44]) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.1, sp * r * 0.5);
+      ctx.lineTo(-spread * 1.02, sp * r * 1.45);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#15171C';
+    for (const sp of [-0.5, 0.44]) {
+      ctx.beginPath();
+      ctx.ellipse(-spread * 1.08, sp * r * 1.5, 3.2, 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // arms, thrown out
+    ctx.strokeStyle = b.skin;
+    ctx.lineWidth = r * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.5); ctx.lineTo(r * 0.55, -r * 1.4); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.5); ctx.lineTo(r * 0.8, r * 0.9); ctx.stroke();
+
+    // torso
+    ctx.fillStyle = b.outfit;
+    ctx.strokeStyle = shade(b.outfit, -0.45);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.84, r * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    if (b.accent) {
+      // a uniform stripe, so a cop still reads as a cop face down
+      ctx.fillStyle = b.accent;
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.2, 0, r * 0.16, r * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (b.kind === 'teller') {
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-r * 0.4, 0); ctx.lineTo(r * 0.4, 0); ctx.stroke();
+    }
+
+    // head, turned aside
+    ctx.save();
+    ctx.translate(r * 0.9, r * 0.12);
+    const R = r * 0.45;
+    const maskDef = b.mask ? (D.MASKS[b.mask] || null) : null;
+    ctx.fillStyle = (maskDef && maskDef.color) || b.skin;
+    ctx.strokeStyle = shade((maskDef && maskDef.color) || b.skin, -0.45);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, 0, R, R * 0.94, 0.3, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    if (!(maskDef && maskDef.color)) {
+      ctx.fillStyle = b.hair;
+      ctx.beginPath();
+      ctx.ellipse(-R * 0.35, 0, R * 0.78, R * 0.88, 0, Math.PI * 0.4, Math.PI * 1.6);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(10,7,9,0.7)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(R * 0.12, -R * 0.28); ctx.lineTo(R * 0.58, -R * 0.22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(R * 0.12, R * 0.32); ctx.lineTo(R * 0.58, R * 0.26); ctx.stroke();
+    }
+    ctx.restore();
+
+    // a dropped cap for the uniformed
+    if (b.kind === 'cop') {
+      ctx.fillStyle = shade(b.outfit, -0.2);
+      ctx.beginPath();
+      ctx.ellipse(r * 1.5, -r * 0.5, r * 0.3, r * 0.22, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function drawDecals() {
     for (let i = 0; i < H.decals.length; i++) {
       const d = H.decals[i];
@@ -3364,7 +3622,7 @@
     // drills
     for (const v of H.world.vaults) {
       if (v.drilling && !v.open) {
-        v.progress += dt / (H.bank.drill * 1000);
+        v.progress += dt * (v.drillMul || 1) / (H.bank.drill * 1000);
         if (Math.random() < 0.05) sfxSafe.drill();
         if (v.progress >= 1) openVault(v);
       }
@@ -3454,20 +3712,131 @@
 
     // total wipe
     const anyUp = H.all.some(a => !a.dead && !a.downed);
-    if (!anyUp && !H.over) { finish(false); return; }
+    if (!anyUp && !H.over) { startDeathSequence(); return; }
+  }
+
+  // ==================== GOING DOWN ====================
+  // Not an instant cut to the debrief. Time stretches out, the colour
+  // drains, the camera closes on him, and the word lands.
+  const DEATH_LEN = 3400;
+
+  function startDeathSequence() {
+    if (!H || H.death || H.over) return;
+    H.death = { t: 0, x: H.robo.x, y: H.robo.y };
+    const wrap = canvas.parentElement;
+    if (wrap) wrap.classList.add('is-cine');
+    H.robo.dead = true;
+    H.robo.downed = false;
+    layBody(H.robo, 'crew');
+    stopSiren();
+    if (GH.audio) GH.audio.music('planning');
+    sfxSafe.down();
+    if (GH.settings.shake) H.shake = 16;
+  }
+
+  function stepDeath(dt) {
+    const Dq = H.death;
+    Dq.t += dt;
+    // ease the camera onto him and hold
+    H.cam.x = lerp(H.cam.x, Dq.x, 0.07);
+    H.cam.y = lerp(H.cam.y, Dq.y, 0.07);
+    if (H.shake > 0.4) H.shake *= 0.9;
+    if (Dq.t >= DEATH_LEN) finish(false);
+  }
+
+  function drawDeath() {
+    const Dq = H.death;
+    if (!Dq) return;
+    const t = Dq.t / DEATH_LEN;
+
+    // the colour goes out of the room
+    ctx.save();
+    ctx.globalCompositeOperation = 'saturation';
+    ctx.fillStyle = 'hsl(0,' + Math.round((1 - Math.min(1, t * 2.2)) * 100) + '%,50%)';
+    ctx.fillRect(0, 0, VW, VH);
+    ctx.restore();
+
+    // and the light with it
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,4,6,' + (Math.min(1, t * 1.5) * 0.62).toFixed(3) + ')';
+    ctx.fillRect(0, 0, VW, VH);
+
+    // a red wash creeping in from the edges
+    const vg = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.18,
+                                        VW / 2, VH / 2, VH * 0.78);
+    vg.addColorStop(0, 'rgba(120,10,14,0)');
+    vg.addColorStop(1, 'rgba(120,10,14,' + (Math.min(1, t * 1.3) * 0.55).toFixed(3) + ')');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, VW, VH);
+
+    // ---- the word ----
+    if (Dq.t > 700) {
+      const k = Math.min(1, (Dq.t - 700) / 520);
+      const ease = 1 - Math.pow(1 - k, 3);
+      const scale = 3.2 - 2.2 * ease;
+      ctx.save();
+      ctx.translate(VW / 2, VH * 0.44);
+      ctx.scale(scale, scale);
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = ease;
+
+      // a hard shadow, then the letters, then a thin bleed of red
+      ctx.font = '700 62px "Black Ops One", Impact, sans-serif';
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillText('KIA', 3, 3);
+      ctx.fillStyle = '#C4453A';
+      ctx.fillText('KIA', 0, 0);
+      ctx.strokeStyle = 'rgba(255,90,70,' + (0.5 + Math.sin(H.t / 180) * 0.2).toFixed(2) + ')';
+      ctx.lineWidth = 1.4;
+      ctx.strokeText('KIA', 0, 0);
+      ctx.restore();
+
+      // rules above and below it, drawing out
+      ctx.globalAlpha = ease;
+      ctx.strokeStyle = 'rgba(196,69,58,0.75)';
+      ctx.lineWidth = 2;
+      const rw = 150 * ease;
+      ctx.beginPath();
+      ctx.moveTo(VW / 2 - rw, VH * 0.44 + 24); ctx.lineTo(VW / 2 + rw, VH * 0.44 + 24);
+      ctx.stroke();
+    }
+
+    // ---- who, and where ----
+    if (Dq.t > 1500) {
+      const k2 = Math.min(1, (Dq.t - 1500) / 600);
+      ctx.globalAlpha = k2;
+      ctx.textAlign = 'center';
+      ctx.font = '700 15px Oswald, Impact, sans-serif';
+      ctx.fillStyle = '#E8EDF2';
+      ctx.fillText('ROBOKYLE', VW / 2, VH * 0.44 + 48);
+      ctx.font = '600 12px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(232,237,242,0.6)';
+      ctx.fillText(H.bank.name + '  \u00b7  ' + money(H.robo.carried) + ' left on the floor',
+                   VW / 2, VH * 0.44 + 68);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    ctx.restore();
   }
 
   // ==================== FINISH ====================
   function finish(escaped) {
+    const wrap = canvas.parentElement;
+    if (wrap) wrap.classList.remove('is-cine', 'is-intro');
     if (H.over) return;
     H.over = true;
     H.running = false;
     stopSiren();
 
     // ---- work out each crew member's fate ----
-    // 'kia'  : killed outright during the job
-    // 'left' : still down when it ended, so they were left behind
-    // otherwise they walked away, whether or not the job paid.
+    // 'kia'  : killed on the job
+    // 'left' : down when the car pulled away, and somebody drove it
+    // 'walked' / 'out' : still standing at the end
+    //
+    // "Left behind" only means something if there was somebody to do the
+    // leaving. If the whole crew went down, nobody abandoned anyone -
+    // they were killed, and the debrief should say so.
+    const someoneDroveOff = escaped || (H.abandoned && !H.robo.dead);
     const fate = {};
     H.crew.forEach(c => {
       const id = c.char.id;
@@ -3475,9 +3844,8 @@
         fate[id] = 'kia';
         if (H.killedIds.indexOf(id) < 0) H.killedIds.push(id);
       } else if (c.downed) {
-        // nobody got them up before the car left, or before you walked
         c.dead = true;
-        fate[id] = 'left';
+        fate[id] = someoneDroveOff ? 'left' : 'kia';
         if (H.killedIds.indexOf(id) < 0) H.killedIds.push(id);
       } else {
         fate[id] = H.abandoned ? 'walked' : (escaped ? 'out' : 'walked');
@@ -3532,6 +3900,192 @@
   // The driver needs a moment before the car is going anywhere.
   const TUNE_EXTRACT_LOCK = 15000;
 
+  // ==================== OPENING LOOK ROUND ====================
+  // Four beats and a go. Kept tight on purpose: this is a reminder of
+  // what the job is, not a film.
+  function makeIntro(world, bank) {
+    const mid = (list, fx, fy) => {
+      if (!list.length) return null;
+      let x = 0, y = 0;
+      list.forEach(o => { x += fx ? fx(o) : o.x; y += fy ? fy(o) : o.y; });
+      return { x: x / list.length, y: y / list.length };
+    };
+
+    const tills = world.registers, atms = world.atms, boxes = world.deposits;
+    const vault = world.vaults[0];
+    const takeables = tills.concat(atms).concat(boxes);
+    const guards = H.enemies.filter(e => !e.dead);
+    const customers = H.civilians.filter(c => c.kind === 'customer');
+    const staff = H.civilians.filter(c => c.kind === 'teller');
+
+    const plural = (n, one2, many) => n + ' ' + (n === 1 ? one2 : many);
+    const beats = [];
+
+    beats.push({
+      hold: 1500,
+      cam: { x: world.door.x + world.door.w / 2, y: world.door.y - 40 },
+      title: bank.name.toUpperCase(),
+      sub: 'Somewhere around ' + money(bank.haul) + ' inside.',
+      marks: [], color: '#E8EDF2',
+    });
+
+    beats.push({
+      hold: 2500,
+      cam: { x: vault ? vault.x + vault.w / 2 : world.building.x + world.building.w / 2,
+             y: vault ? vault.y + vault.h / 2 : world.counterY },
+      title: 'THE MONEY',
+      sub: [vault ? plural(world.vaults.length, 'vault', 'vaults') : null,
+            tills.length ? plural(tills.length, 'till', 'tills') : null,
+            atms.length ? plural(atms.length, 'machine', 'machines') : null,
+            boxes.length ? plural(boxes.length, 'box', 'boxes') : null]
+           .filter(Boolean).join('  \u00b7  '),
+      marks: world.vaults.map(v => ({ x: v.drillX, y: v.drillY, r: 26 }))
+             .concat(takeables.map(o => ({ x: o.x, y: o.y, r: 18 }))),
+      color: '#E0B44C',
+    });
+
+    beats.push({
+      hold: 2200,
+      cam: mid(guards) || { x: world.building.x + world.building.w / 2, y: world.counterY - 60 },
+      title: guards.length ? 'WHO IS WATCHING' : 'NOBODY WATCHING',
+      sub: (guards.length ? plural(guards.length, 'on the floor', 'on the floor') + '  \u00b7  '
+                          : 'Not a soul.  ') +
+           'Police in ' + bank.respond + 's once it goes loud',
+      marks: guards.map(e => ({ x: e.x, y: e.y, r: 22 })),
+      color: '#C4453A',
+    });
+
+    beats.push({
+      hold: 2000,
+      cam: mid(H.civilians) || { x: world.building.x + world.building.w / 2, y: world.counterY + 90 },
+      title: 'AND EVERYONE ELSE',
+      sub: plural(customers.length, 'customer', 'customers') + '  \u00b7  ' +
+           plural(staff.length, 'behind the counter', 'behind the counter'),
+      marks: H.civilians.map(c => ({ x: c.x, y: c.y, r: 18 })),
+      color: '#9FB0BF',
+    });
+
+    beats.push({
+      hold: 1200,
+      cam: { x: H.robo.x, y: H.robo.y },
+      title: 'GO',
+      sub: 'Any key to skip this next time.',
+      marks: [], color: '#5FBF87',
+    });
+
+    return { i: 0, t: 0, bars: 0, beats, done: false };
+  }
+
+  function stepIntro(dt) {
+    const I = H.intro;
+    I.t += dt;
+    I.anim = (I.anim || 0) + dt;
+    I.bars = Math.min(1, I.bars + dt / 260);
+
+    const beat = I.beats[I.i];
+    // ease the camera onto each beat rather than cutting
+    H.cam.x = lerp(H.cam.x, beat.cam.x, 0.055);
+    H.cam.y = lerp(H.cam.y, beat.cam.y, 0.055);
+
+    if (I.t >= beat.hold) {
+      I.t = 0;
+      I.i++;
+      if (I.i >= I.beats.length) endIntro();
+    }
+  }
+
+  function endIntro() {
+    if (!H || !H.intro) return;
+    H.intro = null;
+    const wrap = canvas.parentElement;
+    if (wrap) wrap.classList.remove('is-intro');
+    H.last = performance.now();
+    banner(H.bank.name, H.bank.boss ? H.bank.bossName + ' is inside' : 'In, vault, out.');
+  }
+
+  function drawIntro() {
+    const I = H.intro;
+    if (!I) return;
+    const beat = I.beats[I.i];
+    const { ox, oy } = camOffset();
+
+    // ---- highlight what this beat is about ----
+    ctx.save();
+    ctx.translate(ox, oy);
+    const inT = Math.min(1, I.t / 320);
+    for (let k = 0; k < beat.marks.length; k++) {
+      const m = beat.marks[k];
+      // staggered, so a room full of tills lights up in a sweep
+      const lead = k * 55;
+      if (I.t < lead) continue;
+      const age = Math.min(1, (I.t - lead) / 300);
+      const r = m.r * (0.6 + age * 0.4);
+      ctx.globalAlpha = age * 0.9;
+      ctx.strokeStyle = beat.color;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = age * 0.16;
+      ctx.fillStyle = beat.color;
+      ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, Math.PI * 2); ctx.fill();
+      // a ping that expands and fades out of it
+      const pulse = ((I.anim - lead) % 900) / 900;
+      if (pulse > 0 && age >= 1) {
+        ctx.globalAlpha = (1 - pulse) * 0.5;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(m.x, m.y, r + pulse * 22, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // ---- letterbox ----
+    const barH = 58 * I.bars;
+    ctx.save();
+    ctx.fillStyle = '#05080B';
+    ctx.fillRect(0, 0, VW, barH);
+    ctx.fillRect(0, VH - barH, VW, barH);
+    ctx.strokeStyle = 'rgba(224,180,76,0.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, barH); ctx.lineTo(VW, barH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, VH - barH); ctx.lineTo(VW, VH - barH); ctx.stroke();
+
+    // ---- caption ----
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, I.t / 220) * I.bars;
+    ctx.font = '700 24px "Black Ops One", Impact, sans-serif';
+    ctx.fillStyle = beat.color;
+    ctx.fillText(beat.title, VW / 2, VH - barH + 24);
+    if (beat.sub) {
+      ctx.font = '600 12px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(232,237,242,0.72)';
+      ctx.fillText(beat.sub, VW / 2, VH - barH + 43);
+    }
+
+    // ---- how far through, and how to leave ----
+    ctx.globalAlpha = I.bars;
+    const pipW = 22, gap = 6;
+    const total = I.beats.length * pipW + (I.beats.length - 1) * gap;
+    let px = VW / 2 - total / 2;
+    for (let i = 0; i < I.beats.length; i++) {
+      const doneBeat = i < I.i;
+      const now2 = i === I.i;
+      ctx.fillStyle = doneBeat ? 'rgba(224,180,76,0.7)' : 'rgba(255,255,255,0.16)';
+      ctx.fillRect(px, barH - 12, pipW, 3);
+      if (now2) {
+        ctx.fillStyle = '#E0B44C';
+        ctx.fillRect(px, barH - 12, pipW * Math.min(1, I.t / I.beats[i].hold), 3);
+      }
+      px += pipW + gap;
+    }
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(232,237,242,0.45)';
+    ctx.textAlign = 'right';
+    ctx.fillText('ANY KEY TO SKIP', VW - 18, VH - 14);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   // ==================== LOOP ====================
   let frameErrors = 0;
 
@@ -3551,6 +4105,30 @@
   function frame(now) {
     let dt = Math.min(50, now - H.last);
     H.last = now;
+
+    // The opening look round. Nothing in the world moves, nothing notices
+    // you, and no clock runs - H.t is held so the police response and the
+    // getaway driver both start counting when you actually start.
+    if (H.intro) {
+      stepIntro(dt);
+      draw();
+      drawIntro();
+      updateHud();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    // He is down. The world stops mattering; play it out and then leave.
+    if (H.death) {
+      H.t += dt * 0.35;             // slowed right down
+      stepDeath(dt);
+      if (!H) return;
+      draw();
+      drawDeath();
+      requestAnimationFrame(loop);
+      return;
+    }
+
     H.t += dt;
 
     if (H.world.navDirty) buildNav(H.world);
@@ -3590,7 +4168,6 @@
     H.world.deposits.forEach(b => { if (b.shake > 0) b.shake -= dt * 0.05; });
     if (H.screamT > 0) H.screamT -= dt;
     if (H.msgT > 0) H.msgT -= dt;
-    if (H.pingT > 0) H.pingT -= dt;
     if (H.shake > 0) H.shake *= 0.88;
     H.enemies = H.enemies.filter(e => !e.dead || (e.fade = (e.fade || 40) - 1) > 0);
 
@@ -3753,7 +4330,7 @@
         ctx.fillRect(v.x, v.y, v.w, v.h);
       } else {
         // sealed: you can SEE there is a room, but not what is in it.
-        // Frosted, not blacked out — the mystery is the point.
+        // Frosted, not blacked out - the mystery is the point.
         ctx.fillStyle = '#1A2028';
         ctx.fillRect(v.x, v.y, v.w, v.h);
         // suggestion of shelving behind the frost
@@ -3789,7 +4366,7 @@
         ctx.strokeRect(v.x + 2, v.y + 2, v.w - 4, v.h - 4);
         ctx.setLineDash([]);
         // label
-        label(v.x + v.w / 2, v.y + v.h / 2 + 4, 'VAULT — SEALED', '#E0B44C',
+        label(v.x + v.w / 2, v.y + v.h / 2 + 4, 'VAULT - SEALED', '#E0B44C',
               { size: 12, alpha: 0.8, plate: false });
       }
     });
@@ -3835,6 +4412,7 @@
 
     // ---- blood on the floor ----
     drawDecals();
+    for (let i = 0; i < H.bodies.length; i++) drawBody(H.bodies[i]);
 
     // ---- flat scenery: litter, stains, rugs, road markings ----
     for (const d of w.decor) if (FLAT_DECOR[d.kind]) drawDecor(d);
@@ -3866,14 +4444,65 @@
     }
 
     // ---- drill rigs (the progress ring is drawn later, on top) ----
-    w.vaults.forEach(v => { if (!v.open) drawDrillRig(v); });
+    w.vaults.forEach(v => {
+      if (v.open) return;
+      if (v.rig) drawDrillRig(v);
+      else drawDrillSpot(v);
+    });
 
-    // ---- ping ----
-    if (H.ping && H.pingT > 0) {
-      const a = Math.min(1, H.pingT / 900);
-      ctx.strokeStyle = 'rgba(227,85,43,' + a + ')'; ctx.lineWidth = 3;
-      const rr = 16 + Math.sin(H.t / 120) * 5;
-      ctx.beginPath(); ctx.arc(H.ping.x, H.ping.y, rr, 0, Math.PI * 2); ctx.stroke();
+    // ---- whatever the crew have been told to open ----
+    // One marker per job, on the thing itself, for as long as the job
+    // stands. You can see at a glance what is spoken for and who has it.
+    for (const c of H.crew) {
+      if (c.dead || !c.job || !c.job.obj) continue;
+      if (c.job.obj.dead) continue;                   // the mark left, or died
+      const o = c.job.obj, kind = c.job.kind;
+      const mx = kind === 'vault' ? o.drillX : o.x;
+      const my = kind === 'vault' ? o.drillY : o.y;
+      const rr = 18 + Math.sin(H.t / 160) * 4;
+
+      // a soft wash over the thing itself, so it is obviously spoken for
+      const g = ctx.createRadialGradient(mx, my, 2, mx, my, rr + 8);
+      g.addColorStop(0, 'rgba(227,85,43,0.26)');
+      g.addColorStop(1, 'rgba(227,85,43,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(mx, my, rr + 8, 0, Math.PI * 2); ctx.fill();
+
+      ctx.strokeStyle = 'rgba(227,85,43,0.92)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(mx, my, rr, 0, Math.PI * 2); ctx.stroke();
+      // a dashed inner ring that turns, so it reads as "in progress"
+      ctx.strokeStyle = 'rgba(255,190,150,0.75)'; ctx.lineWidth = 1.6;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -(H.t / 40) % 12;
+      ctx.beginPath(); ctx.arc(mx, my, rr - 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+
+      // The route they are actually going to walk, from where they are
+      // now. A straight line to the target told you the what but not the
+      // where, which is the half that matters in a building like this.
+      ctx.strokeStyle = 'rgba(227,85,43,0.34)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([7, 6]);
+      ctx.lineDashOffset = -(H.t / 26) % 13;
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      if (c.path && c.pathIdx < c.path.length) {
+        for (let i = c.pathIdx; i < c.path.length; i++) ctx.lineTo(c.path[i].x, c.path[i].y);
+      }
+      ctx.lineTo(mx, my);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+
+      // a pip at each turn, so a route round a counter reads as a route
+      if (c.path) {
+        ctx.fillStyle = 'rgba(227,85,43,0.5)';
+        for (let i = c.pathIdx; i < c.path.length; i++) {
+          ctx.beginPath(); ctx.arc(c.path[i].x, c.path[i].y, 2.4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      label(mx, my - rr - 8, c.name.toUpperCase(), '#E3552B', { size: 9 });
     }
 
     // ---- who is who ----
@@ -3921,8 +4550,6 @@
     drawLabels();          // always on top of every actor and prop
     ctx.restore();
 
-    if (H.showMap) drawMinimapLarge();
-    else drawMinimap();
     drawBanner();
   }
 
@@ -4351,6 +4978,29 @@
     ctx.restore();
   }
 
+  // Where the rig goes: chalk on the floor, nothing standing there yet.
+  function drawDrillSpot(v) {
+    ctx.save();
+    ctx.translate(v.drillX, v.drillY);
+    const pulse = 0.30 + Math.sin(H.t / 460) * 0.12;
+    ctx.strokeStyle = 'rgba(224,180,76,' + pulse.toFixed(2) + ')';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    // three tick marks where the legs would stand
+    ctx.strokeStyle = 'rgba(224,180,76,0.34)';
+    ctx.lineWidth = 2;
+    for (const a of [Math.PI * 0.5, Math.PI * 1.17, Math.PI * 1.83]) {
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 11, Math.sin(a) * 7);
+      ctx.lineTo(Math.cos(a) * 15, Math.sin(a) * 9);
+      ctx.stroke();
+    }
+    ctx.restore();
+    label(v.drillX, v.drillY - 22, 'SET THE DRILL', '#E0B44C', { size: 9, alpha: 0.75 });
+  }
+
   // A proper drill rig: tripod feet, a braced column, a motor housing
   // with cooling fins, and a bit that turns while it is cutting.
   function drawDrillRig(v) {
@@ -4557,7 +5207,7 @@
     } else if (H.extractLeft > 0) {
       // the driver is still getting the engine going
       label(car.x, car.y - car.r - 12,
-            'ENGINE WARMING — ' + Math.ceil(H.extractLeft / 1000) + 's',
+            'ENGINE WARMING - ' + Math.ceil(H.extractLeft / 1000) + 's',
             '#E0B44C', { size: 11 });
     } else {
       label(car.x, car.y - car.r - 12, 'GETAWAY CAR', '#E0B44C', { size: 9, alpha: 0.7 });
@@ -4628,7 +5278,7 @@
     if (t.open) {
       label(t.x, t.y - 22, 'EMPTY', '#6B7C8B', { size: 8, alpha: 0.85 });
     } else if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 68) {
-      label(t.x, t.y - 24, 'E   PRY OPEN', '#E0B44C', { size: 9 });
+      if (!beingWorked(t)) label(t.x, t.y - 24, 'E   PRY OPEN', '#E0B44C', { size: 9 });
     }
   }
 
@@ -4656,7 +5306,9 @@
     ctx.restore();
 
     if (b.open) label(b.x, b.y - 22, 'EMPTY', '#6B7C8B', { size: 8, alpha: 0.85 });
-    else if (H.robo && dist(H.robo, b) < 54) label(b.x, b.y - 24, 'E   FORCE BOX', '#E0B44C', { size: 9 });
+    else if (H.robo && dist(H.robo, b) < 54 && !beingWorked(b)) {
+      label(b.x, b.y - 24, 'E   FORCE BOX', '#E0B44C', { size: 9 });
+    }
   }
 
   function drawATM(a) {
@@ -4693,16 +5345,11 @@
 
     if (a.open) {
       label(a.x, a.y - 26, 'EMPTIED', '#6B7C8B', { size: 8, alpha: 0.85 });
-    } else if (H.robo && dist(H.robo, a) < 56) {
+    } else if (H.robo && dist(H.robo, a) < 56 && !beingWorked(a)) {
+      // The prompt is only useful before anything starts. Once it does, the
+      // progress ring on the top layer says it better, and the two clipped
+      // into each other. There is no second arc drawn down here any more.
       label(a.x, a.y - 28, 'E   CRACK ATM', '#5FBF87', { size: 9 });
-      ctx.save(); ctx.rotate(-a.facing);
-      if (a.prog > 0) {
-        ctx.strokeStyle = '#5FBF87'; ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(0, 0, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(a.prog / LO.atmDrill, 0, 1));
-        ctx.stroke();
-      }
-      ctx.restore();
     }
     ctx.restore();
   }
@@ -4823,8 +5470,18 @@
     ctx.restore();
   }
 
+  // Is this thing already spoken for, or already being forced? Either way
+  // it has a ring on it, and a prompt on top of that is just clutter.
+  function beingWorked(o) {
+    if (o.prog > 0 || o.drilling || o.robProg > 0) return true;
+    for (const c of H.crew) {
+      if (!c.dead && c.job && c.job.obj === o) return true;
+    }
+    return !!(H.robo && (H.robo.atm === o || H.robo.robbing === o));
+  }
+
   function drawMarker(a, m) {
-    // Sized to sit clearly OUTSIDE the sprite and its own drop shadow —
+    // Sized to sit clearly OUTSIDE the sprite and its own drop shadow -
     // tucked underneath, the ring was invisible at any real zoom.
     const r = (a.r || 14) * 2.15;
     const SQ = 0.55;                       // flatten: it lies on the floor
@@ -4861,8 +5518,8 @@
 
   // ==================== CHARACTER RENDERING ====================
   // One renderer for RoboKyle, crew and police. RoboKyle keeps his
-  // look from Undead Nightmare — skin deltoids, black tank, one
-  // chrome arm, blonde spikes — and the same body carries a mask
+  // look from Undead Nightmare - skin deltoids, black tank, one
+  // chrome arm, blonde spikes - and the same body carries a mask
   // and outfit colour for everyone else.
   function drawChar(c) {
     if (c.dead) return;
@@ -5132,7 +5789,7 @@
     if (c.flash > 0) c.flash -= 6;
 
     if (w.kind === 'melee') {
-      // Melee thrusts STRAIGHT FORWARD and pulls back — a stab, not a
+      // Melee thrusts STRAIGHT FORWARD and pulls back - a stab, not a
       // pinwheel. t runs 1 -> 0 across the swing; sin gives out-and-back.
       const t = c.swing > 0 ? c.swing / 160 : 0;
       if (c.swing > 0) c.swing -= 9;
@@ -5568,99 +6225,6 @@
   }
 
   // ==================== MINIMAP ====================
-  function drawMinimap() {
-    const w = H.world;
-    const size = 150;
-    const sc = size / Math.max(w.w, w.h);
-    const x0 = 14, y0 = VH - size - 14;
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = 'rgba(10,11,14,0.82)';
-    ctx.fillRect(x0 - 4, y0 - 4, size + 8, size + 8);
-    ctx.strokeStyle = '#37211C'; ctx.lineWidth = 1;
-    ctx.strokeRect(x0 - 4, y0 - 4, size + 8, size + 8);
-
-    ctx.fillStyle = '#252932';
-    ctx.fillRect(x0 + w.building.x * sc, y0 + w.building.y * sc, w.building.w * sc, w.building.h * sc);
-    w.vaults.forEach(v => {
-      ctx.fillStyle = v.open ? '#E3552B' : '#6B5A2E';
-      ctx.fillRect(x0 + v.x * sc, y0 + v.y * sc, v.w * sc, v.h * sc);
-    });
-    ctx.fillStyle = '#7BC59A';
-    ctx.fillRect(x0 + w.car.x * sc - 3, y0 + w.car.y * sc - 2, 6, 4);
-    H.enemies.forEach(e => {
-      if (e.dead) return;
-      ctx.fillStyle = e.isBoss ? '#FF7AF0' : '#B4231C';
-      ctx.fillRect(x0 + e.x * sc - 1.5, y0 + e.y * sc - 1.5, 3, 3);
-    });
-    w.registers.forEach(t => {
-      if (t.open) return;
-      ctx.fillStyle = '#5FBF87';
-      ctx.fillRect(x0 + t.x * sc - 1, y0 + t.y * sc - 1, 2, 2);
-    });
-    w.atms.forEach(a => {
-      if (a.open) return;
-      ctx.fillStyle = '#E0B44C';
-      ctx.fillRect(x0 + a.x * sc - 1.5, y0 + a.y * sc - 1.5, 3, 3);
-    });
-    w.deposits.forEach(b => {
-      if (b.open) return;
-      ctx.fillStyle = '#C79A3C';
-      ctx.fillRect(x0 + b.x * sc - 1, y0 + b.y * sc - 1, 2, 2);
-    });
-    H.civilians.forEach(c => {
-      if (c.dead) return;
-      ctx.fillStyle = 'rgba(200,210,220,0.5)';
-      ctx.fillRect(x0 + c.x * sc - 1, y0 + c.y * sc - 1, 2, 2);
-    });
-    H.crew.forEach(c => {
-      if (c.dead) return;
-      ctx.fillStyle = c.downed ? '#E0B44C' : '#4FB3C4';
-      ctx.fillRect(x0 + c.x * sc - 1.5, y0 + c.y * sc - 1.5, 3, 3);
-    });
-    ctx.fillStyle = '#F1E4D2';
-    ctx.fillRect(x0 + H.robo.x * sc - 2, y0 + H.robo.y * sc - 2, 4, 4);
-    ctx.restore();
-  }
-
-  function drawMinimapLarge() {
-    const w = H.world;
-    const size = Math.min(VW, VH) * 0.8;
-    const sc = size / Math.max(w.w, w.h);
-    const x0 = (VW - w.w * sc) / 2, y0 = (VH - w.h * sc) / 2;
-    ctx.fillStyle = 'rgba(7,6,10,0.9)';
-    ctx.fillRect(0, 0, VW, VH);
-    ctx.fillStyle = '#252932';
-    ctx.fillRect(x0 + w.building.x * sc, y0 + w.building.y * sc, w.building.w * sc, w.building.h * sc);
-    w.obstacles.forEach(o => {
-      if (o.low) return;
-      ctx.fillStyle = '#3D424E';
-      ctx.fillRect(x0 + o.x * sc, y0 + o.y * sc, Math.max(1, o.w * sc), Math.max(1, o.h * sc));
-    });
-    w.vaults.forEach(v => {
-      ctx.fillStyle = v.open ? '#E3552B' : '#6B5A2E';
-      ctx.fillRect(x0 + v.x * sc, y0 + v.y * sc, v.w * sc, v.h * sc);
-    });
-    w.loot.forEach(l => {
-      if (l.taken || l.locked) return;
-      ctx.fillStyle = '#7BC59A';
-      ctx.fillRect(x0 + l.x * sc - 2, y0 + l.y * sc - 2, 4, 4);
-    });
-    ctx.fillStyle = '#6FBFCB';
-    ctx.fillRect(x0 + w.car.x * sc - 4, y0 + w.car.y * sc - 3, 8, 6);
-    H.enemies.forEach(e => {
-      if (e.dead) return;
-      ctx.fillStyle = '#B4231C';
-      ctx.fillRect(x0 + e.x * sc - 2, y0 + e.y * sc - 2, 4, 4);
-    });
-    ctx.fillStyle = '#F1E4D2';
-    ctx.fillRect(x0 + H.robo.x * sc - 3, y0 + H.robo.y * sc - 3, 6, 6);
-    ctx.font = '600 12px Inter, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillStyle = '#BFA898';
-    ctx.fillText('TAB to close', VW / 2, y0 + w.h * sc + 24);
-    ctx.textAlign = 'left';
-  }
-
   function drawBanner() {
     if (!H.msg || H.msgT <= 0) return;
     const a = Math.min(1, H.msgT / 500);
@@ -5692,7 +6256,7 @@
 
     const w = D.WEAPONS[p.weapon];
     hudEl('hud-weapon').textContent = w.name;
-    if (w.kind === 'melee') hudEl('hud-ammo').textContent = '—';
+    if (w.kind === 'melee') hudEl('hud-ammo').textContent = '-';
     else if (w.heat) hudEl('hud-ammo').textContent = p.overheated ? 'OVERHEAT' : Math.round((1 - p.heat / 10) * 100) + '%';
     else hudEl('hud-ammo').textContent = p.reloading > 0 ? 'RELOAD' : p.mag + ' / ' + w.mag;
 
@@ -5745,17 +6309,17 @@
                   H.world.atms.filter(a => !a.open).length +
                   H.world.deposits.filter(b => !b.open).length;
     if (H.extractPhase && H.stragglers > 0)
-      obj.textContent = 'Waiting on ' + H.stragglers + ' — press E again to go without them';
+      obj.textContent = 'Waiting on ' + H.stragglers + ' - press E again to go without them';
     else if (H.canExtract) obj.textContent = 'Press E to drive off';
     else if (H.extractLeft > 0 && dist(H.robo, H.world.car) < H.world.car.r)
-      obj.textContent = 'The car is not going anywhere yet — ' +
+      obj.textContent = 'The car is not going anywhere yet - ' +
                         Math.ceil(H.extractLeft / 1000) + 's';
     else if (!H.world.vaults[0].open)
-      obj.textContent = 'Crack the main vault — nothing else counts as the job';
+      obj.textContent = 'Crack the main vault - nothing else counts as the job';
     else if (openVaults < H.world.vaults.length)
       obj.textContent = tills
         ? 'Drill the vault. ' + tills + ' till' + (tills > 1 ? 's' : '') + ' still shut, if you have time'
-        : 'Drill the vault — press E at the drill point';
+        : 'Set the drill on the vault - press E at the mark, or mark it for the crew';
     else obj.textContent = 'Grab what you can carry, then back to the car';
   }
 
@@ -5822,7 +6386,6 @@
     btn('t-interact', () => { touch.interact = true; tryInteract(); }, () => { touch.interact = false; });
     btn('t-reload', () => tryReload(H.robo));
     btn('t-stance', () => toggleStance());
-    btn('t-map', () => { H.showMap = !H.showMap; });
     btn('t-pause', () => togglePause());
   }
 

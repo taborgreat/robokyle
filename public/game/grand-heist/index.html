@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RoboKyle: Grand Heist</title>
-    <meta name="description" content="RoboKyle: Grand Heist — a top-down arcade heist shooter. Build a crew, rob 20 banks, and spend the haul on an escalating weapon tree.">
+    <meta name="description" content="RoboKyle: Grand Heist - a top-down arcade heist shooter. Build a crew, rob 20 banks, and spend the haul on an escalating weapon tree.">
     <link rel="icon" type="image/png" href="/public/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="grand-heist.css?v=16">
+    <link rel="stylesheet" href="grand-heist.css?v=20">
 </head>
 <body class="gh-body">
 
@@ -180,7 +180,7 @@
                             <div class="hud-block col">
                                 <span class="k">Weapon</span>
                                 <span class="v big" id="hud-weapon">Knife</span>
-                                <span class="v" id="hud-ammo">—</span>
+                                <span class="v" id="hud-ammo">-</span>
                             </div>
                             <div class="hud-block col">
                                 <span class="k">Squad total</span>
@@ -189,13 +189,12 @@
                         </div>
                     </div>
 
-                    <p class="heist-hint">WASD move · Mouse aim · Click shoot · E interact · R reload · Q melee · F stance · G ping · Tab map · Esc pause</p>
+                    <p class="heist-hint">WASD move · Mouse aim · Click shoot · E interact · R reload · Q melee · F stance · G mark a job · Esc pause</p>
 
                     <div class="touch-ui" id="heist-touch">
                         <button id="t-interact">E</button>
                         <button id="t-reload">R</button>
                         <button id="t-stance">F</button>
-                        <button id="t-map">MAP</button>
                         <button id="t-pause">II</button>
                     </div>
 
@@ -216,7 +215,7 @@
                 <h2 class="screen-title" id="debrief-title">Debrief</h2>
                 <div class="debrief-body" id="debrief-body"></div>
                 <div id="debrief-levels-wrap">
-                    <h3 class="sec-title">Level ups — spend your points</h3>
+                    <h3 class="sec-title">Level ups - spend your points</h3>
                     <div id="debrief-levels"></div>
                     <button class="ghost-btn small" id="btn-auto-assign">Auto-assign</button>
                 </div>
@@ -253,16 +252,16 @@
                 </div>
                 <h3 class="sec-title">Things worth knowing</h3>
                 <ul class="tips">
-                    <li><b>Melee is silent, guns are not.</b> A clean knife takedown never gets called in &mdash; but a guard who survives it will radio you straight away.</li>
+                    <li><b>Melee is silent, guns are not.</b> A clean knife takedown never gets called in - but a guard who survives it will radio you straight away.</li>
                     <li><b>Tills are optional money.</b> Pry one by hand and nobody hears it. Shoot it open and everybody does.</li>
                     <li><b>The alarm starts the clock.</b> Police arrive when it runs out, take the street, then breach if you stay.</li>
                     <li><b>Your bag is the limit.</b> Carry stat plus whatever bag you bought decides how much leaves with you.</li>
-                    <li><b>Crew death is permanent.</b> They drop their bag where they fall — grab it before you leave.</li>
+                    <li><b>Crew death is permanent.</b> They drop their bag where they fall - grab it before you leave.</li>
                     <li><b>Their gear survives them.</b> Equipment comes back to the armory as long as somebody gets out.</li>
                     <li><b>The bank is full of people.</b> Tellers and customers panic, scream, and run for the door. One who gets out, or reaches a phone, calls the police himself.</li>
-                    <li><b>Customers carry wallets.</b> Hold E next to one to take it &mdash; quiet, quick, and pocket change. Staff keep their money in the till, so there is nothing on them worth taking.</li>
+                    <li><b>Customers carry wallets.</b> Hold E next to one to take it - quiet, quick, and pocket change. Staff keep their money in the till, so there is nothing on them worth taking.</li>
                     <li><b>ATMs are worth cracking.</b> Hold E to work one open. More than a till, but it takes a while and you are stood in the open doing it.</li>
-                    <li><b>Never shoot a bystander.</b> Every one you kill takes a heavy bite out of your crew's morale, and low morale makes them worse at everything. Finish a job without hurting anyone and the whole crew &mdash; bench included &mdash; feels better for it.</li>
+                    <li><b>Never shoot a bystander.</b> Every one you kill takes a heavy bite out of your crew's morale, and low morale makes them worse at everything. Finish a job without hurting anyone and the whole crew - bench included - feels better for it.</li>
                     <li><b>Gear belongs to the person you bought it for.</b> Arming one crew member does not arm the rest, and what they own dies with them.</li>
                     <li><b>Wounds carry over.</b> Patch people up for cash before a job, or leave them on the bench to mend at their own pace.</li>
                     <li><b>Guards have to notice you first.</b> Walking in armed or masked builds their suspicion; a body on the floor removes all doubt.</li>
@@ -329,10 +328,10 @@
     </div>
 
     <script src="/public/site.js"></script>
-    <script src="data.js?v=16"></script>
-    <script src="meta.js?v=16"></script>
-    <script src="icons.js?v=16"></script>
-    <script src="audio.js?v=16"></script>
-    <script src="heist.js?v=16"></script>
+    <script src="data.js?v=20"></script>
+    <script src="meta.js?v=20"></script>
+    <script src="icons.js?v=20"></script>
+    <script src="audio.js?v=20"></script>
+    <script src="heist.js?v=20"></script>
 </body>
 </html>

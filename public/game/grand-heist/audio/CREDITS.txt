@@ -1,18 +1,18 @@
-RoboKyle: Grand Heist — audio credits
+RoboKyle: Grand Heist - audio credits
 
 All audio here is CC0 1.0 Universal (public domain dedication).
 No attribution is legally required; it is recorded anyway.
 
 sfx/ui_*.ogg, cash_pickup.ogg, glass_break.ogg, alarm.ogg,
 sfx/down.ogg, revive.ogg
-    Kenney — "Interface Sounds" and "UI Audio"
+    Kenney - "Interface Sounds" and "UI Audio"
     https://kenney.nl/assets/interface-sounds
     https://kenney.nl/assets/ui-audio
     Licence: CC0 1.0
 
 sfx/hit_*.ogg, melee_hit.ogg, metal_hit.ogg, register_break.ogg,
 sfx/drill.ogg, vault_open.ogg, step.ogg
-    Kenney — "Impact Sounds"
+    Kenney - "Impact Sounds"
     https://kenney.nl/assets/impact-sounds
     Licence: CC0 1.0
 
@@ -38,12 +38,12 @@ sfx/civ_scream_b.ogg
     Licence: CC0 1.0
 
 music/planning.ogg
-    "Covert Action" — OpenGameArt
+    "Covert Action" - OpenGameArt
     https://opengameart.org/content/covert-action
     Licence: CC0 1.0
 
 music/heist.mp3
-    "Heavy Heist" (LD40) — OpenGameArt
+    "Heavy Heist" (LD40) - OpenGameArt
     https://opengameart.org/content/heavy-heist
     Licence: CC0 1.0
 
@@ -54,7 +54,7 @@ CC-BY 3.0. The conflict was not worth resolving, so it was dropped.
 --- composed cues -------------------------------------------------
 
 Weapon reloads and the "forcing a machine" grind are not separate
-recordings. There is no CC0 reload recording on OpenGameArt — the
+recordings. There is no CC0 reload recording on OpenGameArt - the
 closest matches (Metal Click, Light Machine Gun) are CC-BY 4.0, which
 this project does not use. They are instead layered from the CC0
 samples above (metal_hit, hit_armor, glass_break, drill_bit) with a

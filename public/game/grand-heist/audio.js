@@ -1,5 +1,5 @@
 // ============================================================
-// RoboKyle: Grand Heist — audio
+// RoboKyle: Grand Heist - audio
 //
 // Real recorded samples (all CC0, see audio/CREDITS.txt) rather
 // than synthesised beeps. SFX are small and preloaded on the

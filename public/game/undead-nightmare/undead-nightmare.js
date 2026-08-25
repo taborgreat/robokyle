@@ -1,5 +1,5 @@
 // ============================================================
-// RoboKyle: Undead Nightmare — top-down wave-survival shooter
+// RoboKyle: Undead Nightmare - top-down wave-survival shooter
 // Camera + zoom, larger world, smarter AI, minimap,
 // WebAudio-synth music + SFX (all original, no external files).
 // ============================================================
@@ -61,8 +61,8 @@
   const gameoverOverlay = document.getElementById('overlay-gameover');
 
   // ==================== CONFIG ====================
-  const W = canvas.width;   // 960 — viewport width
-  const H = canvas.height;  // 640 — viewport height
+  const W = canvas.width;   // 960 - viewport width
+  const H = canvas.height;  // 640 - viewport height
   const BASE_SPEED = 2.7;
   const SPRINT_SPEED = 4.6;
   const SPRINT_BUDGET_MS = 1600;
@@ -192,7 +192,7 @@
       worldW: 2400, worldH: 1700,
       floor: '#12151D', floor2: '#191D28', line: '#252A38', accent: '#3A465A',
       obstacles: [
-        // Central spine — a long wall with gaps
+        // Central spine - a long wall with gaps
         { x: 800, y: 400, w: 40, h: 300, tone: '#2C3140' },
         { x: 800, y: 800, w: 40, h: 500, tone: '#2C3140' },
         { x: 1560, y: 300, w: 40, h: 380, tone: '#2C3140' },
@@ -343,7 +343,7 @@
     o.start(t); o.stop(t + dur + 0.02);
   };
 
-  // Layered noise burst with a pitch-swept body — the backbone of the gun sounds.
+  // Layered noise burst with a pitch-swept body - the backbone of the gun sounds.
   const boom = (lowF, dur, vol, filterF, q = 0.6) => {
     if (!audioCtx) return;
     const t = audioCtx.currentTime;
@@ -358,7 +358,7 @@
     noise(dur * 0.8, vol * 0.7, filterF, q);
   };
 
-  // Metallic ring — for shell casings, ricochets, mech sounds.
+  // Metallic ring - for shell casings, ricochets, mech sounds.
   const clang = (freq, dur, vol = 0.08) => {
     if (!audioCtx) return;
     const t = audioCtx.currentTime;
@@ -373,7 +373,7 @@
     }
   };
 
-  // Guttural monster voice — stacked detuned saws through a lowpass.
+  // Guttural monster voice - stacked detuned saws through a lowpass.
   const growl = (baseF, dur, vol = 0.13, bend = 0.6) => {
     if (!audioCtx) return;
     const t = audioCtx.currentTime;
@@ -505,7 +505,7 @@
   // Original 8-bit driving loop in E minor (no copyrighted material).
   // Kick / snare / hi-hat / palm-muted square bass / occasional lead lick.
   // ============================================================
-  // MUSIC — original 16-bit style metal loop, E phrygian.
+  // MUSIC - original 16-bit style metal loop, E phrygian.
   // 4 sections x 16 bars, ~128 steps of melody so it doesn't
   // wear out. All synthesized: detuned saw leads, sub bass,
   // gated power chords, and a real rock kit.
@@ -526,7 +526,7 @@
     stepDur: 0,
     dest: null,
     timer: null,
-    intensity: 0,   // 0..1 — rises with the wave count
+    intensity: 0,   // 0..1 - rises with the wave count
 
     setup(ctx, dest) {
       this.dest = dest;
@@ -550,21 +550,21 @@
       // ---- LEAD MELODY: 8 bars x 16 = 128 steps ----
       // Sits over bars 8-15 so the first half is riff-only, then it soars.
       this.lead = [
-        // bar 8 — pickup and climb
+        // bar 8 - pickup and climb
         _,_,_,_,      N.E4,_,N.G4,_,   N.A4,_,_,_,      N.B4,_,_,_,
-        // bar 9 — hang and fall
+        // bar 9 - hang and fall
         N.B4,_,_,N.A4, _,N.G4,_,_,      N.E4,_,_,_,      _,_,N.D4,N.E4,
-        // bar 10 — second phrase, higher
+        // bar 10 - second phrase, higher
         N.G4,_,N.A4,_, N.B4,_,_,_,      N.D5,_,_,N.B4,   _,N.A4,_,_,
-        // bar 11 — resolve down
+        // bar 11 - resolve down
         N.G4,_,_,_,    N.E4,_,N.D4,_,   N.E4,_,_,_,      _,_,_,_,
-        // bar 12 — tension, chromatic push
+        // bar 12 - tension, chromatic push
         N.E4,_,N.F4,_, N.G4,_,N.A4,_,   N.B4,_,N.C5,_,   N.B4,_,N.A4,_,
-        // bar 13 — high sustain
+        // bar 13 - high sustain
         N.E5,_,_,_,    _,_,N.D5,_,      N.B4,_,_,_,      N.A4,_,N.G4,_,
-        // bar 14 — descending run
+        // bar 14 - descending run
         N.E4,N.D4,N.C4,N.B3, N.A3,_,_,_, N.B3,_,N.C4,_,  N.D4,_,N.E4,_,
-        // bar 15 — final hold into the loop
+        // bar 15 - final hold into the loop
         N.E4,_,_,_,    N.G4,_,_,_,      N.A4,_,_,_,      _,_,_,_,
       ];
 
@@ -739,7 +739,7 @@
       sg.gain.exponentialRampToValueAtTime(0.001, t + dur);
       s.connect(sg).connect(this.dest);
       s.start(t); s.stop(t + dur + 0.02);
-      // distorted saw an octave up, filtered — the "guitar" chug
+      // distorted saw an octave up, filtered - the "guitar" chug
       const o = audioCtx.createOscillator(), g = audioCtx.createGain();
       const lp = audioCtx.createBiquadFilter();
       lp.type = 'lowpass';
@@ -982,7 +982,7 @@
         rootEl.addEventListener('pointerdown', e => {
           if (activeId !== null) return;
           // Capture keeps the thumb bound to this stick even if it slides
-          // off the pad. Not every engine implements it — never let a
+          // off the pad. Not every engine implements it - never let a
           // failure here abort the rest of the handler.
           try { rootEl.setPointerCapture(e.pointerId); } catch (err) {}
           grab(e.pointerId, e.clientX, e.clientY);
@@ -2290,7 +2290,7 @@
     // Floor
     ctx.fillStyle = m.floor;
     ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
-    // Second floor tint (checker feel) — very subtle
+    // Second floor tint (checker feel) - very subtle
     ctx.fillStyle = m.floor2;
     ctx.globalAlpha = 0.35;
     const tile = 120;
@@ -2372,7 +2372,7 @@
       ctx.beginPath();
       ctx.ellipse(1, 2, c.r + 3, c.r * 0.6, 0, 0, Math.PI * 2);
       ctx.fill();
-      // collapsed body — squashed, with sprawled limbs
+      // collapsed body - squashed, with sprawled limbs
       ctx.globalAlpha = a * 0.85;
       ctx.fillStyle = c.color;
       ctx.beginPath();
@@ -2486,7 +2486,7 @@
   // ============================================================
   // ZOMBIE SPRITE
   // Hunched, shoulder-heavy silhouette with both arms reaching
-  // forward. Head is a single skull set into the shoulders — no
+  // forward. Head is a single skull set into the shoulders - no
   // floating circles.
   // ============================================================
   function drawEnemy(e) {
@@ -2818,7 +2818,7 @@
     ctx.fill();
     ctx.stroke();
 
-    // Lat taper — darker wedge narrowing toward the back
+    // Lat taper - darker wedge narrowing toward the back
     ctx.fillStyle = SKIN_DARK;
     ctx.globalAlpha = 0.55;
     ctx.beginPath();
@@ -2828,7 +2828,7 @@
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Black tank top — narrower than the deltoids so skin shows at the shoulders
+    // Black tank top - narrower than the deltoids so skin shows at the shoulders
     ctx.fillStyle = TANK;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1.4;
@@ -3151,7 +3151,7 @@
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // hair mass — covers the back 60% of the skull
+    // hair mass - covers the back 60% of the skull
     ctx.fillStyle = HAIR;
     ctx.strokeStyle = HAIR_DK;
     ctx.lineWidth = 1;
@@ -3214,7 +3214,7 @@
     ctx.restore();
   }
 
-  // Where the weapon sits relative to the body — the hands go here.
+  // Where the weapon sits relative to the body - the hands go here.
   function weaponGrip(p) {
     const base = p.r * 0.92;
     if (p.weapon === 'rocket')  return { x: base + 3, y: -2.5 };
@@ -3224,7 +3224,7 @@
   }
 
   // ============================================================
-  // WEAPONS — drawn from the grip point outward.
+  // WEAPONS - drawn from the grip point outward.
   // ============================================================
   function drawWeapon(p, grip) {
     const GUNMETAL = '#252B38';

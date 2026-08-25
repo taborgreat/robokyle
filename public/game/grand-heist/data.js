@@ -1,5 +1,5 @@
 // ============================================================
-// RoboKyle: Grand Heist — configuration tables
+// RoboKyle: Grand Heist - configuration tables
 //
 // Everything tunable lives here so the campaign can be balanced
 // without touching engine code. The engine reads GH_DATA and
@@ -128,16 +128,37 @@ window.GH_DATA = (() => {
 
   // ==================== MASKS ====================
   // Cosmetic identity, with deliberately tiny perks.
+  // Every mask earns its price. `perk` is { kind, value } and the engine
+  // reads it directly - nothing here is decoration with a claim attached.
+  //
+  //   unseen : guards grow suspicious of you this much more slowly
+  //   crack  : machines and tills come open this much faster
+  //   rob    : wallets come out this much faster
+  //   calm   : the radius your noise panics people over
+  //   cow    : people you frighten cower instead of running for the door
+  //   melee  : damage multiplier with anything swung by hand
+  //   fear   : hostiles near you shoot this much wider
+  //   carry  : how much you can walk out with
+  //   drill  : how fast a vault cuts when you set the rig
   const MASKS = {
-    none:     { name: 'Bare Face', cost: 0,   color: null,      blurb: 'No mask. Bold.' },
-    ski:      { name: 'Ski Mask',  cost: 150, color: '#22252C', blurb: 'Classic. Tellers give it up a touch faster.', perk: 'loot' },
-    bandana:  { name: 'Bandana',   cost: 150, color: '#B4231C', blurb: 'Cheap and it looks good.' },
-    balaclava:{ name: 'Balaclava', cost: 250, color: '#15171F', blurb: 'All business.' },
-    clown:    { name: 'Clown Mask',cost: 400, color: '#F1E4D2', blurb: 'Unsettling. Very on-brand.', trim: '#E3552B' },
-    hockey:   { name: 'Hockey Mask',cost:400, color: '#E8E2D0', blurb: 'Nothing about this is subtle.', trim: '#7C6459' },
-    skull:    { name: 'Skull Mask',cost: 650, color: '#EDE6D6', blurb: 'Nearby enemies flinch a little.', perk: 'fear', trim: '#2A2320' },
-    pig:      { name: 'Pig Mask',  cost: 650, color: '#E7A0A8', blurb: 'Why not.', trim: '#C4707C' },
-    gas:      { name: 'Gas Mask',  cost: 900, color: '#3E4A3A', blurb: 'Military surplus, menacing.', trim: '#6FBFCB' },
+    none:     { name: 'Bare Face', cost: 0,   color: null,      blurb: 'No mask at all. You look like a customer, right up until you do not.',
+                perk: { kind: 'unseen', value: 0.7 } },
+    ski:      { name: 'Ski Mask',  cost: 150, color: '#22252C', blurb: 'Classic. You have done this before and it shows in the hands.',
+                perk: { kind: 'crack', value: 1.25 } },
+    bandana:  { name: 'Bandana',   cost: 150, color: '#B4231C', blurb: 'Cheap, quick, and nobody argues with it.',
+                perk: { kind: 'rob', value: 1.45 } },
+    balaclava:{ name: 'Balaclava', cost: 250, color: '#15171F', blurb: 'All business. You work quietly.',
+                perk: { kind: 'calm', value: 0.7 } },
+    clown:    { name: 'Clown Mask',cost: 400, color: '#F1E4D2', blurb: 'Unsettling enough that people freeze instead of running.',
+                perk: { kind: 'cow', value: 1 }, trim: '#E3552B' },
+    hockey:   { name: 'Hockey Mask',cost:400, color: '#E8E2D0', blurb: 'Nothing about this is subtle, least of all you.',
+                perk: { kind: 'melee', value: 1.3 }, trim: '#7C6459' },
+    skull:    { name: 'Skull Mask',cost: 650, color: '#EDE6D6', blurb: 'Nobody standing near you shoots straight.',
+                perk: { kind: 'fear', value: 1.9 }, trim: '#2A2320' },
+    pig:      { name: 'Pig Mask',  cost: 650, color: '#E7A0A8', blurb: 'Greedy. Somehow you always find room for more.',
+                perk: { kind: 'carry', value: 1.15 }, trim: '#C4707C' },
+    gas:      { name: 'Gas Mask',  cost: 900, color: '#3E4A3A', blurb: 'Military surplus. You have used a drill like this before.',
+                perk: { kind: 'drill', value: 1.3 }, trim: '#6FBFCB' },
   };
   const MASK_ORDER = ['none','ski','bandana','balaclava','clown','hockey','skull','pig','gas'];
 
@@ -194,8 +215,11 @@ window.GH_DATA = (() => {
     },
     // ---- boss units ----
     captain: {
-      name: 'Bank Captain', hp: 900, speed: 0.90, r: 22, wpn: 'e_shotgun',
-      body: '#4A2E22', accent: '#E3552B', dr: 0.30, points: 400,
+      // First boss you meet, and the response clock is already down to 50s.
+      // He was a wall: 900hp behind 30% damage reduction is 1290 effective,
+      // which is more than an act-one loadout can chew through in time.
+      name: 'Bank Captain', hp: 520, speed: 0.90, r: 22, wpn: 'e_shotgun',
+      body: '#4A2E22', accent: '#E3552B', dr: 0.18, points: 400,
       boss: true, rally: true,
     },
     nest: {
@@ -233,7 +257,7 @@ window.GH_DATA = (() => {
   // respond     : seconds from alarm to police arriving
   // breach      : seconds after police arrive before SWAT storms the building
   // haul        : approximate total cash in the building
-  // size        : 'small' | 'mid' | 'large' | 'huge' — drives layout generation
+  // size        : 'small' | 'mid' | 'large' | 'huge' - drives layout generation
   // drill       : seconds to drill the vault
   const BANKS = [
     { id: 1,  name: 'Pawn & Loan',              act: 1, size: 'small', guards: 1, guardWpn: 'guard_baton',
@@ -338,7 +362,7 @@ window.GH_DATA = (() => {
 
   // ==================== TRAITS ====================
   const TRAITS = {
-    none:        { name: '—',             blurb: 'No standout quirk.' },
+    none:        { name: '-',             blurb: 'No standout quirk.' },
     triggerhappy:{ name: 'Trigger Happy', blurb: 'Fires faster, reloads slower.', fireRate: 0.85, reloadRate: 1.25 },
     mule:        { name: 'Mule',          blurb: 'Carries more, moves slower.',   carryMul: 1.35, moveMul: 0.90 },
     sponge:      { name: 'Bullet Sponge', blurb: 'Tougher, but a worse shot.',    hpMul: 1.30, shootMul: 0.85 },

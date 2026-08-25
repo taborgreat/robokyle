@@ -1,5 +1,5 @@
 // ============================================================
-// RoboKyle: Grand Heist — campaign layer
+// RoboKyle: Grand Heist - campaign layer
 //
 // Everything outside the heist itself: the save file, the crew
 // roster, recruiting, the loadout board, the campaign map and
@@ -232,10 +232,18 @@ window.GH = (() => {
     const tr = D.TRAITS[c.trait] || {};
     return Math.round(((c.isRobo ? T.roboStart.hp : 70) + c.hpStat * T.hpPerPoint) * (tr.hpMul || 1));
   };
+  // What a mask is worth, for whichever kind of perk is being asked about.
+  // 1 means "no help from the mask".
+  GH.maskPerk = (c, kind) => {
+    const m = D.MASKS[c && c.mask] || null;
+    return (m && m.perk && m.perk.kind === kind) ? m.perk.value : 1;
+  };
+
   GH.carryCap = (c) => {
     const tr = D.TRAITS[c.trait] || {};
     const bag = D.BAGS[c.bag] || D.BAGS.none;
-    return Math.round((c.carry * T.carryPerPoint + bag.carry) * (tr.carryMul || 1));
+    return Math.round((c.carry * T.carryPerPoint + bag.carry) *
+                      (tr.carryMul || 1) * GH.maskPerk(c, 'carry'));
   };
   GH.dmgMul = (c) => {
     const tr = D.TRAITS[c.trait] || {};
@@ -429,7 +437,7 @@ window.GH = (() => {
         card.addEventListener('click', () => {
           GH.pendingBank = bank.id;
           sfx('select');
-          GH.go('crew', { title: bank.name, sub: bank.boss ? 'Boss bank — ' + bank.bossName : 'Planning the job' });
+          GH.go('crew', { title: bank.name, sub: bank.boss ? 'Boss bank - ' + bank.bossName : 'Planning the job' });
         });
       }
       wrap.appendChild(card);
@@ -439,7 +447,7 @@ window.GH = (() => {
     const toggle = $('map-toggle');
     toggle.style.display = (hidden > 0 || GH.showAllBanks) ? '' : 'none';
     toggle.textContent = GH.showAllBanks
-      ? 'Show only what matters'
+      ? 'Collapse'
       : 'Show all ' + D.BANKS.length + ' banks (' + hidden + ' hidden)';
   };
 
@@ -519,7 +527,7 @@ window.GH = (() => {
       meterRow('health', 'Health', hp + ' / ' + max, hpNote, hpFrac, conditionColor(hpFrac)) +
       statRow('carry', 'Carry', money(GH.carryCap(c)), 'Most they can take out', '') +
       meterRow('morale', 'Morale', morale + ' / 100',
-               GH.moraleLabel(c) + (mm < 1 ? ' — all stats ×' + mm.toFixed(2) : ''),
+               GH.moraleLabel(c) + (mm < 1 ? ' - all stats ×' + mm.toFixed(2) : ''),
                moraleFrac, conditionColor(moraleFrac)) +
       '</div>';
   }
@@ -539,7 +547,7 @@ window.GH = (() => {
     const m = Math.round(c.morale == null ? MO.start : c.morale);
     const frac = m / MO.start;
     return '<span class="morale-pip" style="--cond:' + conditionColor(frac) + '" ' +
-      'title="Morale ' + m + ' / 100 — ' + GH.moraleLabel(c) + '">' +
+      'title="Morale ' + m + ' / 100 - ' + GH.moraleLabel(c) + '">' +
       '<i class="pip-dot"></i>' + GH.moraleLabel(c) + '</span>';
   }
 
@@ -638,7 +646,7 @@ window.GH = (() => {
     $('bench-wrap').style.display = benched.length ? '' : 'none';
     benchWrap.innerHTML = '';
     // Who a click would displace: whoever is being edited, unless that is
-    // RoboKyle, who never sits out — then it is the last crew slot.
+    // RoboKyle, who never sits out - then it is the last crew slot.
     const full = s.selected.length >= T.crewPerHeist;
     const editedChar = chars[GH.editing];
     const swapFor = !full ? null
@@ -676,7 +684,7 @@ window.GH = (() => {
     renderLoadout(chars[GH.editing]);
     $('crew-primer').innerHTML =
       '<b>Shooting</b> is damage and aim. <b>Carry</b> caps what they can take out of the bank. ' +
-      '<b>Health</b> does not refill on its own &mdash; pay to patch them up, or bench them to mend. ' +
+      '<b>Health</b> does not refill on its own - pay to patch them up, or bench them to mend. ' +
       '<b>Morale</b> drops when bystanders get hurt, and drags every other stat down with it.';
 
     // ---- header state ----
@@ -703,8 +711,20 @@ window.GH = (() => {
     }
     if (slot.key === 'bag')   return it.carry ? '+' + money(it.carry) + ' carry' : 'Carry stat only';
     if (slot.key === 'armor') return it.dr ? Math.round(it.dr * 100) + '% damage cut' : 'No protection';
-    return it.perk === 'loot' ? 'Faster teller grabs'
-         : it.perk === 'fear' ? 'Enemies flinch' : 'Cosmetic';
+    if (!it.perk) return 'Cosmetic';
+    const pct = (v) => Math.round(Math.abs(1 - v) * 100) + '%';
+    switch (it.perk.kind) {
+      case 'unseen': return 'Noticed ' + pct(it.perk.value) + ' slower';
+      case 'crack':  return 'Machines open ' + pct(it.perk.value) + ' faster';
+      case 'rob':    return 'Wallets ' + pct(it.perk.value) + ' faster';
+      case 'calm':   return 'Panics people ' + pct(it.perk.value) + ' less far';
+      case 'cow':    return 'People freeze instead of fleeing';
+      case 'melee':  return '+' + pct(it.perk.value) + ' melee damage';
+      case 'fear':   return 'Hostiles nearby shoot wide';
+      case 'carry':  return '+' + pct(it.perk.value) + ' carry';
+      case 'drill':  return 'Drills ' + pct(it.perk.value) + ' faster';
+      default:       return 'Cosmetic';
+    }
   }
 
   function renderLoadout(c) {
@@ -735,7 +755,7 @@ window.GH = (() => {
     const activeSlot = SLOTS.find(x => x.key === GH.shopTab);
     $('loadout-heading').innerHTML =
       'Choose a <b>' + activeSlot.label.toLowerCase() + '</b> for ' + c.name +
-      ' — bought for them alone, and theirs until they die.';
+      ' - bought for them alone, and theirs until they die.';
 
     const slot = SLOTS.find(x => x.key === GH.shopTab);
     quietRerender();
@@ -762,7 +782,7 @@ window.GH = (() => {
 
       const card = el('button', 'item' + (equipped ? ' is-equipped' : '') +
         (!owned ? (afford ? ' is-buyable' : ' is-poor') : ''));
-      // How many of the squad already have one — buying is per person,
+      // How many of the squad already have one - buying is per person,
       // so it matters that Bishop's shotgun is not Rico's shotgun.
       const alsoOwned = boardChars().filter(o => o !== c && GH.ownsItem(o, slot.key, k)).length;
       card.innerHTML =
@@ -796,7 +816,7 @@ window.GH = (() => {
       const next = future.map(k => slot.table[k])
         .sort((a, b) => (a.unlock || 0) - (b.unlock || 0))[0];
       note.style.display = '';
-      note.innerHTML = future.length + ' more unlock later — next is <b>' + next.name +
+      note.innerHTML = future.length + ' more unlock later - next is <b>' + next.name +
         '</b> at Bank ' + next.unlock + '.';
     } else note.style.display = 'none';
   }
@@ -833,7 +853,7 @@ window.GH = (() => {
 
     const rc = GH.rerollCost();
     const btn = $('btn-reroll');
-    btn.textContent = 'Ask around again — ' + money(rc);
+    btn.textContent = 'Ask around again - ' + money(rc);
     btn.disabled = GH.state.cash < rc;
     btn.title = GH.state.cash < rc ? 'Not enough cash' : 'Three different people, for a fee';
     quietRerender();
@@ -889,7 +909,7 @@ window.GH = (() => {
     $('debrief-title').className = 'screen-title ' + (result.escaped ? 'good' : 'bad');
 
     // Getting out is worth the money you got out with. Getting the NEXT
-    // bank on the board takes cracking the main vault — driving away from
+    // bank on the board takes cracking the main vault - driving away from
     // an untouched vault is a walk, not a job.
     let haul = 0;
     const didTheJob = result.escaped && result.vaultCracked;
@@ -999,7 +1019,7 @@ window.GH = (() => {
     });
 
     // Only the people who are actually gone, and why. Gear is not listed
-    // as recovered because it never is — it belongs to the person and it
+    // as recovered because it never is - it belongs to the person and it
     // goes with them.
     result.perChar.filter(pc => !pc.survived && pc.char).forEach(pc => {
       const row = el('div', 'debrief-row is-dead');
@@ -1094,7 +1114,7 @@ window.GH = (() => {
       if (GH.hasSave()) {
         const ok = await GH.confirm({
           title: 'Start a new run?',
-          body: 'Your current campaign — cash, crew and every weapon you have bought — will be erased. This cannot be undone.',
+          body: 'Your current campaign - cash, crew and every weapon you have bought - will be erased. This cannot be undone.',
           yes: 'Erase and start over', no: 'Keep my run', danger: true,
         });
         if (!ok) return;

@@ -1,5 +1,5 @@
 // ============================================================
-// RoboKyle: Grand Heist — inline SVG icon set
+// RoboKyle: Grand Heist - inline SVG icon set
 //
 // Every weapon, bag, armour piece and mask gets a silhouette so
 // loadouts are readable at a glance instead of being a wall of

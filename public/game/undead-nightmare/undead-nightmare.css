@@ -1,5 +1,5 @@
 /* ============================================================
-   RoboKyle: Undead Nightmare — game-only stylesheet
+   RoboKyle: Undead Nightmare - game-only stylesheet
    Loaded on /public/game/undead-nightmare/
    Palette: extends site's brand + accent, adds dark game shell
    ============================================================ */
@@ -33,7 +33,7 @@ body.game-body::before {
     z-index: 0;
 }
 
-/* Skip link — game.html doesn't load index.css, so it needs its own
+/* Skip link - game.html doesn't load index.css, so it needs its own
    copy. Without a :focus rule it was parked off-screen permanently. */
 .skip-link {
     position: absolute;
@@ -56,7 +56,7 @@ body.game-body::before {
     border-radius: 4px;
 }
 
-/* Page shell — take the whole viewport, dark chrome */
+/* Page shell - take the whole viewport, dark chrome */
 body.game-body {
     background: var(--gm-bg);
     color: var(--gm-ink);
@@ -94,7 +94,7 @@ body.game-body {
     position: relative;
 }
 
-/* Common screen container — swaps between menus and gameplay */
+/* Common screen container - swaps between menus and gameplay */
 .screen {
     display: none;
     padding: clamp(1.5rem, 4vw, 3rem);
@@ -736,7 +736,7 @@ body.game-body {
 /* ============================================================
    TOUCH CONTROLS
    Hidden by default. site.js puts `is-touch` on <html>, and game.js
-   adds `touch-mode` to the frame while a round is running — both must
+   adds `touch-mode` to the frame while a round is running - both must
    be true before the pads appear, so a desktop mouse never sees them.
    ============================================================ */
 .touch-ui { display: none; }
