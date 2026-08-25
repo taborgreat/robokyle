@@ -57,7 +57,7 @@
   const sfx = {
     shot(w) {
       const s = GH.audio && GH.audio.weaponSound(w);
-      if (s) GH.audio.play(s.name, { rate: s.rate * (0.94 + Math.random() * 0.12), vol: s.vol });
+      if (s) GH.audio.playShot(s.name, s.rate * (0.96 + Math.random() * 0.09), s.vol);
     },
     melee()  { A() && GH.audio.playVaried('meleeSwing', 0.7); },
     meleeHit(){ A() && GH.audio.playVaried('meleeHit', 0.9); },
@@ -164,6 +164,8 @@
     // actually break into rather than money lying on the floor: optional,
     // quick, and quiet if you pry them by hand.
     const tills = Math.max(4, Math.round(bw / 210));
+    world.queues = [];          // filled in once tills and ATMs exist
+    world.deposits = [];
     world.registers = [];
     // Lay them out along the counter segments only. Spacing them evenly
     // across the full width dropped tills into the walkway gaps, standing
@@ -246,14 +248,27 @@
         obstacles.push({ x: sp.x, y: sp.y + officeH - 14, w: officeW * 0.55, h: 14, kind: 'wall' });
         const perRoom = Math.min(3, boxes - placed);
         for (let i = 0; i < perRoom; i++) {
-          loot.push({
+          world.deposits.push({
             x: sp.x + 40 + i * 55, y: sp.y + officeH * 0.5,
-            r: 15, amount: boxAmounts[placed], kind: 'box', locked: false, taken: false,
+            r: 16, amount: boxAmounts[placed],
+            open: false, hp: 60, shake: 0,
+          });
+          obstacles.push({
+            x: sp.x + 40 + i * 55 - 15, y: sp.y + officeH * 0.5 - 16,
+            w: 30, h: 32, low: true, kind: 'decor',
           });
           placed++;
         }
       });
     }
+
+    // Queue lanes: a line of standing spots leading away from each till
+    // and each ATM, on the customer side.
+    world.registers.forEach(t => {
+      const spots = [];
+      for (let i = 0; i < 4; i++) spots.push({ x: t.x, y: counterY + 46 + i * 34 });
+      world.queues.push({ kind: 'till', x: t.x, y: counterY + 30, spots });
+    });
 
     // ---- ATMs along the lobby walls ----
     // Slower to crack than a till and worth more, but working one leaves
@@ -274,6 +289,13 @@
       obstacles.push({ x: ax - 17, y: ay - 19, w: 34, h: 38, low: true, kind: 'atm' });
     }
 
+    world.atms.forEach(a => {
+      const dir = a.facing === 0 ? 1 : -1;
+      const spots = [];
+      for (let i = 0; i < 3; i++) spots.push({ x: a.x + dir * (40 + i * 32), y: a.y });
+      world.queues.push({ kind: 'atm', x: a.x + dir * 30, y: a.y, spots });
+    });
+
     // ATM money comes out of the advertised take, so the intel figure on
     // the mission card stays honest.
     if (world.atms.length) {
@@ -291,15 +313,158 @@
       });
     }
 
-    // ---- street + getaway car ----
+    // ---- street, pavement and the getaway car ----
+    // The street is three bands: pavement against the building, a kerb,
+    // then road. Everything parks along the kerb like it would in life,
+    // rather than floating in the middle of the carriageway.
     world.street = { x: 0, y: Hh - STREET, w: W, h: STREET };
-    world.car = { x: W / 2, y: Hh - STREET * 0.44, r: 78 };
+    const walkY = Hh - STREET;                 // top of the pavement
+    const kerbY = walkY + 66;                  // pavement meets road here
+    const parkY = kerbY + 40;                  // centre line of parked cars
+    world.walkY = walkY;
+    world.kerbY = kerbY;
+    world.parkY = parkY;
 
-    // parked cars for cover on the street
+    // The getaway car waits at the kerb directly outside the entrance.
+    world.car = { x: doorX + doorW / 2, y: parkY, r: 78 };
+
+    // Other vehicles along the same kerb, never on top of the getaway car.
+    world.vehicles = [];
+    const PAINT = ['#2B3A4A', '#3A3038', '#243028', '#40382A', '#32323A', '#3B2A2A'];
+    for (let vx = 150; vx < W - 150; vx += rand(210, 300)) {
+      if (Math.abs(vx - world.car.x) < 300) continue;   // room to load up
+      world.vehicles.push({
+        x: vx, y: parkY + rand(-4, 4),
+        color: PAINT[Math.floor(Math.random() * PAINT.length)],
+        flip: Math.random() < 0.5,
+        scale: rand(0.82, 0.95),
+      });
+      obstacles.push({ x: vx - 62, y: parkY - 25, w: 124, h: 50, low: true, kind: 'car' });
+    }
+
+    // ---- decoration ----
+    // How well kept the place is scales with the bank. A pawn shop has
+    // litter and a skip out front; a reserve bank has topiary and brass
+    // bollards. Flat scenery never blocks anyone; anything you would walk
+    // around in life gets an obstacle.
+    world.decor = [];
+    const tier = bank.id <= 4 ? 'low' : (bank.id <= 12 ? 'mid' : 'high');
+    world.tier = tier;
+
+    // Lanes people must be able to use: straight in from the door, and
+    // through each gap in the counter. Nothing solid may stand in them.
+    const doorLane = [doorX - 46, doorX + doorW + 46];
+    const gapLanes = [[gap1 - gapW, gap1 + gapW], [gap2 - gapW, gap2 + gapW]];
+    const inLane = (x, y) => {
+      if (y < by || y > by + bh) return false;               // outside is fine
+      if (x > doorLane[0] && x < doorLane[1]) return true;
+      for (const g of gapLanes) if (x > g[0] && x < g[1]) return true;
+      return false;
+    };
+
+    const addDecor = (kind, x, y, opts) => {
+      const d = Object.assign({ kind, x, y, rot: 0, s: 1 }, opts || {});
+      // shove a blocking prop aside rather than dropping it in a doorway
+      if (d.solid && inLane(x, y)) {
+        const shift = (x < (bx + bw) / 2 ? -1 : 1) * (gapW + 40);
+        d.x = clamp(x + shift, bx + 40, bx + bw - 40);
+        if (inLane(d.x, d.y)) return d;                       // still bad: skip it
+      }
+      world.decor.push(d);
+      if (d.solid) {
+        obstacles.push({
+          x: d.x - d.solid[0] / 2, y: d.y - d.solid[1] / 2,
+          w: d.solid[0], h: d.solid[1], low: true, kind: 'decor',
+        });
+      }
+      return d;
+    };
+
+    const onPavement = () => ({
+      x: rand(bx - 40, bx + bw + 40),
+      y: rand(walkY + 14, kerbY - 12),
+    });
+
+    // ---------- pavement, by tier ----------
+    if (tier === 'low') {
+      for (let i = 0; i < 22; i++) { const p = onPavement(); addDecor('litter', p.x, p.y, { rot: rand(0, 6.3), s: rand(0.7, 1.3) }); }
+      for (let i = 0; i < 5; i++)  { const p = onPavement(); addDecor('trashbag', p.x, p.y, { rot: rand(0, 6.3), s: rand(0.85, 1.2) }); }
+      for (let i = 0; i < 7; i++)  { const p = onPavement(); addDecor('crack', p.x, p.y, { rot: rand(0, 3.1), s: rand(0.8, 1.6) }); }
+      for (let i = 0; i < 4; i++)  { const p = onPavement(); addDecor('stain', p.x, p.y, { s: rand(0.9, 1.8) }); }
+      addDecor('dumpster', bx - 10, walkY + 34, { solid: [68, 44] });
+      addDecor('weeds', bx + bw + 18, kerbY - 16, { s: 1.1 });
+      addDecor('weeds', bx - 26, kerbY - 20, { s: 0.9 });
+      addDecor('graffiti', bx + bw * 0.22, walkY + 6, { s: 1.2 });
+      addDecor('graffiti', bx + bw * 0.78, walkY + 6, { s: 0.9 });
+    } else if (tier === 'mid') {
+      for (let i = 0; i < 8; i++)  { const p = onPavement(); addDecor('litter', p.x, p.y, { rot: rand(0, 6.3), s: rand(0.6, 1) }); }
+      for (let i = 0; i < 3; i++)  { const p = onPavement(); addDecor('crack', p.x, p.y, { rot: rand(0, 3.1), s: rand(0.6, 1) }); }
+      addDecor('bench', bx + bw * 0.18, walkY + 40, { solid: [72, 26] });
+      addDecor('bench', bx + bw * 0.82, walkY + 40, { solid: [72, 26] });
+      addDecor('bin', bx + bw * 0.30, walkY + 34, { solid: [26, 26] });
+      addDecor('newsbox', bx + bw * 0.70, walkY + 34, { solid: [26, 30] });
+      addDecor('planter', bx + bw * 0.42, walkY + 30, { solid: [40, 40], s: 1 });
+      addDecor('planter', bx + bw * 0.58, walkY + 30, { solid: [40, 40], s: 1 });
+      addDecor('lamp', bx + bw * 0.10, kerbY - 22, { solid: [16, 16] });
+      addDecor('lamp', bx + bw * 0.90, kerbY - 22, { solid: [16, 16] });
+      addDecor('bikerack', bx + bw * 0.62, kerbY - 26, { solid: [56, 16] });
+    } else {
+      addDecor('carpet', doorX + doorW / 2, walkY + 34, { s: 1 });
+      for (let i = 0; i < 6; i++) {
+        const side = i < 3 ? -1 : 1;
+        addDecor('bollard', doorX + doorW / 2 + side * (70 + (i % 3) * 46), kerbY - 18, { solid: [16, 16] });
+      }
+      addDecor('topiary', doorX - 58, walkY + 30, { solid: [44, 44], s: 1.1 });
+      addDecor('topiary', doorX + doorW + 58, walkY + 30, { solid: [44, 44], s: 1.1 });
+      addDecor('planter', bx + bw * 0.16, walkY + 32, { solid: [46, 46], s: 1.15 });
+      addDecor('planter', bx + bw * 0.84, walkY + 32, { solid: [46, 46], s: 1.15 });
+      addDecor('lampOrnate', bx + bw * 0.28, kerbY - 24, { solid: [18, 18] });
+      addDecor('lampOrnate', bx + bw * 0.72, kerbY - 24, { solid: [18, 18] });
+      addDecor('bench', bx + bw * 0.40, walkY + 42, { solid: [76, 26] });
+      addDecor('bench', bx + bw * 0.60, walkY + 42, { solid: [76, 26] });
+      addDecor('banner', bx + bw * 0.34, walkY + 4, { s: 1 });
+      addDecor('banner', bx + bw * 0.66, walkY + 4, { s: 1 });
+    }
+
+    // drains and manholes on the road, flat
     for (let i = 0; i < 4; i++) {
-      const cx = W * (0.13 + 0.25 * i);
-      if (Math.abs(cx - world.car.x) < 150) continue;
-      obstacles.push({ x: cx - 46, y: Hh - STREET * 0.75, w: 92, h: 44, low: true, kind: 'car' });
+      addDecor('drain', W * (0.18 + 0.22 * i), kerbY + 12, { s: 1 });
+    }
+    addDecor('manhole', W * 0.4, parkY + 62, { s: 1 });
+    addDecor('manhole', W * 0.72, parkY + 54, { s: 0.9 });
+
+    // ---------- interior dressing ----------
+    const lobbyTop = counterY + 40;
+    const lobbyBot = by + bh - 46;
+    const inLobby = () => ({
+      x: rand(bx + 60, bx + bw - 60),
+      y: rand(lobbyTop, lobbyBot),
+    });
+
+    if (tier === 'low') {
+      for (let i = 0; i < 10; i++) { const p = inLobby(); addDecor('scuff', p.x, p.y, { s: rand(0.8, 1.6) }); }
+      for (let i = 0; i < 5; i++)  { const p = inLobby(); addDecor('litter', p.x, p.y, { rot: rand(0, 6.3), s: 0.8 }); }
+      addDecor('cooler', bx + 54, counterY + 60, { solid: [26, 26] });
+      addDecor('chair', bx + 96, lobbyBot - 10, { solid: [26, 26] });
+      addDecor('chair', bx + 132, lobbyBot - 10, { solid: [26, 26] });
+      addDecor('board', bx + bw - 60, counterY + 54, { s: 1 });
+    } else if (tier === 'mid') {
+      addDecor('plant', bx + 58, counterY + 62, { solid: [34, 34] });
+      addDecor('plant', bx + bw - 58, counterY + 62, { solid: [34, 34] });
+      addDecor('seating', bx + 74, lobbyBot - 16, { solid: [90, 30] });
+      addDecor('seating', bx + bw - 74, lobbyBot - 16, { solid: [90, 30] });
+      addDecor('stand', bx + bw * 0.5, counterY + 62, { solid: [24, 24] });
+    } else {
+      addDecor('rug', bx + bw * 0.5, (counterY + lobbyBot) / 2, { s: 1 });
+      addDecor('topiary', bx + 60, counterY + 62, { solid: [40, 40] });
+      addDecor('topiary', bx + bw - 60, counterY + 62, { solid: [40, 40] });
+      addDecor('flowers', bx + bw * 0.34, counterY - 40, { s: 1 });
+      addDecor('flowers', bx + bw * 0.66, counterY - 40, { s: 1 });
+      addDecor('rope', doorX - 70, by + bh - 90, { solid: [12, 12] });
+      addDecor('rope', doorX + doorW + 70, by + bh - 90, { solid: [12, 12] });
+      addDecor('seating', bx + 78, lobbyBot - 18, { solid: [96, 32] });
+      addDecor('seating', bx + bw - 78, lobbyBot - 18, { solid: [96, 32] });
+      addDecor('art', bx + bw * 0.5, by + WALL + 6, { s: 1 });
     }
 
     buildNav(world);
@@ -377,10 +542,19 @@
     const world = generateWorld(bank);
     const squad = GH.squad();
 
-    const spawnX = world.car.x, spawnY = world.car.y + 30;
-    const robo = makePlayerActor(GH.state.robo, spawnX, spawnY, 0);
-    const crew = squad.map((c, i) =>
-      makePlayerActor(c, spawnX + (i - 1) * 44, spawnY + 34, i + 1));
+    // Put everyone down on ground the nav grid agrees is walkable. The
+    // kerb is busy now, and a crew member spawned inside a parked car's
+    // clearance can never path out of it.
+    const onFoot = (x, y) => {
+      const cell = nearestFree(world.nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL));
+      return cell ? { x: cellCentre(cell[0]), y: cellCentre(cell[1]) } : { x, y };
+    };
+    const spawn0 = onFoot(world.car.x, world.car.y + 46);
+    const robo = makePlayerActor(GH.state.robo, spawn0.x, spawn0.y, 0);
+    const crew = squad.map((c, i) => {
+      const p = onFoot(world.car.x + (i - 1) * 52, world.car.y + 76);
+      return makePlayerActor(c, p.x, p.y, i + 1);
+    });
 
     H = {
       bank, world, robo, crew,
@@ -393,7 +567,7 @@
       policeLeft: bank.respond * 1000,
       copsHere: false, breachLeft: bank.breach * 1000, breached: false,
       waveTimer: 0, waveNo: 0,
-      cam: { x: spawnX, y: spawnY, zoom: 1 },
+      cam: { x: spawn0.x, y: spawn0.y, zoom: 1 },
       shake: 0,
       extracted: false, failed: false, over: false,
       banked: 0,
@@ -549,6 +723,14 @@
     // lift a wallet — quiet, and quicker than the vault
     if (tryRobCivilian(p, 0)) return;
 
+    // lever a deposit box open
+    for (const b of H.world.deposits) {
+      if (b.open) continue;
+      if (Math.hypot(p.x - b.x, p.y - b.y) > 54) continue;
+      openDeposit(b, p);
+      return;
+    }
+
     // crack an ATM — a hold, and it takes a while
     for (const a of H.world.atms) {
       if (a.open) continue;
@@ -566,6 +748,24 @@
     }
     // grab loot
     grabNearbyLoot(p, true);
+  }
+
+  function openDeposit(b, by) {
+    if (b.open) return;
+    b.open = true;
+    b.shake = 10;
+    sfx.register();
+    H.world.loot.push({
+      x: b.x + rand(-6, 6), y: b.y + 22, r: 13,
+      amount: b.amount, kind: 'box', locked: false, taken: false,
+    });
+    for (let i = 0; i < 8; i++) {
+      H.particles.push({
+        x: b.x, y: b.y, vx: rand(-2, 2), vy: rand(-2.6, -0.4),
+        life: rand(12, 24), r: rand(1.2, 2.6),
+        color: i % 2 ? 'rgba(150,200,150,0.8)' : 'rgba(200,205,215,0.6)',
+      });
+    }
   }
 
   function openATM(a, by) {
@@ -695,6 +895,7 @@
         if (da > w.arc / 2) continue;
         const silentKill = !H.alarm && !e.alerted;
         damageEnemy(e, w.dmg * a.dmgMul, a, ang);
+        bloodSpray(e.x, e.y, Math.cos(ang), Math.sin(ang), 10);
         if (w.knockback) { e.x += Math.cos(ang) * w.knockback; e.y += Math.sin(ang) * w.knockback; }
         if (silentKill && e.dead) floatText(e.x, e.y - 30, 'QUIET', '#4FB3C4');
       }
@@ -769,6 +970,8 @@
     d *= (1 - (e.dr || 0));
     e.hp -= d;
     e.hitFlash = 10;
+    if (src) bloodSpray(e.x, e.y, e.x - src.x, e.y - src.y, Math.min(9, 3 + d / 12));
+    e.bleed = Math.max(e.bleed || 0, 5200);
     e.alerted = true;
     sfx.hit((e.dr || 0) > 0.15);
     spark(e.x, e.y, 4);
@@ -776,6 +979,8 @@
       e.dead = true;
       if (src && src.side === 'crew') { src.kills = (src.kills || 0) + 1; GH.state.stats.kills++; }
       spark(e.x, e.y, 12);
+      bloodSpray(e.x, e.y, rand(-1, 1), rand(-1, 1), 16);
+      bloodPool(e.x, e.y, e.r * 0.9);
       // A body on the floor is evidence. Anyone who walks past it reacts.
       H.bodies.push({ x: e.x, y: e.y, seen: false });
       if (e.isBoss) banner(e.name + ' IS DOWN', 'Keep moving.');
@@ -814,6 +1019,8 @@
     a.hitFlash = 10;
     a.regen = 0;
     sfx.hurt();
+    if (fromX != null) bloodSpray(a.x, a.y, a.x - fromX, a.y - fromY, Math.min(9, 3 + d / 10));
+    a.bleed = Math.max(a.bleed || 0, 6000);
     if (GH.settings.shake && a.isRobo) H.shake = Math.max(H.shake, 4);
     if (a.hp <= 0) {
       // Lucky sometimes buys one more second of life.
@@ -829,6 +1036,9 @@
   function goDown(a) {
     a.hp = 0;
     a.downed = true;
+    bloodSpray(a.x, a.y, rand(-1, 1), rand(-1, 1), 14);
+    bloodPool(a.x, a.y, a.r * 0.95);
+    a.bleed = 9000;
     a.downTimer = a.isRobo ? T.roboSelfRevive : T.downedBleedout;
     sfx.down();
     // Whatever they were hauling hits the floor as a grabbable bag.
@@ -1157,34 +1367,34 @@
     c.idleT = (c.idleT || 0) - dt;
 
     if (!c.idle || c.idleT <= 0) {
-      c.idleT = rand(1600, 4200);
-      const r = rand(14, 46);
+      c.idleT = rand(3200, 7000);
+      const r = rand(10, 34);
       const a = rand(0, Math.PI * 2);
       c.idle = { x: anchorX + Math.cos(a) * r, y: anchorY + Math.sin(a) * r };
       // pick something to look at: a teammate, a body, or just the room
       const pool = H.all.filter(o => o !== c && !o.dead)
         .concat(H.civilians.filter(o => !o.dead));
-      c.lookAt = (pool.length && Math.random() < 0.55)
+      c.lookAt = (pool.length && Math.random() < 0.35)
         ? pool[Math.floor(Math.random() * pool.length)]
         : null;
       c.lookAngle = rand(0, Math.PI * 2);
     }
 
-    // drift toward the loitering spot, slowly
     const d = Math.hypot(c.idle.x - c.x, c.idle.y - c.y);
-    if (d > 8) {
+    if (d > 10) {
+      // Walking: face the way you are walking. Anything else reads as a
+      // person sliding sideways, which is what looked so wrong before.
       const ang = Math.atan2(c.idle.y - c.y, c.idle.x - c.x);
-      moveActor(c, Math.cos(ang) * speed * 0.34, Math.sin(ang) * speed * 0.34, dt);
+      moveActor(c, Math.cos(ang) * speed * 0.30, Math.sin(ang) * speed * 0.30, dt);
+      c.angle = lerp(c.angle, ang, 0.12);
     } else {
-      // small weight shift so they are never perfectly still
-      c.walkPhase += dt * 0.0016;
+      // Standing: now they can look about, slowly, and only occasionally.
+      c.walkPhase += dt * 0.0012;
+      const want = c.lookAt && !c.lookAt.dead
+        ? Math.atan2(c.lookAt.y - c.y, c.lookAt.x - c.x)
+        : c.lookAngle;
+      c.angle = lerp(c.angle, want, 0.022);
     }
-
-    // look around: at somebody, or a slow sweep of the room
-    const want = c.lookAt && !c.lookAt.dead
-      ? Math.atan2(c.lookAt.y - c.y, c.lookAt.x - c.x)
-      : c.lookAngle + Math.sin((H.t + c.seed) / 1400) * 0.5;
-    c.angle = lerp(c.angle, want, 0.05);
   }
 
   // ---- crew AI ----
@@ -1405,17 +1615,25 @@
       if (i % 2 && world.registers.length > 4) return;   // not every till is staffed
       list.push(makeCivilian('teller', t.x + rand(-8, 8), t.y - 26));
     });
-    // customers milling about the lobby
+    // Customers, each queueing for something. Nobody is here for a stroll.
     const custs = clamp(2 + Math.round(bank.guards * 0.8), 3, 9);
-    const B = world.building;
+    const queues = world.queues || [];
+    const used = queues.map(() => 0);
     for (let i = 0; i < custs; i++) {
-      let x = 0, y = 0, ok = false;
-      for (let tries = 0; tries < 30 && !ok; tries++) {
-        x = B.x + 70 + Math.random() * (B.w - 140);
-        y = world.counterY + 60 + Math.random() * (B.y + B.h - world.counterY - 120);
-        ok = navFree(world.nav, Math.floor(x / NAV_CELL), Math.floor(y / NAV_CELL));
-      }
-      if (ok) list.push(makeCivilian('customer', x, y));
+      if (!queues.length) break;
+      // pick the shortest queue so the lines fill evenly
+      let qi = 0;
+      for (let k = 1; k < queues.length; k++) if (used[k] < used[qi]) qi = k;
+      const q = queues[qi];
+      const place = used[qi]++;
+      if (place >= q.spots.length) continue;
+      const spot = q.spots[place];
+      const c = makeCivilian('customer', spot.x, spot.y);
+      c.queue = qi;
+      c.place = place;
+      c.business = rand(4000, 11000);      // how long their errand takes
+      c.angle = Math.atan2(q.y - spot.y, q.x - spot.x);
+      list.push(c);
     }
     return list;
   }
@@ -1518,26 +1736,36 @@
         c.state = c.kind === 'teller' ? 'cower' : 'flee';
       }
     } else {
-      // idle: tellers stand their post, customers drift
-      c.idleT -= dt;
-      if (c.kind === 'customer') {
-        if (c.idleT <= 0) {
-          c.idleT = rand(2000, 5000);
-          const B = H.world.building;
-          c.wanderTo = {
-            x: clamp(c.x + rand(-160, 160), B.x + 60, B.x + B.w - 60),
-            y: clamp(c.y + rand(-110, 110), H.world.counterY + 50, B.y + B.h - 70),
-          };
-        }
-        if (c.wanderTo) {
-          const d = Math.hypot(c.wanderTo.x - c.x, c.wanderTo.y - c.y);
-          if (d > 18) {
-            navigateTo(c, c.wanderTo.x, c.wanderTo.y, speed * 0.35, dt);
-            c.angle = lerp(c.angle, Math.atan2(c.wanderTo.y - c.y, c.wanderTo.x - c.x), 0.08);
+      // idle: staff hold their post, customers wait their turn
+      if (c.kind === 'teller') {
+        c.angle = lerp(c.angle, Math.PI / 2, 0.04);
+      } else {
+        const q = H.world.queues[c.queue];
+        if (!q) { c.angle = lerp(c.angle, c.angle, 0.02); }
+        else {
+          const spot = q.spots[Math.min(c.place, q.spots.length - 1)];
+          const d = Math.hypot(spot.x - c.x, spot.y - c.y);
+          if (d > 12) {
+            navigateTo(c, spot.x, spot.y, speed * 0.5, dt);
+            c.angle = lerp(c.angle, Math.atan2(spot.y - c.y, spot.x - c.x), 0.12);
+          } else {
+            // at their place: face the counter and shuffle a little
+            c.angle = lerp(c.angle, Math.atan2(q.y - c.y, q.x - c.x), 0.06);
+            c.walkPhase += dt * 0.0010;
+            // the front of the queue is being served; when done, move up
+            if (c.place === 0) {
+              c.business -= dt;
+              if (c.business <= 0) {
+                c.business = rand(5000, 12000);
+                // everyone shuffles forward one place
+                H.civilians.forEach(o => {
+                  if (o.kind === 'customer' && o.queue === c.queue && o.place > 0) o.place--;
+                });
+                c.place = q.spots.length - 1;    // back of the line again
+              }
+            }
           }
         }
-      } else {
-        c.angle = lerp(c.angle, Math.PI / 2, 0.05);
       }
     }
 
@@ -2105,8 +2333,19 @@
     if (a.stuckT > 420) {
       const net = Math.hypot(a.x - a.stuckFrom.x, a.y - a.stuckFrom.y);
       if (net < 12) {
-        // genuinely pinned: force a new route and shove sideways past it
+        // genuinely pinned: new route, a sidestep, and permission to slip
+        // past whoever is in the way
         requestPath(a, tx, ty, true);
+        a.ghost = 700;
+        // No route at all means the search found nowhere to go from here —
+        // a pocket the grid cannot reason about. Slide toward the goal
+        // ignoring collision until they are back on open floor.
+        if (!a.path || !a.path.length) {
+          const ang2 = Math.atan2(dy, dx);
+          const push = 2.6 * (dt / 16.67);
+          a.x = clamp(a.x + Math.cos(ang2) * push, a.r, H.world.w - a.r);
+          a.y = clamp(a.y + Math.sin(ang2) * push, a.r, H.world.h - a.r);
+        }
         const side = (a.stuckSide = -(a.stuckSide || 1));
         const ang = Math.atan2(dy, dx) + side * 1.5;
         moveActor(a, Math.cos(ang) * speed * 1.4, Math.sin(ang) * speed * 1.4, dt);
@@ -2129,7 +2368,7 @@
     // reads as blocked. Yanking those agents fought their own movement and
     // pinned them in place, so only do it as a last resort once they have
     // genuinely stopped making progress.
-    const gridTrapped = !solid && navBlockedAt(nav, a.x, a.y) && (a.stuckT || 0) > 700;
+    const gridTrapped = !solid && navBlockedAt(nav, a.x, a.y) && (a.stuckT || 0) > 260;
     if (!solid && !gridTrapped) return false;
     const cell = nearestFree(nav, cellOf(a.x), cellOf(a.y));
     if (!cell) return false;
@@ -2168,35 +2407,42 @@
   }
 
   // ==================== MOVEMENT ====================
-  // Solid-body check against every other living actor.
+  // Solid bodies, but only where a player can feel them.
+  //
+  // RoboKyle collides with everyone and everyone collides with RoboKyle,
+  // so you can never walk through a person and nobody walks through you.
+  // AI-against-AI stays on soft separation: hard collision between two
+  // pathing agents deadlocks them in doorways, and a crowd that shuffles
+  // past itself is far better than a crowd that stops.
   function bodyBlocked(self, x, y) {
-    const r = self.r * 0.82;
-    for (let i = 0; i < H.all.length; i++) {
-      const o = H.all[i];
-      if (o === self || o.dead || o.downed) continue;
-      const rr = r + o.r * 0.82;
-      if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
+    if (!H.robo || self.dead) return false;
+    const player = H.robo;
+    if (self === player) {
+      const r = self.r * 0.82;
+      const lists = [H.all, H.enemies, H.civilians];
+      for (let l = 0; l < 3; l++) {
+        const arr = lists[l];
+        for (let i = 0; i < arr.length; i++) {
+          const o = arr[i];
+          if (o === self || o.dead || o.downed) continue;
+          const rr = r + o.r * 0.82;
+          if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
+        }
+      }
+      return false;
     }
-    for (let i = 0; i < H.enemies.length; i++) {
-      const o = H.enemies[i];
-      if (o === self || o.dead) continue;
-      const rr = r + o.r * 0.82;
-      if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
-    }
-    for (let i = 0; i < H.civilians.length; i++) {
-      const o = H.civilians[i];
-      if (o === self || o.dead) continue;
-      const rr = r + o.r * 0.82;
-      if ((x - o.x) ** 2 + (y - o.y) ** 2 < rr * rr) return true;
-    }
-    return false;
+    if (player.dead || player.downed) return false;
+    const rr = self.r * 0.82 + player.r * 0.82;
+    return (x - player.x) ** 2 + (y - player.y) ** 2 < rr * rr;
   }
 
   function moveActor(a, dx, dy, dt) {
     const step = dt / 16.67;
     const nx = a.x + dx * step, ny = a.y + dy * step;
-    if (!blocked(nx, a.y, a.r) && !bodyBlocked(a, nx, a.y)) a.x = nx;
-    if (!blocked(a.x, ny, a.r) && !bodyBlocked(a, a.x, ny)) a.y = ny;
+    if (a.ghost > 0) a.ghost -= dt;
+    const soft = a.ghost > 0;      // jammed: squeeze past rather than deadlock
+    if (!blocked(nx, a.y, a.r) && (soft || !bodyBlocked(a, nx, a.y))) a.x = nx;
+    if (!blocked(a.x, ny, a.r) && (soft || !bodyBlocked(a, a.x, ny))) a.y = ny;
     a.x = clamp(a.x, a.r, H.world.w - a.r);
     a.y = clamp(a.y, a.r, H.world.h - a.r);
     a.walkPhase += Math.hypot(dx, dy) * 0.09 * step;
@@ -2352,6 +2598,18 @@
         }
       }
 
+      // deposit boxes can be shot open too
+      if (!hit) {
+        for (const dep of H.world.deposits) {
+          if (dep.open) continue;
+          if (Math.hypot(b.x - dep.x, b.y - dep.y) > dep.r) continue;
+          dep.hp -= b.dmg; dep.shake = 7;
+          sfx.ricochet();
+          if (dep.hp <= 0) openDeposit(dep, b.owner);
+          hit = true; break;
+        }
+      }
+
       // ATMs can be shot open, loudly
       if (!hit) {
         for (const a of H.world.atms) {
@@ -2382,11 +2640,15 @@
           if (c.dead) continue;
           if (dist(b, c) > c.r) continue;
           c.hp -= b.dmg; c.hitFlash = 10;
+          bloodSpray(c.x, c.y, b.vx, b.vy, Math.min(9, 3 + b.dmg / 10));
+          c.bleed = Math.max(c.bleed || 0, 6000);
           scare(c, 'shot');
           panicAll(c.x, c.y, 320, 'seen');
           sfx.hit(false);
           if (c.hp <= 0) {
             c.dead = true;
+            bloodSpray(c.x, c.y, rand(-1, 1), rand(-1, 1), 18);
+            bloodPool(c.x, c.y, c.r);
             H.civKills++;
             H.bodies.push({ x: c.x, y: c.y, seen: false });
             if (!H.alarm) trip('civilian');
@@ -2440,6 +2702,79 @@
         arc: { x2: best.x, y2: best.y } });
       hitSet.add(best); cur = best;
     }
+  }
+
+  // ==================== BLOOD ====================
+  // Decals live in their own list and are drawn on the floor beneath
+  // everything, so they build up over a firefight without ever sitting
+  // on top of an actor. Capped so a long job cannot bloat the frame.
+  const BLOOD_TONES = ['#6E0F14', '#7E1218', '#5A0C11', '#8E1A1E'];
+  const MAX_DECALS = 340;
+
+  function bloodDecal(x, y, r, alpha) {
+    H.decals.push({
+      x, y, r,
+      a: alpha == null ? 0.55 : alpha,
+      tone: BLOOD_TONES[Math.floor(Math.random() * BLOOD_TONES.length)],
+      squash: 0.55 + Math.random() * 0.5,
+      rot: Math.random() * Math.PI,
+    });
+    if (H.decals.length > MAX_DECALS) H.decals.splice(0, H.decals.length - MAX_DECALS);
+  }
+
+  // arterial spray in the direction the hit came from
+  function bloodSpray(x, y, dirX, dirY, amount) {
+    const base = Math.atan2(dirY, dirX);
+    for (let i = 0; i < amount; i++) {
+      const a = base + rand(-0.7, 0.7);
+      const sp = rand(1.4, 5.2);
+      H.particles.push({
+        x, y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: rand(10, 24), r: rand(1.2, 3.2),
+        color: BLOOD_TONES[Math.floor(Math.random() * BLOOD_TONES.length)],
+        blood: true,
+      });
+    }
+    bloodDecal(x + Math.cos(base) * 8, y + Math.sin(base) * 8, rand(4, 9), 0.4);
+  }
+
+  // a widening pool under a body
+  function bloodPool(x, y, size) {
+    for (let i = 0; i < 7; i++) {
+      bloodDecal(x + rand(-size, size), y + rand(-size * 0.6, size * 0.6),
+                 rand(size * 0.5, size), 0.5);
+    }
+  }
+
+  // Anyone hurt leaves spots behind them. `bleed` counts down as it drips.
+  function stepBleeding(a, dt) {
+    if (a.dead || !a.bleed || a.bleed <= 0) return;
+    a.bleed -= dt;
+    a.dripT = (a.dripT || 0) - dt;
+    if (a.dripT > 0) return;
+    a.dripT = rand(90, 190);
+    const moving = Math.hypot(a.x - (a.lastBleedX || a.x), a.y - (a.lastBleedY || a.y));
+    a.lastBleedX = a.x; a.lastBleedY = a.y;
+    // a still body pools; a moving one leaves a trail
+    bloodDecal(a.x + rand(-3, 3), a.y + rand(-3, 3),
+               moving > 1.5 ? rand(1.8, 3.6) : rand(2.6, 5), moving > 1.5 ? 0.42 : 0.5);
+  }
+
+  function drawDecals() {
+    for (let i = 0; i < H.decals.length; i++) {
+      const d = H.decals[i];
+      ctx.save();
+      ctx.globalAlpha = d.a;
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.rot);
+      ctx.fillStyle = d.tone;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, d.r, d.r * d.squash, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   // ==================== WORLD LABELS ====================
@@ -2651,6 +2986,11 @@
     H.crew.forEach(c => stepCrew(c, dt));
     H.enemies.forEach(e => stepEnemy(e, dt));
     H.civilians.forEach(c => stepCivilian(c, dt));
+    // anyone wounded drips as they go
+    stepBleeding(H.robo, dt);
+    H.crew.forEach(c => stepBleeding(c, dt));
+    H.enemies.forEach(e => stepBleeding(e, dt));
+    H.civilians.forEach(c => stepBleeding(c, dt));
     stepBullets(dt);
     stepMission(dt);
     if (!H) return;   // the mission ended this frame; H is gone
@@ -2659,7 +2999,11 @@
     for (let i = H.particles.length - 1; i >= 0; i--) {
       const p = H.particles[i];
       p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
-      if (p.life <= 0) H.particles.splice(i, 1);
+      if (p.life <= 0) {
+        // a droplet that lands leaves a mark
+        if (p.blood && Math.random() < 0.6) bloodDecal(p.x, p.y, rand(1.2, 2.8), 0.4);
+        H.particles.splice(i, 1);
+      }
     }
     for (let i = H.floats.length - 1; i >= 0; i--) {
       const f = H.floats[i];
@@ -2668,6 +3012,7 @@
     }
     H.world.registers.forEach(t => { if (t.shake > 0) t.shake -= dt * 0.05; });
     H.world.atms.forEach(a => { if (a.shake > 0) a.shake -= dt * 0.05; });
+    H.world.deposits.forEach(b => { if (b.shake > 0) b.shake -= dt * 0.05; });
     if (H.msgT > 0) H.msgT -= dt;
     if (H.pingT > 0) H.pingT -= dt;
     if (H.shake > 0) H.shake *= 0.88;
@@ -2732,26 +3077,38 @@
     ctx.fillStyle = '#0E1218';
     ctx.fillRect(0, 0, w.w, w.h);
 
-    // street asphalt with kerb, lane markings and a wet sheen
-    ctx.fillStyle = '#15191F';
-    ctx.fillRect(w.street.x, w.street.y, w.street.w, w.street.h);
-    ctx.fillStyle = '#232A33';
-    ctx.fillRect(w.street.x, w.street.y, w.street.w, 7);          // kerb
-    ctx.fillStyle = '#1A2027';
-    ctx.fillRect(w.street.x, w.street.y + 7, w.street.w, 3);
-    ctx.strokeStyle = '#3A424C'; ctx.lineWidth = 3;
-    ctx.setLineDash([30, 26]);
+    // road
+    ctx.fillStyle = '#14181E';
+    ctx.fillRect(w.street.x, w.kerbY, w.street.w, w.street.y + w.street.h - w.kerbY);
+    // pavement against the building, in paving slabs
+    ctx.fillStyle = w.tier === 'high' ? '#2E3540' : (w.tier === 'mid' ? '#2A303A' : '#262A31');
+    ctx.fillRect(w.street.x, w.street.y, w.street.w, w.kerbY - w.street.y);
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
+    for (let x = 0; x < w.w; x += 58) {
+      ctx.beginPath(); ctx.moveTo(x, w.street.y); ctx.lineTo(x, w.kerbY); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0, w.street.y + 33); ctx.lineTo(w.w, w.street.y + 33); ctx.stroke();
+    // kerbstone
+    ctx.fillStyle = '#3B434D';
+    ctx.fillRect(0, w.kerbY - 6, w.w, 6);
+    ctx.fillStyle = '#4A545F';
+    ctx.fillRect(0, w.kerbY - 6, w.w, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, w.kerbY, w.w, 3);
+    // centre line
+    ctx.strokeStyle = 'rgba(190,180,120,0.30)'; ctx.lineWidth = 3;
+    ctx.setLineDash([34, 28]);
     ctx.beginPath();
-    ctx.moveTo(0, w.street.y + w.street.h * 0.56);
-    ctx.lineTo(w.w, w.street.y + w.street.h * 0.56);
+    ctx.moveTo(0, w.street.y + w.street.h * 0.82);
+    ctx.lineTo(w.w, w.street.y + w.street.h * 0.82);
     ctx.stroke();
     ctx.setLineDash([]);
-    // drain covers + puddles
-    ctx.fillStyle = 'rgba(120,150,180,0.05)';
+    // wet sheen on the asphalt
+    ctx.fillStyle = 'rgba(120,150,180,0.04)';
     for (let i = 0; i < 5; i++) {
       const px = (i * 421 % w.w);
       ctx.beginPath();
-      ctx.ellipse(px, w.street.y + w.street.h * 0.8, 60, 16, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, w.kerbY + 70, 70, 18, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -2867,8 +3224,8 @@
       let fill = '#2C333C', top = '#3A434E', edge = '#191E25';
       if (o.kind === 'counter')        { fill = '#4A3521'; top = '#5E442B'; edge = '#2A1D12'; }
       else if (o.kind === 'desk')      { fill = '#3A2E20'; top = '#4B3B29'; edge = '#221A12'; }
-      else if (o.kind === 'car')       { fill = '#242B34'; top = '#333C47'; edge = '#141920'; }
-      else if (o.kind === 'till' || o.kind === 'atm') { continue; }   // drawn as props
+      else if (o.kind === 'car')       { continue; }   // drawn as a vehicle
+      else if (o.kind === 'till' || o.kind === 'atm' || o.kind === 'decor') { continue; }   // drawn as props
       else if (o.kind === 'vaultwall') { fill = '#464F59'; top = '#5A6570'; edge = '#252B32'; }
       else if (o.kind === 'vaultdoor') { fill = '#8A6520'; top = '#C79A3C'; edge = '#4A360F'; }
 
@@ -2900,9 +3257,22 @@
       }
     }
 
+    // ---- blood on the floor ----
+    drawDecals();
+
+    // ---- flat scenery: litter, stains, rugs, road markings ----
+    for (const d of w.decor) if (FLAT_DECOR[d.kind]) drawDecor(d);
+
+    // ---- parked vehicles ----
+    for (const v of w.vehicles) drawVehicle(v.x, v.y, v.color, v.scale, v.flip, {});
+
+    // ---- upright scenery ----
+    for (const d of w.decor) if (!FLAT_DECOR[d.kind]) drawDecor(d);
+
     // ---- cash registers on the counter ----
     for (const t of w.registers) drawRegister(t);
     for (const a of w.atms) drawATM(a);
+    for (const b of w.deposits) drawDeposit(b);
 
     // ---- getaway car ----
     drawCar(w.car);
@@ -2979,6 +3349,386 @@
     if (H.showMap) drawMinimapLarge();
     else drawMinimap();
     drawBanner();
+  }
+
+  // ==================== SCENERY ====================
+  // One vehicle renderer, used for the getaway car and everything parked
+  // along the kerb, so the street does not look like a car surrounded by
+  // rectangles pretending to be cars.
+  function drawVehicle(x, y, color, scale, flip, opts) {
+    const o = opts || {};
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(flip ? -scale : scale, scale);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.ellipse(3, 8, 68, 28, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#0C0F13';
+    [[-38, -27], [-38, 27], [36, -27], [36, 27]].forEach(function (w) {
+      ctx.beginPath(); ctx.roundRect(w[0] - 10, w[1] - 5.5, 20, 11, 4); ctx.fill();
+    });
+
+    const grd = ctx.createLinearGradient(0, -25, 0, 25);
+    grd.addColorStop(0, shade(color, 0.10));
+    grd.addColorStop(0.45, color);
+    grd.addColorStop(1, shade(color, -0.12));
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.roundRect(-62, -24, 124, 48, 12); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.8; ctx.stroke();
+
+    ctx.fillStyle = shade(color, 0.07);
+    ctx.beginPath(); ctx.roundRect(-27, -20, 53, 40, 8); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.roundRect(-23, -16, 45, 10, 5); ctx.fill();
+
+    ctx.fillStyle = 'rgba(120,180,205,0.26)';
+    ctx.beginPath(); ctx.roundRect(-34, -17, 9, 34, 4); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(26, -17, 8, 34, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(120,180,205,0.14)';
+    ctx.beginPath(); ctx.roundRect(-21, -21, 40, 4.5, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-21, 16.5, 40, 4.5, 2); ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.moveTo(-2, -24); ctx.lineTo(-2, 24); ctx.stroke();
+    ctx.fillStyle = shade(color, 0.22);
+    ctx.beginPath(); ctx.roundRect(-13, -23.6, 6, 2, 1); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(5, -23.6, 6, 2, 1); ctx.fill();
+
+    // lights
+    ctx.fillStyle = o.lightsOn ? '#FFE9B0' : 'rgba(220,215,195,0.5)';
+    ctx.beginPath(); ctx.roundRect(-64, -18, 5, 8, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-64, 10, 5, 8, 2); ctx.fill();
+    ctx.fillStyle = o.lightsOn ? '#B4322A' : 'rgba(120,50,44,0.7)';
+    ctx.beginPath(); ctx.roundRect(58, -18, 4.5, 8, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(58, 10, 4.5, 8, 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Flat scenery drawn under everything, then upright props drawn with
+  // the actors. `layer` keeps ground stains from painting over a bollard.
+  const FLAT_DECOR = { litter: 1, crack: 1, stain: 1, scuff: 1, drain: 1, manhole: 1,
+                       carpet: 1, rug: 1, graffiti: 1, banner: 1, art: 1, board: 1 };
+
+  function drawDecor(d) {
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    if (d.rot) ctx.rotate(d.rot);
+    if (d.s && d.s !== 1) ctx.scale(d.s, d.s);
+
+    switch (d.kind) {
+      case 'litter':
+        ctx.fillStyle = 'rgba(214,210,196,0.30)';
+        ctx.beginPath();
+        ctx.moveTo(-4, -2); ctx.lineTo(3, -4); ctx.lineTo(5, 2); ctx.lineTo(-2, 4);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(160,155,140,0.22)';
+        ctx.fillRect(-6, 3, 5, 1.6);
+        break;
+
+      case 'crack':
+        ctx.strokeStyle = 'rgba(0,0,0,0.34)'; ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(-14, 0); ctx.lineTo(-4, -3); ctx.lineTo(3, 2); ctx.lineTo(14, -1);
+        ctx.moveTo(-4, -3); ctx.lineTo(-1, -9);
+        ctx.moveTo(3, 2); ctx.lineTo(6, 8);
+        ctx.stroke();
+        break;
+
+      case 'stain':
+        ctx.fillStyle = 'rgba(20,24,20,0.22)';
+        ctx.beginPath(); ctx.ellipse(0, 0, 14, 9, 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(9, 4, 6, 4, 0.2, 0, Math.PI * 2); ctx.fill();
+        break;
+
+      case 'scuff':
+        ctx.strokeStyle = 'rgba(0,0,0,0.14)'; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.arc(0, 0, 10, 0.4, 2.2); ctx.stroke();
+        break;
+
+      case 'drain':
+        ctx.fillStyle = '#14181D';
+        ctx.beginPath(); ctx.roundRect(-13, -6, 26, 12, 2); ctx.fill();
+        ctx.strokeStyle = '#2A323A'; ctx.lineWidth = 1.4;
+        for (let i = -9; i <= 9; i += 4) { ctx.beginPath(); ctx.moveTo(i, -4.5); ctx.lineTo(i, 4.5); ctx.stroke(); }
+        break;
+
+      case 'manhole':
+        ctx.fillStyle = '#1B2027';
+        ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#2E3740'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(0, 0, 9.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.stroke();
+        break;
+
+      case 'graffiti':
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = '#6FBF8C'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-22, 4); ctx.quadraticCurveTo(-10, -8, 0, 3);
+        ctx.quadraticCurveTo(10, 12, 22, 0);
+        ctx.stroke();
+        ctx.strokeStyle = '#C4453A'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-14, 9); ctx.lineTo(12, 7); ctx.stroke();
+        ctx.lineCap = 'butt';
+        ctx.globalAlpha = 1;
+        break;
+
+      case 'banner':
+        ctx.fillStyle = '#7E2438';
+        ctx.beginPath(); ctx.roundRect(-16, 0, 32, 46, 2); ctx.fill();
+        ctx.fillStyle = 'rgba(224,180,76,0.9)';
+        ctx.fillRect(-16, 8, 32, 3);
+        ctx.fillRect(-16, 34, 32, 3);
+        ctx.beginPath(); ctx.arc(0, 22, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#7E2438';
+        ctx.beginPath(); ctx.arc(0, 22, 3.4, 0, Math.PI * 2); ctx.fill();
+        break;
+
+      case 'art':
+        ctx.fillStyle = '#8A6520';
+        ctx.beginPath(); ctx.roundRect(-40, 0, 80, 26, 2); ctx.fill();
+        ctx.fillStyle = '#1E2A33';
+        ctx.fillRect(-36, 3, 72, 20);
+        ctx.fillStyle = 'rgba(224,180,76,0.35)';
+        ctx.beginPath(); ctx.moveTo(-30, 21); ctx.lineTo(-12, 8); ctx.lineTo(2, 17);
+        ctx.lineTo(18, 5); ctx.lineTo(32, 21); ctx.closePath(); ctx.fill();
+        break;
+
+      case 'board':
+        ctx.fillStyle = '#3A2E20';
+        ctx.beginPath(); ctx.roundRect(-22, -14, 44, 28, 2); ctx.fill();
+        ctx.fillStyle = '#5B4A34';
+        ctx.fillRect(-19, -11, 38, 22);
+        ctx.fillStyle = 'rgba(230,230,220,0.7)';
+        ctx.fillRect(-15, -8, 12, 9);
+        ctx.fillRect(0, -6, 13, 11);
+        break;
+
+      case 'carpet':
+        ctx.fillStyle = 'rgba(126,36,56,0.55)';
+        ctx.beginPath(); ctx.roundRect(-56, -22, 112, 44, 3); ctx.fill();
+        ctx.strokeStyle = 'rgba(224,180,76,0.5)'; ctx.lineWidth = 2;
+        ctx.strokeRect(-52, -18, 104, 36);
+        break;
+
+      case 'rug':
+        ctx.fillStyle = 'rgba(126,36,56,0.30)';
+        ctx.beginPath(); ctx.roundRect(-150, -60, 300, 120, 6); ctx.fill();
+        ctx.strokeStyle = 'rgba(224,180,76,0.28)'; ctx.lineWidth = 3;
+        ctx.strokeRect(-140, -50, 280, 100);
+        ctx.strokeStyle = 'rgba(224,180,76,0.16)'; ctx.lineWidth = 1.4;
+        ctx.strokeRect(-124, -36, 248, 72);
+        break;
+
+      case 'trashbag':
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(2, 9, 15, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#20242A';
+        ctx.beginPath(); ctx.ellipse(0, 0, 14, 12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2C323A';
+        ctx.beginPath(); ctx.ellipse(-4, -4, 6, 5, -0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#171B20'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(-3, -10); ctx.lineTo(0, -14); ctx.lineTo(3, -10); ctx.stroke();
+        break;
+
+      case 'weeds':
+        ctx.strokeStyle = '#4A5C36'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+        for (let i = -3; i <= 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * 3, 6);
+          ctx.quadraticCurveTo(i * 5, -4, i * 7, -12 - Math.abs(i));
+          ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+        break;
+
+      case 'dumpster':
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath(); ctx.roundRect(-32, -18, 68, 46, 3); ctx.fill();
+        ctx.fillStyle = '#2E4535';
+        ctx.beginPath(); ctx.roundRect(-34, -22, 68, 44, 3); ctx.fill();
+        ctx.strokeStyle = '#16241B'; ctx.lineWidth = 1.8; ctx.stroke();
+        ctx.fillStyle = '#38553F';
+        ctx.beginPath(); ctx.roundRect(-31, -19, 62, 16, 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(0, -19); ctx.lineTo(0, 19); ctx.stroke();
+        ctx.fillStyle = '#20242A';
+        ctx.beginPath(); ctx.ellipse(-18, -26, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+        break;
+
+      case 'bin':
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(2, 12, 13, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#333C45';
+        ctx.beginPath(); ctx.roundRect(-12, -12, 24, 26, 3); ctx.fill();
+        ctx.fillStyle = '#455059';
+        ctx.beginPath(); ctx.roundRect(-14, -16, 28, 6, 2); ctx.fill();
+        ctx.strokeStyle = '#232B33'; ctx.lineWidth = 1;
+        for (let i = -7; i <= 7; i += 7) { ctx.beginPath(); ctx.moveTo(i, -9); ctx.lineTo(i, 12); ctx.stroke(); }
+        break;
+
+      case 'newsbox':
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(2, 14, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2C4A63';
+        ctx.beginPath(); ctx.roundRect(-12, -14, 24, 28, 3); ctx.fill();
+        ctx.fillStyle = 'rgba(190,215,230,0.4)';
+        ctx.beginPath(); ctx.roundRect(-8, -10, 16, 12, 2); ctx.fill();
+        ctx.fillStyle = '#1B2E3E';
+        ctx.beginPath(); ctx.roundRect(-9, 4, 18, 6, 2); ctx.fill();
+        break;
+
+      case 'bench':
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.roundRect(-34, -8, 72, 22, 3); ctx.fill();
+        ctx.fillStyle = '#5A4028';
+        ctx.beginPath(); ctx.roundRect(-36, -13, 72, 24, 3); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1;
+        for (let i = -8; i <= 8; i += 8) { ctx.beginPath(); ctx.moveTo(-34, i); ctx.lineTo(34, i); ctx.stroke(); }
+        ctx.fillStyle = '#3A4149';
+        ctx.beginPath(); ctx.roundRect(-33, 11, 8, 5, 2); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(25, 11, 8, 5, 2); ctx.fill();
+        break;
+
+      case 'seating':
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.roundRect(-44, -8, 92, 26, 5); ctx.fill();
+        ctx.fillStyle = '#2E3A46';
+        ctx.beginPath(); ctx.roundRect(-46, -14, 92, 28, 5); ctx.fill();
+        ctx.fillStyle = '#3B4A58';
+        ctx.beginPath(); ctx.roundRect(-42, -10, 84, 12, 4); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-14, -10); ctx.lineTo(-14, 12);
+        ctx.moveTo(14, -10); ctx.lineTo(14, 12); ctx.stroke();
+        break;
+
+      case 'chair':
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(2, 10, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3E4750';
+        ctx.beginPath(); ctx.roundRect(-11, -10, 22, 20, 3); ctx.fill();
+        ctx.fillStyle = '#4C5762';
+        ctx.beginPath(); ctx.roundRect(-11, -13, 22, 6, 2); ctx.fill();
+        break;
+
+      case 'cooler':
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(2, 12, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#DCE6EE';
+        ctx.beginPath(); ctx.roundRect(-8, -16, 16, 14, 4); ctx.fill();
+        ctx.fillStyle = 'rgba(120,190,215,0.55)';
+        ctx.beginPath(); ctx.roundRect(-6, -14, 12, 10, 3); ctx.fill();
+        ctx.fillStyle = '#39424B';
+        ctx.beginPath(); ctx.roundRect(-9, -3, 18, 16, 2); ctx.fill();
+        break;
+
+      case 'stand':
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(2, 12, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2A3038';
+        ctx.beginPath(); ctx.roundRect(-3, -4, 6, 16, 2); ctx.fill();
+        ctx.fillStyle = '#3D4956';
+        ctx.beginPath(); ctx.roundRect(-11, -14, 22, 12, 2); ctx.fill();
+        ctx.fillStyle = 'rgba(224,180,76,0.5)';
+        ctx.fillRect(-8, -11, 16, 2);
+        ctx.fillRect(-8, -7, 11, 2);
+        break;
+
+      case 'plant':
+      case 'planter':
+      case 'topiary': {
+        const potW = d.kind === 'topiary' ? 15 : 13;
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(2, 12, potW + 3, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = d.kind === 'planter' ? '#6B5A46' : '#8A6520';
+        ctx.beginPath(); ctx.roundRect(-potW, 2, potW * 2, 14, 3); ctx.fill();
+        ctx.fillStyle = shade(d.kind === 'planter' ? '#6B5A46' : '#8A6520', 0.12);
+        ctx.beginPath(); ctx.roundRect(-potW - 2, 0, potW * 2 + 4, 5, 2); ctx.fill();
+        ctx.fillStyle = '#2E3A22';
+        ctx.beginPath(); ctx.ellipse(0, 1, potW - 2, 5, 0, 0, Math.PI * 2); ctx.fill();
+        if (d.kind === 'topiary') {
+          ctx.fillStyle = '#3E6B3A';
+          ctx.beginPath(); ctx.arc(0, -8, 15, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#4E7F46';
+          ctx.beginPath(); ctx.arc(-4, -12, 9, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillStyle = '#3E6B3A';
+          [[-9, -6, 8], [8, -7, 9], [0, -12, 10], [-6, -14, 6], [7, -13, 6]].forEach(function (b) {
+            ctx.beginPath(); ctx.arc(b[0], b[1], b[2], 0, Math.PI * 2); ctx.fill();
+          });
+          ctx.fillStyle = '#4E7F46';
+          ctx.beginPath(); ctx.arc(-3, -14, 6, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'flowers':
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(2, 10, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#B8B2A4';
+        ctx.beginPath(); ctx.roundRect(-9, 0, 18, 12, 3); ctx.fill();
+        ctx.fillStyle = '#3E6B3A';
+        ctx.beginPath(); ctx.ellipse(0, -2, 11, 6, 0, 0, Math.PI * 2); ctx.fill();
+        [['#E0B44C', -6, -7], ['#C4453A', 2, -9], ['#E8E2D0', 7, -5], ['#C77FA8', -2, -4]]
+          .forEach(function (f) {
+            ctx.fillStyle = f[0];
+            ctx.beginPath(); ctx.arc(f[1], f[2], 3.2, 0, Math.PI * 2); ctx.fill();
+          });
+        break;
+
+      case 'bollard':
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(2, 6, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8A6520';
+        ctx.beginPath(); ctx.roundRect(-6, -10, 12, 18, 3); ctx.fill();
+        ctx.fillStyle = '#C79A3C';
+        ctx.beginPath(); ctx.ellipse(0, -10, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(-6, -1, 12, 2);
+        break;
+
+      case 'lamp':
+      case 'lampOrnate': {
+        const ornate = d.kind === 'lampOrnate';
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath(); ctx.ellipse(4, 6, 11, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = ornate ? '#3A3222' : '#2A3038';
+        ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = ornate ? '#8A6520' : '#39424B';
+        ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+        // pool of light cast on the pavement
+        const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 62);
+        g.addColorStop(0, ornate ? 'rgba(255,225,160,0.16)' : 'rgba(200,220,240,0.11)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0, 0, 62, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      case 'bikerack':
+        ctx.strokeStyle = '#4A545E'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        for (let i = -2; i <= 2; i++) {
+          ctx.beginPath();
+          ctx.arc(i * 13, 4, 7, Math.PI, 0);
+          ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+        break;
+
+      case 'rope':
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(2, 8, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8A6520';
+        ctx.beginPath(); ctx.roundRect(-4, -12, 8, 20, 2); ctx.fill();
+        ctx.fillStyle = '#C79A3C';
+        ctx.beginPath(); ctx.arc(0, -13, 4.5, 0, Math.PI * 2); ctx.fill();
+        break;
+
+      default:
+        break;
+    }
+    ctx.restore();
   }
 
   function drawCar(car) {
@@ -3148,6 +3898,33 @@
     } else if (H.robo && Math.hypot(H.robo.x - t.x, H.robo.y - t.y) < 52) {
       label(t.x, t.y - 24, 'E   PRY OPEN', '#E0B44C', { size: 9 });
     }
+  }
+
+  // A bank of small locked boxes set into the office wall.
+  function drawDeposit(b) {
+    const shake = b.shake > 0 ? (Math.random() - 0.5) * b.shake * 0.5 : 0;
+    ctx.save();
+    ctx.translate(b.x + shake, b.y);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.roundRect(-13, -13, 30, 32, 3); ctx.fill();
+    ctx.fillStyle = b.open ? '#2C333B' : '#3E4650';
+    ctx.beginPath(); ctx.roundRect(-15, -16, 30, 32, 3); ctx.fill();
+    ctx.strokeStyle = '#1A1F26'; ctx.lineWidth = 1.3; ctx.stroke();
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 2; c++) {
+        const dx = -12 + c * 13, dy = -13 + r * 10;
+        ctx.fillStyle = b.open ? '#171C22' : '#4C5661';
+        ctx.beginPath(); ctx.roundRect(dx, dy, 11, 8, 1.5); ctx.fill();
+        if (!b.open) {
+          ctx.fillStyle = '#C79A3C';
+          ctx.beginPath(); ctx.arc(dx + 8.4, dy + 4, 1.1, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+
+    if (b.open) label(b.x, b.y - 22, 'EMPTY', '#6B7C8B', { size: 8, alpha: 0.85 });
+    else if (H.robo && dist(H.robo, b) < 54) label(b.x, b.y - 24, 'E   FORCE BOX', '#E0B44C', { size: 9 });
   }
 
   function drawATM(a) {
@@ -3882,6 +4659,11 @@
       ctx.fillStyle = '#E0B44C';
       ctx.fillRect(x0 + a.x * sc - 1.5, y0 + a.y * sc - 1.5, 3, 3);
     });
+    w.deposits.forEach(b => {
+      if (b.open) return;
+      ctx.fillStyle = '#C79A3C';
+      ctx.fillRect(x0 + b.x * sc - 1, y0 + b.y * sc - 1, 2, 2);
+    });
     H.civilians.forEach(c => {
       if (c.dead) return;
       ctx.fillStyle = 'rgba(200,210,220,0.5)';
@@ -4016,7 +4798,8 @@
     const obj = hudEl('hud-objective');
     const openVaults = H.world.vaults.filter(v => v.open).length;
     const tills = H.world.registers.filter(t => !t.open).length +
-                  H.world.atms.filter(a => !a.open).length;
+                  H.world.atms.filter(a => !a.open).length +
+                  H.world.deposits.filter(b => !b.open).length;
     if (H.extractPhase && H.stragglers > 0)
       obj.textContent = 'Waiting on ' + H.stragglers + ' — press E again to go without them';
     else if (H.canExtract) obj.textContent = 'Press E to drive off';

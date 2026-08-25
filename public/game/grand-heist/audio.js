@@ -97,6 +97,47 @@
     preload();
   }
 
+  // A single thin sample reads as a click. Every shot is layered: the
+  // recording at pitch, plus a pitched-down copy under it for weight,
+  // low-passed so it adds body rather than mud.
+  function playShot(name, rate, vol) {
+    if (!ctx || !ready) return;
+    const buf = buffers[name];
+    if (!buf) return;
+
+    const crack = ctx.createBufferSource();
+    crack.buffer = buf;
+    crack.playbackRate.value = rate;
+    const cg = ctx.createGain();
+    cg.gain.value = vol;
+    crack.connect(cg); cg.connect(sfxBus);
+    crack.start();
+
+    const body = ctx.createBufferSource();
+    body.buffer = buf;
+    body.playbackRate.value = rate * 0.52;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 320;
+    lp.Q.value = 0.8;
+    const bg = ctx.createGain();
+    bg.gain.value = vol * 0.85;
+    body.connect(lp); lp.connect(bg); bg.connect(sfxBus);
+    body.start();
+
+    // a short snap of top end so it cuts through the music
+    const snap = ctx.createBufferSource();
+    snap.buffer = buf;
+    snap.playbackRate.value = rate * 1.6;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2200;
+    const sg = ctx.createGain();
+    sg.gain.value = vol * 0.35;
+    snap.connect(hp); hp.connect(sg); sg.connect(sfxBus);
+    snap.start();
+  }
+
   // rate/vol let one clip cover a family of weapons
   function play(name, opts) {
     if (!ctx || !ready) return;
@@ -174,20 +215,20 @@
   function weaponSound(w) {
     switch (w.kind) {
       case 'melee':     return null;
-      case 'shotgun':   return { name: 'gunShotgun', rate: 1.0,  vol: 0.95 };
-      case 'smg':       return { name: 'gunPistol',  rate: 1.28, vol: 0.55 };
-      case 'pistol':    return { name: 'gunPistol',  rate: 1.0,  vol: 0.8 };
-      case 'rifle':     return { name: 'gunRifle',   rate: 1.0,  vol: 0.75 };
-      case 'lmg':       return { name: 'gunRifle',   rate: 1.18, vol: 0.6 };
-      case 'explosive': return { name: 'gunHeavy',   rate: 0.62, vol: 1.0 };
-      case 'energy':    return { name: 'gunHeavy',   rate: 1.7,  vol: 0.5 };
-      case 'exotic':    return { name: 'gunHeavy',   rate: 0.5,  vol: 1.0 };
-      default:          return { name: 'gunPistol',  rate: 1.0,  vol: 0.7 };
+      case 'shotgun':   return { name: 'gunShotgun', rate: 0.92, vol: 1.0 };
+      case 'smg':       return { name: 'gunPistol',  rate: 1.22, vol: 0.62 };
+      case 'pistol':    return { name: 'gunPistol',  rate: 0.98, vol: 0.9 };
+      case 'rifle':     return { name: 'gunRifle',   rate: 0.96, vol: 0.88 };
+      case 'lmg':       return { name: 'gunRifle',   rate: 1.12, vol: 0.7 };
+      case 'explosive': return { name: 'gunHeavy',   rate: 0.55, vol: 1.0 };
+      case 'energy':    return { name: 'gunHeavy',   rate: 1.65, vol: 0.6 };
+      case 'exotic':    return { name: 'gunHeavy',   rate: 0.46, vol: 1.0 };
+      default:          return { name: 'gunPistol',  rate: 0.98, vol: 0.8 };
     }
   }
 
   GH.audio = {
-    resume, preload, play, playVaried, music, stopMusic,
+    resume, preload, play, playShot, playVaried, music, stopMusic,
     setSfxVolume, setMusicVolume, weaponSound,
     get ctx() { return ctx; },
     get ready() { return ready; },
