@@ -14,6 +14,8 @@ window.GH = (() => {
 
   const D = window.GH_DATA;
   const T = D.TUNE;
+  const MO = D.MORALE;
+  const LO = D.LOOT;
   const KEY_SAVE = 'rk_gh_save';
   const KEY_SETTINGS = 'rk_gh_settings';
 
@@ -55,21 +57,31 @@ window.GH = (() => {
   };
 
   // ==================== SAVE STATE ====================
+  // Everything a person owns is theirs alone, and dies with them.
+  const freshOwns = () => ({
+    weapons: { knife: true }, bags: { none: true },
+    armor: { none: true }, masks: { none: true },
+  });
+
   function freshRobo() {
     return {
       name: 'RoboKyle', isRobo: true, level: 1, xp: 0,
       shooting: T.roboStart.shooting, carry: T.roboStart.carry, hpStat: 0,
       trait: 'none', weapon: 'knife', bag: 'none', armor: 'none', mask: 'none',
+      owns: freshOwns(),
+      morale: MO.start,
+      hp: null,               // filled in below once maxHp is computable
     };
   }
 
   function freshSave() {
+    const robo = freshRobo();
+    robo.hp = GH.maxHp(robo);
     return {
-      version: 1, cash: 0, unlocked: 1, cleared: [],
-      robo: freshRobo(), roster: [], selected: [],
-      owned: { weapons: { knife: true }, bags: { none: true }, armor: { none: true }, masks: { none: true } },
+      version: 2, cash: 0, unlocked: 1, cleared: [],
+      robo, roster: [], selected: [],
       nextCrewId: 1,
-      stats: { heists: 0, wins: 0, haul: 0, deaths: 0, kills: 0 },
+      stats: { heists: 0, wins: 0, haul: 0, deaths: 0, kills: 0, civilians: 0 },
     };
   }
 
@@ -77,16 +89,52 @@ window.GH = (() => {
   GH.load = () => {
     try {
       const raw = localStorage.getItem(KEY_SAVE);
-      if (raw) { const s = JSON.parse(raw); if (s && s.version === 1) return s; }
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s) return null;
+      if (s.version === 2) return s;
+      if (s.version === 1) return migrateV1(s);
     } catch (e) {}
     return null;
   };
+
+  // v1 kept one shared armory. Split it: everyone keeps what they had
+  // equipped plus the free basics, and nobody loses a campaign over it.
+  function migrateV1(s) {
+    const shared = s.owned || {};
+    const give = (c) => {
+      c.owns = freshOwns();
+      ['weapon', 'bag', 'armor', 'mask'].forEach(slot => {
+        const table = { weapon: 'weapons', bag: 'bags', armor: 'armor', mask: 'masks' }[slot];
+        if (c[slot]) c.owns[table][c[slot]] = true;
+      });
+      // free items are always available to everyone
+      Object.keys(D.WEAPONS).forEach(k => { if (D.WEAPONS[k].cost === 0) c.owns.weapons[k] = true; });
+      if (c.morale == null) c.morale = MO.start;
+      if (c.hp == null) c.hp = GH.maxHp(c);
+    };
+    give(s.robo);
+    (s.roster || []).forEach(give);
+    // one goodwill payment so the split does not feel like a punishment
+    const refund = Object.keys(shared.weapons || {}).reduce((sum, k) =>
+      sum + ((D.WEAPONS[k] && D.WEAPONS[k].cost) || 0), 0);
+    s.cash = (s.cash || 0) + Math.round(refund * 0.5);
+    s.stats = s.stats || {};
+    if (s.stats.civilians == null) s.stats.civilians = 0;
+    delete s.owned;
+    s.version = 2;
+    return s;
+  }
   GH.save = () => { try { localStorage.setItem(KEY_SAVE, JSON.stringify(GH.state)); } catch (e) {} };
   GH.hasSave = () => !!GH.load();
 
   GH.newRun = () => {
     GH.state = freshSave();
-    for (let i = 0; i < T.crewPerHeist; i++) GH.state.roster.push(makeRecruit());
+    for (let i = 0; i < T.crewPerHeist; i++) {
+      const r = makeRecruit();
+      r.hp = GH.maxHp(r);
+      GH.state.roster.push(r);
+    }
     GH.state.selected = GH.state.roster.slice(0, T.crewPerHeist).map(c => c.id);
     GH.save();
   };
@@ -128,6 +176,7 @@ window.GH = (() => {
       trait: Math.random() < 0.65 ? pick(D.TRAIT_KEYS.slice(1)) : 'none',
       skin: pick(D.SKIN_TONES), outfit: pick(D.OUTFITS).color,
       mask: 'none', weapon: 'knife', bag: 'none', armor: 'none',
+      owns: freshOwns(), morale: MO.start, hp: null,
     };
   }
   GH.makeRecruit = makeRecruit;
@@ -144,15 +193,63 @@ window.GH = (() => {
   };
   GH.dmgMul = (c) => {
     const tr = D.TRAITS[c.trait] || {};
-    return (1 + c.shooting * T.shootDmgPerPoint) * (tr.shootMul || 1);
+    return (1 + c.shooting * T.shootDmgPerPoint) * (tr.shootMul || 1) * GH.moraleMul(c);
   };
-  GH.spreadMul = (c) => Math.max(0.35, 1 - c.shooting * T.shootSpreadPerPoint);
+  GH.spreadMul = (c) =>
+    Math.max(0.35, 1 - c.shooting * T.shootSpreadPerPoint) / GH.moraleMul(c);
   GH.moveMul = (c) => {
     const tr = D.TRAITS[c.trait] || {};
     return (D.BAGS[c.bag] || D.BAGS.none).moveMod * (D.ARMOR[c.armor] || D.ARMOR.none).moveMod *
-           (D.WEAPONS[c.weapon] || D.WEAPONS.knife).moveMod * (tr.moveMul || 1);
+           (D.WEAPONS[c.weapon] || D.WEAPONS.knife).moveMod * (tr.moveMul || 1) *
+           (0.85 + 0.15 * GH.moraleMul(c));
   };
   GH.xpToNext = (c) => T.xpPerLevel * c.level;
+
+  // ---- morale ----
+  // Above `comfortable` there is no penalty. Below it everything they do
+  // gets worse, down to a floor, and it takes time on the bench to mend.
+  GH.moraleMul = (c) => {
+    const m = c.morale == null ? MO.start : c.morale;
+    if (m >= MO.comfortable) return 1;
+    const t = Math.max(0, m) / MO.comfortable;
+    return MO.worstMultiplier + (1 - MO.worstMultiplier) * t;
+  };
+  GH.moraleLabel = (c) => {
+    const m = c.morale == null ? MO.start : c.morale;
+    return m >= 90 ? 'Steady' : m >= 70 ? 'Fine' : m >= 45 ? 'Shaken'
+         : m >= 20 ? 'Rattled' : 'Broken';
+  };
+  GH.adjustMorale = (c, delta) => {
+    c.morale = clamp((c.morale == null ? MO.start : c.morale) + delta, MO.min, MO.start);
+  };
+
+  // ---- per-person ownership ----
+  const SLOT_TABLE = { weapon: 'weapons', bag: 'bags', armor: 'armor', mask: 'masks' };
+  GH.ownsItem = (c, slot, key) => {
+    const table = SLOT_TABLE[slot];
+    const item = ({ weapon: D.WEAPONS, bag: D.BAGS, armor: D.ARMOR, mask: D.MASKS })[slot][key];
+    if (item && item.cost === 0) return true;
+    if (!c.owns) c.owns = freshOwns();
+    return !!c.owns[table][key];
+  };
+  GH.grantItem = (c, slot, key) => {
+    if (!c.owns) c.owns = freshOwns();
+    c.owns[SLOT_TABLE[slot]][key] = true;
+  };
+
+  // ---- health between jobs ----
+  GH.curHp = (c) => (c.hp == null ? GH.maxHp(c) : clamp(c.hp, 0, GH.maxHp(c)));
+  GH.healCost = (c) => Math.round((GH.maxHp(c) - GH.curHp(c)) * T.healCostPerHp);
+  GH.healUp = (c) => {
+    const cost = GH.healCost(c);
+    if (cost <= 0) return false;
+    if (GH.state.cash < cost) return false;
+    GH.state.cash -= cost;
+    c.hp = GH.maxHp(c);
+    return true;
+  };
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   GH.gearCost = (c, cost) => Math.round(cost * (1 - ((D.TRAITS[c.trait] || {}).discount || 0)));
   GH.squad = () => GH.state.selected.map(id => GH.state.roster.find(c => c.id === id)).filter(Boolean);
 
@@ -274,9 +371,8 @@ window.GH = (() => {
           (locked  ? '<span class="bank-tag lock">Locked</span>'  : '') +
         '</div>' +
         '<h3>' + bank.name + '</h3>' +
-        '<p class="bank-blurb">' + bank.blurb + '</p>' +
         '<div class="bank-intel">' +
-          '<div class="intel take"><span class="lbl">Vault</span><b>' + money(bank.haul) + '</b></div>' +
+          '<div class="intel take"><span class="lbl">Est. take</span><b>' + money(bank.haul) + '</b></div>' +
           '<div class="intel"><span class="lbl">Guards</span><b>' + bank.guards + '</b></div>' +
           '<div class="intel"><span class="lbl">Response</span><b>' + bank.respond + 's</b></div>' +
         '</div>' +
@@ -321,10 +417,18 @@ window.GH = (() => {
   }
 
   function statChips(c) {
+    const hp = GH.curHp(c), max = GH.maxHp(c);
+    const hurt = hp < max;
+    const mm = GH.moraleMul(c);
+    const moraleCls = c.morale >= MO.comfortable ? '' : (c.morale >= 40 ? ' is-warn' : ' is-bad');
     return '<div class="chips">' +
       '<span class="chip" title="Shooting">' + GH.icon.stat('shooting') + '<b>' + c.shooting + '</b><small>SHT</small></span>' +
-      '<span class="chip" title="Max health">' + GH.icon.stat('health') + '<b>' + GH.maxHp(c) + '</b><small>HP</small></span>' +
+      '<span class="chip' + (hurt ? ' is-warn' : '') + '" title="Health">' + GH.icon.stat('health') +
+        '<b>' + hp + '</b><small>/ ' + max + '</small></span>' +
       '<span class="chip" title="Carry capacity">' + GH.icon.stat('carry') + '<b>' + money(GH.carryCap(c)) + '</b></span>' +
+      '<span class="chip' + moraleCls + '" title="Morale — below 70 every stat suffers">' +
+        GH.icon.stat('morale') + '<b>' + Math.round(c.morale == null ? MO.start : c.morale) + '</b>' +
+        '<small>' + GH.moraleLabel(c) + (mm < 1 ? ' ×' + mm.toFixed(2) : '') + '</small></span>' +
       '</div>';
   }
 
@@ -343,7 +447,7 @@ window.GH = (() => {
     $('crew-cash').textContent = money(s.cash);
     $('crew-bank').textContent = bank ? bank.name : '';
     $('crew-bank-intel').innerHTML = bank
-      ? '<span>' + money(bank.haul) + ' vault</span><span>' + bank.guards + ' guards</span>' +
+      ? '<span>' + money(bank.haul) + ' est. take</span><span>' + bank.guards + ' guards</span>' +
         '<span>' + bank.respond + 's response</span><span>' + copTierLabel(bank) + '</span>'
       : '';
 
@@ -371,11 +475,18 @@ window.GH = (() => {
         gearChips(c) +
         '<div class="mate-actions">' +
           '<button class="btn-edit">' + (i === GH.editing ? 'Editing' : 'Edit loadout') + '</button>' +
-          (c.isRobo ? '' : '<button class="btn-bench">Bench</button>') +
+          (GH.healCost(c) > 0
+            ? '<button class="btn-heal">Patch up ' + money(GH.healCost(c)) + '</button>'
+            : (c.isRobo ? '' : '<button class="btn-bench">Bench</button>')) +
         '</div>';
 
       card.querySelector('.btn-edit').addEventListener('click', () => {
         GH.editing = i; sfx('select'); RENDER.crew();
+      });
+      const healBtn = card.querySelector('.btn-heal');
+      if (healBtn) healBtn.addEventListener('click', () => {
+        if (GH.healUp(c)) { sfx('confirm'); GH.save(); RENDER.crew(); }
+        else { sfx('error'); flash('crew-cash'); }
       });
       const bench = card.querySelector('.btn-bench');
       if (bench) bench.addEventListener('click', () => {
@@ -473,24 +584,29 @@ window.GH = (() => {
     slot.order.forEach(k => {
       const it = slot.table[k];
       const gated = slot.key === 'weapon' && s.unlocked < it.unlock;
-      const owned = !!s.owned[slot.own][k] || it.cost === 0;
+      const owned = GH.ownsItem(c, slot.key, k);
       if (gated && !owned) future.push(k); else shown.push(k);
     });
 
     shown.forEach(k => {
       const it = slot.table[k];
-      const owned = !!s.owned[slot.own][k] || it.cost === 0;
+      const owned = GH.ownsItem(c, slot.key, k);
       const equipped = c[slot.key] === k;
       const cost = GH.gearCost(c, it.cost);
       const afford = s.cash >= cost;
 
       const card = el('button', 'item' + (equipped ? ' is-equipped' : '') +
         (!owned ? (afford ? ' is-buyable' : ' is-poor') : ''));
+      // How many of the squad already have one — buying is per person,
+      // so it matters that Bishop's shotgun is not Rico's shotgun.
+      const alsoOwned = boardChars().filter(o => o !== c && GH.ownsItem(o, slot.key, k)).length;
       card.innerHTML =
         '<span class="item-ico">' + GH.icon.forSlot(slot.key, k) + '</span>' +
         '<span class="item-main">' +
           '<b>' + it.name + '</b>' +
-          '<small>' + itemLine(slot, k) + '</small>' +
+          '<small>' + itemLine(slot, k) +
+            (alsoOwned && it.cost > 0 ? ' · ' + alsoOwned + ' other' + (alsoOwned > 1 ? 's have' : ' has') + ' one' : '') +
+          '</small>' +
         '</span>' +
         '<span class="item-act">' + (equipped ? 'Equipped' : owned ? 'Equip' : money(cost)) + '</span>';
 
@@ -499,7 +615,7 @@ window.GH = (() => {
         if (!owned) {
           if (!afford) { sfx('error'); flash('crew-cash'); return; }
           s.cash -= cost;
-          s.owned[slot.own][k] = true;
+          GH.grantItem(c, slot.key, k);
           sfx('confirm');
         } else sfx('click');
         c[slot.key] = k;
@@ -608,6 +724,54 @@ window.GH = (() => {
       '<span class="v">' + money(result.escaped ? haul : result.haul) + '</span>';
     wrap.appendChild(haulRow);
 
+    // ---- what the job did to the people who ran it ----
+    const civs = result.civilians || 0;
+    s.stats.civilians += civs;
+    const onJob = result.perChar.map(pc => pc.char).filter(Boolean);
+    const moraleLog = [];
+
+    let moraleDelta = 0;
+    if (civs > 0) moraleDelta += MO.civilianKill * civs;
+    if (result.killed.length) moraleDelta += MO.crewDeath * result.killed.length;
+    if (!result.escaped) moraleDelta += MO.failedJob;
+    if (civs === 0 && result.escaped) moraleDelta += MO.cleanBonus;
+
+    onJob.forEach(c => { if (moraleDelta) GH.adjustMorale(c, moraleDelta); });
+
+    // A clean job lifts everyone, including the people who sat it out.
+    if (civs === 0 && result.escaped) {
+      s.roster.forEach(c => { if (onJob.indexOf(c) < 0) GH.adjustMorale(c, MO.cleanBonus); });
+    }
+
+    // Benched crew rest: they mend and they calm down.
+    const rested = [];
+    s.roster.forEach(c => {
+      if (onJob.indexOf(c) >= 0) return;
+      const before = { hp: GH.curHp(c), morale: c.morale };
+      c.hp = Math.min(GH.maxHp(c), GH.curHp(c) + Math.round(GH.maxHp(c) * MO.benchHealFrac));
+      GH.adjustMorale(c, MO.benchRecovery);
+      if (c.hp !== before.hp || c.morale !== before.morale) rested.push({ c, before });
+    });
+
+    // carry wounds out of the mission
+    if (result.hp) {
+      Object.keys(result.hp).forEach(id => {
+        const target = String(id) === 'robo' ? s.robo : s.roster.find(c => String(c.id) === String(id));
+        if (target) target.hp = Math.max(1, Math.round(result.hp[id]));
+      });
+    }
+
+    if (civs > 0) {
+      const row = el('div', 'debrief-alert');
+      row.innerHTML = '<b>' + civs + ' bystander' + (civs > 1 ? 's' : '') + ' killed.</b> ' +
+        'Everyone who was on this job takes ' + Math.abs(MO.civilianKill * civs) + ' morale for it.';
+      wrap.appendChild(row);
+    } else if (result.escaped) {
+      const row = el('div', 'debrief-good');
+      row.innerHTML = '<b>Nobody innocent got hurt.</b> +' + MO.cleanBonus + ' morale to the whole crew, bench included.';
+      wrap.appendChild(row);
+    }
+
     GH.pendingLevels = [];
     result.perChar.forEach(pc => {
       const c = pc.char;
@@ -618,8 +782,12 @@ window.GH = (() => {
       while (c.xp >= GH.xpToNext(c)) { c.xp -= GH.xpToNext(c); c.level++; levels++; }
       if (levels > 0) GH.pendingLevels.push({ char: c, points: levels });
       const row = el('div', 'debrief-row');
-      row.innerHTML = '<span class="who">' + c.name + '</span>' +
+      const hp = GH.curHp(c), max = GH.maxHp(c);
+      row.innerHTML = '<span class="who">' + c.name +
+          (hp < max ? ' <em class="hurt">' + hp + '/' + max + ' hp</em>' : '') + '</span>' +
         '<span class="xp">+' + gained + ' XP</span>' +
+        '<span class="mo' + (moraleDelta < 0 ? ' down' : moraleDelta > 0 ? ' up' : '') + '">' +
+          (moraleDelta ? (moraleDelta > 0 ? '+' : '') + moraleDelta + ' morale' : GH.moraleLabel(c)) + '</span>' +
         '<span class="lv">Lvl ' + c.level + (levels ? ' <b class="up">+' + levels + '</b>' : '') + '</span>';
       wrap.appendChild(row);
     });
@@ -631,6 +799,22 @@ window.GH = (() => {
         '<span class="lv">' + (pc.cash > 0 ? money(pc.cash) + ' lost' : 'Gear recovered') + '</span>';
       wrap.appendChild(row);
     });
+
+    if (rested.length) {
+      const head = el('p', 'debrief-sub', 'On the bench');
+      wrap.appendChild(head);
+      rested.forEach(({ c, before }) => {
+        const row = el('div', 'debrief-row is-bench');
+        const bits = [];
+        if (GH.curHp(c) > before.hp) bits.push('+' + (GH.curHp(c) - before.hp) + ' hp');
+        if (c.morale > before.morale) bits.push('+' + Math.round(c.morale - before.morale) + ' morale');
+        row.innerHTML = '<span class="who">' + c.name + '</span>' +
+          '<span class="xp">Resting</span>' +
+          '<span class="mo up">' + bits.join(' · ') + '</span>' +
+          '<span class="lv">' + GH.moraleLabel(c) + '</span>';
+        wrap.appendChild(row);
+      });
+    }
 
     GH.save();
     renderLevelUps();

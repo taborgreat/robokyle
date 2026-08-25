@@ -10,6 +10,7 @@
 
   const D = window.GH_DATA;
   const T = D.TUNE;
+  const LO = D.LOOT;
   const GH = window.GH;
 
   const canvas = document.getElementById('heist-canvas');
@@ -148,9 +149,11 @@
     // Split the haul across drawers / vault / boxes. Banks with no deposit
     // boxes hand that share to the vault instead of dropping it on the floor.
     const boxCount   = bank.boxes || 0;
-    const drawerShare = 0.16;
-    const boxShare    = boxCount > 0 ? 0.16 : 0;
-    const vaultShare  = 1 - drawerShare - boxShare;
+    const atmCountCfg = bank.atms || 0;
+    const drawerShare = 0.14;
+    const boxShare    = boxCount > 0 ? 0.14 : 0;
+    const atmShare    = atmCountCfg > 0 ? 0.10 : 0;
+    const vaultShare  = 1 - drawerShare - boxShare - atmShare;
 
     // Cash registers sit on the teller counter. They are props you have to
     // actually break into rather than money lying on the floor: optional,
@@ -232,6 +235,31 @@
       });
     }
 
+    // ---- ATMs along the lobby walls ----
+    // Slower to crack than a till and worth more, but working one leaves
+    // you standing in the open with your back to the room.
+    world.atms = [];
+    const atmCount = bank.atms || 0;
+    for (let i = 0; i < atmCount; i++) {
+      const onLeft = i % 2 === 0;
+      const ax = onLeft ? bx + WALL + 26 : bx + bw - WALL - 26;
+      const ay = counterY + 110 + Math.floor(i / 2) * 130;
+      if (ay > by + bh - 90) break;
+      world.atms.push({
+        x: ax, y: ay, r: 20,
+        facing: onLeft ? 0 : Math.PI,
+        amount: 0,                       // filled in below, exactly
+        open: false, prog: 0, hp: 90, shake: 0,
+      });
+    }
+
+    // ATM money comes out of the advertised take, so the intel figure on
+    // the mission card stays honest.
+    if (world.atms.length) {
+      const amounts = splitCash(bank.haul * atmShare, world.atms.length, 0.2);
+      world.atms.forEach((a, i) => { a.amount = amounts[i]; });
+    }
+
     // ---- lobby furniture for cover ----
     const deskCount = Math.round(bw / 320);
     for (let i = 0; i < deskCount; i++) {
@@ -276,6 +304,8 @@
   function makePlayerActor(c, x, y, slot) {
     const w = D.WEAPONS[c.weapon];
     const a = makeActor({ hp: GH.maxHp(c), r: c.isRobo ? 16 : 14, speed: 1.0 }, x, y, 'crew');
+    // They turn up carrying whatever damage they left the last job with.
+    a.hp = GH.curHp(c);
     a.char = c;
     a.isRobo = !!c.isRobo;
     a.slot = slot;
@@ -337,6 +367,7 @@
       enemies: [], bullets: [], particles: [], drops: [], decals: [], floats: [],
       bodies: [], civilians: [],
       t: 0, last: performance.now(), running: true, paused: false,
+      civKills: 0,
       alarm: false, alarmT: 0,
       policeLeft: bank.respond * 1000,
       copsHere: false, breachLeft: bank.breach * 1000, breached: false,
@@ -495,6 +526,14 @@
     // lift a wallet — quiet, and quicker than the vault
     if (tryRobCivilian(p, 0)) return;
 
+    // crack an ATM — a hold, and it takes a while
+    for (const a of H.world.atms) {
+      if (a.open) continue;
+      if (Math.hypot(p.x - a.x, p.y - a.y) > 56) continue;
+      p.atm = a;
+      return;
+    }
+
     // pry open a cash register (quiet — no alarm)
     for (const t of H.world.registers) {
       if (t.open) continue;
@@ -504,6 +543,34 @@
     }
     // grab loot
     grabNearbyLoot(p, true);
+  }
+
+  function openATM(a, by) {
+    if (a.open) return;
+    a.open = true;
+    a.shake = 12;
+    sfx.register();
+    sfx.glass();
+    H.world.loot.push({
+      x: a.x + Math.cos(a.facing) * 30, y: a.y + 18, r: 14,
+      amount: a.amount, kind: 'atm', locked: false, taken: false,
+    });
+    for (let i = 0; i < 12; i++) {
+      H.particles.push({
+        x: a.x, y: a.y, vx: rand(-2.6, 2.6), vy: rand(-3.2, -0.5),
+        life: rand(14, 28), r: rand(1.4, 3),
+        color: i % 2 ? 'rgba(150,200,150,0.85)' : 'rgba(210,215,225,0.7)',
+      });
+    }
+    // ripping open a machine in the middle of the lobby is not subtle
+    panicAll(a.x, a.y, 300, 'seen');
+    for (const e of H.enemies) {
+      if (e.dead || e.alerted) continue;
+      if (dist(e, a) < 340 && hasLOS(e, a)) {
+        e.suspicion = 1;
+        e.lastSeen = by ? { x: by.x, y: by.y } : { x: a.x, y: a.y };
+      }
+    }
   }
 
   // loud = smashed with a weapon rather than levered open by hand
@@ -1190,13 +1257,15 @@
       walkPhase: 0, hitFlash: 0,
       panic: 0,                   // 0..1
       robbed: false, robProg: 0,
-      wallet: kind === 'customer' ? Math.round(rand(90, 420)) : 0,
+      wallet: kind === 'customer'
+        ? Math.round(rand(LO.walletMin, LO.walletMax))
+        : Math.round(rand(0, LO.tellerWalletMax)),
       callT: rand(9000, 15000),   // time to reach a phone once panicking
       idleT: rand(1200, 4000),
       screamed: false,
       name: pick(CIV_FIRST),
       skin: pick(D.SKIN_TONES),
-      outfit: kind === 'teller' ? '#2C3A4A' : pick(D.OUTFITS).color,
+      outfit: kind === 'teller' ? '#7E2438' : pick(D.OUTFITS).color,
       seed: Math.random() * 1000,
     };
   }
@@ -1231,7 +1300,9 @@
       c.screamed = true;
       sfx.scream();
     }
-    if (why === 'seen') c.state = c.kind === 'teller' ? 'cower' : 'flee';
+    // Staff are trained to comply: hands up, stay put. Customers run.
+    if (c.kind === 'teller') { c.state = 'cower'; c.handsUp = true; }
+    else if (why === 'seen' || why === 'alarm') c.state = 'flee';
   }
 
   function panicAll(x, y, radius, why) {
@@ -1245,7 +1316,13 @@
   function stepCivilian(c, dt) {
     if (c.dead) return;
     if (c.hitFlash > 0) c.hitFlash -= dt * 0.06;
-    if (c.heldUp > 0) { c.heldUp -= dt; c.state = 'cower'; }
+    // Being held up pins them briefly, then they carry on doing whatever
+    // they were doing. Previously this latched and they never moved again.
+    if (c.heldUp > 0) {
+      c.heldUp -= dt;
+      c.state = 'cower';
+      if (c.heldUp <= 0) c.state = c.wasFleeing ? 'flee' : (c.kind === 'teller' ? 'cower' : 'flee');
+    }
 
     // Anything frightening nearby: a drawn gun, a body, the alarm.
     if (!c.panic) {
@@ -1350,6 +1427,7 @@
     scare(target, 'rob');
     // Hands up and rooted to the spot. A civilian who backs away from the
     // person robbing them makes the whole interaction impossible.
+    target.wasFleeing = target.state === 'flee' || target.wasFleeing;
     target.state = 'cower';
     target.heldUp = 400;
     if (target.robProg > 700) {
@@ -1365,7 +1443,8 @@
         floatText(target.x, target.y - 26, 'BAG FULL', '#E0B44C');
       }
       target.wallet = 0;
-      target.state = 'cower';
+      target.heldUp = 500;
+      target.wasFleeing = true;      // once you have taken it, they run
       // a guard watching you rob someone is not going to shrug it off
       for (const e of H.enemies) {
         if (e.dead || e.alerted) continue;
@@ -1406,24 +1485,55 @@
     ctx.strokeStyle = '#0A0D12'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.ellipse(-1, 0, CH + 1, SH, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    if (c.kind === 'teller') {                 // shirt collar + lanyard
-      ctx.fillStyle = '#E8EDF2';
-      ctx.beginPath(); ctx.roundRect(CH * 0.1, -SH * 0.45, CH * 0.7, SH * 0.9, 2); ctx.fill();
-      ctx.strokeStyle = '#C4453A'; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(CH * 0.2, -SH * 0.3); ctx.lineTo(CH * 0.2, SH * 0.3); ctx.stroke();
+    if (c.kind === 'teller') {
+      // pale shirt front under a burgundy waistcoat, plus a name badge —
+      // nothing like the navy/black of anyone carrying a weapon
+      ctx.fillStyle = '#EDF1F5';
+      ctx.beginPath(); ctx.roundRect(CH * 0.05, -SH * 0.5, CH * 0.85, SH * 1.0, 2); ctx.fill();
+      ctx.fillStyle = shade(c.outfit, -0.08);
+      ctx.beginPath(); ctx.roundRect(-CH * 0.1, -SH * 0.72, CH * 0.5, SH * 1.44, 2); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-CH * 0.1, SH * 0.28, CH * 0.5, SH * 0.44, 2); ctx.fill();
+      ctx.fillStyle = '#E0B44C';
+      ctx.beginPath(); ctx.roundRect(CH * 0.3, -SH * 0.34, 3.4, 2.4, 0.8); ctx.fill();
+      // collar
+      ctx.strokeStyle = '#C9D3DC'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(CH * 0.55, -SH * 0.22); ctx.lineTo(CH * 0.85, 0);
+      ctx.lineTo(CH * 0.55, SH * 0.22); ctx.stroke();
     }
 
-    // arms — up if cowering, down otherwise
-    const up = c.state === 'cower' || c.state === 'scared';
-    ctx.strokeStyle = c.skin; ctx.lineWidth = 5.2; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-1, SH * 0.7);
-    ctx.quadraticCurveTo(CH * 0.5, SH * (up ? 1.05 : 0.6), CH * (up ? 0.3 : 0.8), SH * (up ? 1.25 : 0.5));
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-1, -SH * 0.7);
-    ctx.quadraticCurveTo(CH * 0.5, -SH * (up ? 1.05 : 0.6), CH * (up ? 0.3 : 0.8), -SH * (up ? 1.25 : 0.5));
-    ctx.stroke();
+    // ---- arms ----
+    // Two segments with a visible elbow and hand. Hands go up and slightly
+    // forward when they surrender, which is legible from above; the old
+    // single curve just splayed sideways and looked broken.
+    const up = c.state === 'cower' || c.state === 'scared' || c.handsUp;
+    const armSwing = up ? 0 : Math.sin(c.walkPhase) * 2.2;
+    ctx.lineCap = 'round';
+    [1, -1].forEach(function (side) {
+      const shoulderY = side * SH * 0.72;
+      const elbowX = up ? CH * 0.15 : CH * 0.35;
+      const elbowY = side * (up ? SH * 0.95 : SH * 0.85) + armSwing * side;
+      const handX  = up ? CH * 0.95 : CH * 0.55;
+      const handY  = side * (up ? SH * 0.62 : SH * 0.78) + armSwing * side;
+
+      ctx.strokeStyle = c.outfit;          // sleeve
+      ctx.lineWidth = 5.4;
+      ctx.beginPath();
+      ctx.moveTo(-1, shoulderY);
+      ctx.lineTo(elbowX, elbowY);
+      ctx.stroke();
+
+      ctx.strokeStyle = c.skin;            // forearm
+      ctx.lineWidth = 4.6;
+      ctx.beginPath();
+      ctx.moveTo(elbowX, elbowY);
+      ctx.lineTo(handX, handY);
+      ctx.stroke();
+
+      ctx.fillStyle = c.skin;              // hand
+      ctx.beginPath();
+      ctx.arc(handX, handY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.lineCap = 'butt';
 
     // head
@@ -1443,7 +1553,13 @@
     ctx.restore();
 
     // status above the head, upright
-    if (c.panic > 0 || c.robbed) {
+    if ((c.state === 'cower' || c.handsUp) && !c.robbed) {
+      ctx.font = '700 9px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(159,176,191,0.85)';
+      ctx.fillText('HANDS UP', c.x, c.y - c.r - 12);
+      ctx.textAlign = 'left';
+    } else if (c.panic > 0 || c.robbed) {
       ctx.font = '700 11px Oswald, Impact, sans-serif';
       ctx.textAlign = 'center';
       if (c.robbed) { ctx.fillStyle = 'rgba(107,124,139,0.9)'; ctx.fillText('EMPTY', c.x, c.y - c.r - 12); }
@@ -1941,9 +2057,21 @@
       }
     }
 
-    // ---- robbing is a hold, not a tap ----
-    if (keys['e'] || (touch.active && touch.interact)) tryRobCivilian(p, dt);
+    // ---- holds: robbing someone, or working an ATM ----
+    const holding = keys['e'] || (touch.active && touch.interact);
+    if (holding) tryRobCivilian(p, dt);
     else if (p.robbing) { p.robbing.robProg = 0; p.robbing = null; }
+
+    if (holding && p.atm && !p.atm.open && Math.hypot(p.x - p.atm.x, p.y - p.atm.y) < 60) {
+      const a = p.atm;
+      a.prog += dt;
+      a.shake = 4;
+      if (Math.random() < 0.10) sfx.drill();
+      if (a.prog >= LO.atmDrill) openATM(a, p);
+    } else if (p.atm) {
+      p.atm.prog = Math.max(0, p.atm.prog - dt * 2);   // slips back if you walk off
+      if (!holding) p.atm = null;
+    }
 
     // ---- passive loot pickup while standing on it ----
     grabNearbyLoot(p, false);
@@ -1979,6 +2107,18 @@
         }
       }
 
+      // ATMs can be shot open, loudly
+      if (!hit) {
+        for (const a of H.world.atms) {
+          if (a.open) continue;
+          if (Math.hypot(b.x - a.x, b.y - a.y) > a.r) continue;
+          a.hp -= b.dmg; a.shake = 8;
+          sfx.ricochet();
+          if (a.hp <= 0) { openATM(a, b.owner); if (!H.alarm) trip('gun'); }
+          hit = true; break;
+        }
+      }
+
       // registers are breakable props
       if (!hit) {
         for (const t of H.world.registers) {
@@ -2002,9 +2142,11 @@
           sfx.hit(false);
           if (c.hp <= 0) {
             c.dead = true;
+            H.civKills++;
             H.bodies.push({ x: c.x, y: c.y, seen: false });
             if (!H.alarm) trip('civilian');
-            floatText(c.x, c.y - 24, 'CIVILIAN DOWN', '#C4453A');
+            floatText(c.x, c.y - 24, 'CIVILIAN KILLED', '#C4453A');
+            banner('BYSTANDER DOWN', 'The crew will not forget that.');
           }
           hit = true; break;
         }
@@ -2186,12 +2328,22 @@
 
     const uncollected = H.all.reduce((s, a) => s + (escaped ? 0 : a.carried), 0);
 
+    // hand back everyone's remaining health so wounds persist
+    const hpOut = {};
+    H.all.forEach(a => {
+      if (!a.char) return;
+      const key = a.isRobo ? 'robo' : a.char.id;
+      hpOut[key] = a.dead ? 1 : Math.max(1, Math.round(a.hp));
+    });
+
     GH.debrief({
       escaped,
       haul: escaped ? haul : uncollected,
       killed: H.killedIds.slice(),
       perChar,
       bankId: H.bank.id,
+      civilians: H.civKills,
+      hp: hpOut,
     });
     H = null;
   }
@@ -2228,6 +2380,7 @@
       if (f.life <= 0) H.floats.splice(i, 1);
     }
     H.world.registers.forEach(t => { if (t.shake > 0) t.shake -= dt * 0.05; });
+    H.world.atms.forEach(a => { if (a.shake > 0) a.shake -= dt * 0.05; });
     if (H.msgT > 0) H.msgT -= dt;
     if (H.pingT > 0) H.pingT -= dt;
     if (H.shake > 0) H.shake *= 0.88;
@@ -2464,6 +2617,7 @@
 
     // ---- cash registers on the counter ----
     for (const t of w.registers) drawRegister(t);
+    for (const a of w.atms) drawATM(a);
 
     // ---- getaway car ----
     drawCar(w.car);
@@ -2656,6 +2810,64 @@
         ctx.textAlign = 'left';
         ctx.restore();
       }
+    }
+    ctx.restore();
+  }
+
+  function drawATM(a) {
+    const shake = a.shake > 0 ? (Math.random() - 0.5) * a.shake * 0.5 : 0;
+    ctx.save();
+    ctx.translate(a.x + shake, a.y);
+    ctx.rotate(a.facing);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.ellipse(2, 14, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+    // cabinet set into the wall
+    ctx.fillStyle = a.open ? '#2B333C' : '#39424D';
+    ctx.beginPath(); ctx.roundRect(-16, -18, 30, 36, 4); ctx.fill();
+    ctx.strokeStyle = '#161B21'; ctx.lineWidth = 1.4; ctx.stroke();
+    // fascia
+    ctx.fillStyle = a.open ? '#1B2128' : '#20272F';
+    ctx.beginPath(); ctx.roundRect(-4, -14, 17, 28, 3); ctx.fill();
+    // screen
+    ctx.fillStyle = a.open ? '#241B14' : '#16303A';
+    ctx.beginPath(); ctx.roundRect(-1, -11, 12, 10, 1.6); ctx.fill();
+    if (!a.open) {
+      ctx.fillStyle = 'rgba(120,200,220,0.5)';
+      ctx.fillRect(0.5, -9.5, 8, 1.2);
+      ctx.fillRect(0.5, -7, 5, 1.2);
+    }
+    // keypad + dispenser slot
+    ctx.fillStyle = '#4E5762';
+    for (let r2 = 0; r2 < 2; r2++)
+      for (let c2 = 0; c2 < 3; c2++)
+        { ctx.beginPath(); ctx.roundRect(0.5 + c2 * 4, 1 + r2 * 4, 3, 3, 1); ctx.fill(); }
+    ctx.fillStyle = a.open ? '#0D1013' : '#E0B44C';
+    ctx.beginPath(); ctx.roundRect(0, 10, 12, 2.6, 1.2); ctx.fill();
+
+    if (a.open) {
+      ctx.save(); ctx.rotate(-a.facing);
+      ctx.fillStyle = 'rgba(224,180,76,0.5)';
+      ctx.font = '700 8px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('EMPTIED', 0, -24);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    } else if (H.robo && dist(H.robo, a) < 56) {
+      ctx.save(); ctx.rotate(-a.facing);
+      ctx.fillStyle = 'rgba(95,191,135,0.95)';
+      ctx.font = '700 9px Oswald, Impact, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('E  CRACK ATM', 0, -26);
+      ctx.textAlign = 'left';
+      if (a.prog > 0) {
+        ctx.strokeStyle = '#5FBF87'; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(a.prog / LO.atmDrill, 0, 1));
+        ctx.stroke();
+      }
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -3315,6 +3527,11 @@
       ctx.fillStyle = '#5FBF87';
       ctx.fillRect(x0 + t.x * sc - 1, y0 + t.y * sc - 1, 2, 2);
     });
+    w.atms.forEach(a => {
+      if (a.open) return;
+      ctx.fillStyle = '#E0B44C';
+      ctx.fillRect(x0 + a.x * sc - 1.5, y0 + a.y * sc - 1.5, 3, 3);
+    });
     H.civilians.forEach(c => {
       if (c.dead) return;
       ctx.fillStyle = 'rgba(200,210,220,0.5)';
@@ -3448,7 +3665,8 @@
     // objective line
     const obj = hudEl('hud-objective');
     const openVaults = H.world.vaults.filter(v => v.open).length;
-    const tills = H.world.registers.filter(t => !t.open).length;
+    const tills = H.world.registers.filter(t => !t.open).length +
+                  H.world.atms.filter(a => !a.open).length;
     if (H.extractPhase && H.stragglers > 0)
       obj.textContent = 'Waiting on ' + H.stragglers + ' — press E again to go without them';
     else if (H.canExtract) obj.textContent = 'Press E to drive off';

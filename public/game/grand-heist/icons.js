@@ -67,6 +67,7 @@
     health:   svg('<path d="M12 20s-7-4.4-7-9a4 4 0 017-2.6A4 4 0 0119 11c0 4.6-7 9-7 9z" fill="currentColor" fill-opacity=".2"/>'),
     carry:    svg('<path d="M8 8h8l2 11H6z" fill="currentColor" fill-opacity=".18"/><path d="M9 8l1-3h4l1 3"/><path d="M12 11v6"/><path d="M10.5 12.5h3"/>'),
     level:    svg('<path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.6l1.1-6L3.4 9.4l6-.8z" fill="currentColor" fill-opacity=".2"/>'),
+    morale:   svg('<path d="M12 3a5 5 0 015 5c0 3-2 4.5-2 7H9c0-2.5-2-4-2-7a5 5 0 015-5z" fill="currentColor" fill-opacity=".2"/><path d="M9.5 18h5"/><path d="M10 21h4"/>'),
     cash:     svg('<rect x="2.5" y="6" width="19" height="12" rx="2" fill="currentColor" fill-opacity=".16"/><circle cx="12" cy="12" r="2.8"/><path d="M6 9v6"/><path d="M18 9v6"/>'),
   };
 
