@@ -280,7 +280,7 @@ button:active:not(:disabled) { filter: brightness(1.08); }
 code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font-size: .85em; }
 
 /* ---------- bank cards ---------- */
-.bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: .8rem; }
+.bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: .8rem; align-items: start; }
 .bank-card {
     text-align: left; cursor: pointer; color: inherit;
     background: linear-gradient(180deg, var(--panel), #111820);
@@ -314,6 +314,73 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
     color: var(--teal); border: 1px solid rgba(79,179,196,.3);
     border-radius: 999px; padding: .1rem .45rem; font-size: .68rem;
 }
+
+/* ---------- the jobs board ---------- */
+/* The board spans the grid, so the acts and the progress bar break the
+   cards into a campaign instead of one long undifferentiated wall. */
+.campaign-bar, .act-head { grid-column: 1 / -1; }
+
+.campaign-bar {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .1rem .1rem .4rem;
+}
+.cb-track {
+    flex: 1; height: 5px; border-radius: 999px;
+    background: rgba(0,0,0,.42); border: 1px solid var(--line-soft);
+    overflow: hidden;
+}
+.cb-track i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--gold));
+}
+.cb-text {
+    font-size: .64rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-mute); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.act-head {
+    display: flex; align-items: baseline; gap: .6rem;
+    margin: .7rem 0 -.1rem; padding-bottom: .35rem;
+    border-bottom: 1px solid var(--line-soft);
+}
+.act-head .act-no {
+    font-family: 'Oswald', Impact, sans-serif; text-transform: uppercase;
+    letter-spacing: .18em; font-size: .68rem; color: var(--gold);
+}
+.act-head .act-name { font-size: .82rem; color: var(--ink-soft); flex: 1; }
+.act-head .act-count {
+    font-size: .64rem; color: var(--ink-mute); font-variant-numeric: tabular-nums;
+}
+.act-head.is-done .act-no { color: var(--green); }
+
+/* the crest, and the name beside it */
+.bank-head { display: flex; gap: .7rem; align-items: flex-start; }
+.bank-id { min-width: 0; flex: 1; }
+.bank-mark {
+    width: 46px; height: 46px; flex: none; display: block; border-radius: 7px;
+}
+.bank-card.is-locked .bank-mark { filter: grayscale(1) brightness(.7); }
+.bank-sub {
+    margin: .1rem 0 0; font-size: .68rem; color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: .08em;
+}
+
+/* how much room the job gives you */
+.bank-heat {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .68rem; color: var(--ink-mute);
+}
+.bank-heat .lbl {
+    text-transform: uppercase; letter-spacing: .1em; font-size: .58rem; white-space: nowrap;
+}
+.bank-heat .heat-track {
+    flex: 1; height: 4px; border-radius: 999px;
+    background: rgba(0,0,0,.45); overflow: hidden;
+}
+.bank-heat .heat-track i { display: block; height: 100%; background: var(--heat, var(--gold)); }
+.bank-heat b { color: var(--heat, var(--ink)); font-size: .68rem; white-space: nowrap; }
+
+.bank-intel { flex-wrap: wrap; }
 
 /* ---------- squad row ---------- */
 .squad-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: .7rem; margin-bottom: 1rem; }
@@ -526,6 +593,26 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .heist-wrap .hud,
 .heist-wrap .heist-hint { transition: opacity .28s ease; }
 
+/* ---------- who is on offer ---------- */
+.tier-tag {
+    font-family: 'Oswald', Impact, sans-serif; font-size: .56rem;
+    letter-spacing: .14em; text-transform: uppercase;
+    border-radius: 3px; padding: .1rem .34rem; border: 1px solid;
+}
+.tier-tag.t-street  { color: var(--ink-mute); border-color: var(--line); }
+.tier-tag.t-pro     { color: var(--teal); border-color: rgba(79,179,196,.45); }
+.tier-tag.t-veteran { color: var(--gold); border-color: rgba(224,180,76,.5); }
+.tier-tag.t-elite   { color: #14100A; border-color: var(--gold); background: var(--gold); font-weight: 700; }
+
+.rare-tag {
+    margin-left: .35rem; font-size: .54rem; letter-spacing: .14em;
+    text-transform: uppercase; color: #E08C82;
+    border: 1px solid rgba(224,140,130,.5); border-radius: 3px; padding: .04rem .26rem;
+}
+.mate-card.is-rare { border-color: rgba(224,140,130,.45); }
+.mate-card.is-dear .hire-btn { color: var(--red); border-color: rgba(196,69,58,.4); }
+.hire-btn { font-variant-numeric: tabular-nums; }
+
 /* ---------- bench ---------- */
 .bench {
     display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
@@ -669,9 +756,11 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .hud-mate.is-dead { opacity: .42; }
 .hud-mate.is-dead .cash { color: var(--red); }
 
-.hud-alarm { display: flex; gap: .45rem; align-items: baseline; border-radius: 4px; padding: .3rem .8rem; font-size: .76rem; border: 1px solid; }
-.hud-alarm .k { text-transform: uppercase; letter-spacing: .1em; font-size: .58rem; }
-.hud-alarm .v { font-family: 'Oswald', Impact, sans-serif; font-variant-numeric: tabular-nums; }
+/* The status and its countdown are the two numbers you look up at mid
+   firefight, so they are sized to be read at a glance rather than squinted at. */
+.hud-alarm { display: flex; gap: .55rem; align-items: baseline; border-radius: 5px; padding: .4rem 1rem; font-size: 1.15rem; border: 1px solid; }
+.hud-alarm .k { text-transform: uppercase; letter-spacing: .12em; font-size: .7rem; opacity: .85; }
+.hud-alarm .v { font-family: 'Oswald', Impact, sans-serif; font-variant-numeric: tabular-nums; font-size: 1.3rem; font-weight: 600; letter-spacing: .02em; }
 .hud-alarm.quiet { color: var(--green); background: rgba(10,28,18,.8); border-color: rgba(95,191,135,.3); }
 .hud-alarm.warn  { color: var(--gold);  background: rgba(34,26,8,.85); border-color: rgba(224,180,76,.4); }
 .hud-alarm.bad   { color: #FF7B6E; background: rgba(38,10,8,.88); border-color: rgba(196,69,58,.5); animation: pulseBad 1s ease-in-out infinite; }

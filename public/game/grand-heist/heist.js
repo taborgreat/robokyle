@@ -367,16 +367,24 @@
     // corner, off to one side, or square in the middle of the back wall.
     const vaultPlan = pick2(['centre', 'left', 'right', 'split', 'corner']);
     world.plan.vault = vaultPlan;
+    // Where each vault sits along the back wall. `corner` and `split` used
+    // `v % 2`, which put the first and third vault in exactly the same
+    // place on a three-vault bank: two strongrooms inside each other, and
+    // a drill point buried in someone else's wall.
+    const FRACS = {
+      left:   [0.06, 0.36, 0.66],
+      right:  [0.94, 0.64, 0.34],
+      split:  [0.14, 0.86, 0.50],
+      corner: [0.08, 0.92, 0.50],
+    };
     const vaultSpotFor = (v) => {
       const inset = WALL + 40;
       const usable = bw - 2 * inset - vw;
-      switch (vaultPlan) {
-        case 'left':   return bx + inset + usable * (0.06 + v * 0.30);
-        case 'right':  return bx + inset + usable * (0.94 - v * 0.30);
-        case 'split':  return bx + inset + usable * (v % 2 ? 0.86 : 0.14) + (v > 1 ? usable * 0.2 : 0);
-        case 'corner': return bx + inset + usable * (v % 2 ? 0.92 : 0.08);
-        default:       return bx + bw * ((v + 1) / (vaultCount + 1)) - vw / 2;
-      }
+      const table = FRACS[vaultPlan];
+      if (!table) return bx + bw * ((v + 1) / (vaultCount + 1)) - vw / 2;
+      // beyond the table, fall back to spreading them evenly
+      const f = v < table.length ? table[v] : (v + 1) / (vaultCount + 1);
+      return bx + inset + usable * f;
     };
     for (let v = 0; v < vaultCount; v++) {
       const vx = clamp(vaultSpotFor(v), bx + WALL + 24, bx + bw - WALL - vw - 24);
@@ -393,7 +401,7 @@
 
       const vault = {
         id: v, x: vx, y: vy, w: vw, h: vh, door,
-        drillX: dX + dW / 2, drillY: vy + vh + 16,
+        drillX: dX + dW / 2, drillY: vy + vh + 36,
         progress: 0, drilling: false, open: false, rig: false,
         cash: vaultCash,
       };
@@ -411,8 +419,18 @@
     }
 
     // ---- side offices with deposit boxes ----
+    // Only for the small branches. Anywhere with a proper back of house
+    // puts its boxes in the strongroom corridor instead, which is both
+    // more like a real bank and stops two floor plans fighting for the
+    // same square metres.
+    const backTop0 = by + WALL;
+    const backBot0 = counterY - 30;
+    const roomy = (bank.size === 'large' || bank.size === 'huge') &&
+                  (backBot0 - backTop0) > 300;
+    world.plan.backOffice = roomy;
+
     const boxes = boxCount;
-    if (boxes > 0) {
+    if (boxes > 0 && !roomy) {
       const officeW = 200, officeH = 150;
       const hi = by + bh * between(0.26, 0.36);
       const lo = by + bh * between(0.56, 0.68);
@@ -426,8 +444,10 @@
       spots.forEach((sp, si) => {
         if (placed >= boxes) return;
         // partial walls so offices read as rooms but stay enterable
-        obstacles.push({ x: sp.x, y: sp.y, w: officeW, h: 14, kind: 'wall' });
-        obstacles.push({ x: sp.x, y: sp.y + officeH - 14, w: officeW * 0.55, h: 14, kind: 'wall' });
+        // Interior, so they are tagged as partitions: the repair pass is
+        // allowed to cut a doorway through one, and never through the shell.
+        obstacles.push({ x: sp.x, y: sp.y, w: officeW, h: 14, kind: 'partition' });
+        obstacles.push({ x: sp.x, y: sp.y + officeH - 14, w: officeW * 0.55, h: 14, kind: 'partition' });
         const perRoom = Math.min(3, boxes - placed);
         for (let i = 0; i < perRoom; i++) {
           world.deposits.push({
@@ -569,6 +589,7 @@
     // bollards. Flat scenery never blocks anyone; anything you would walk
     // around in life gets an obstacle.
     world.decor = [];
+    world.rooms = [];
     const tier = bank.id <= 4 ? 'low' : (bank.id <= 12 ? 'mid' : 'high');
     world.tier = tier;
 
@@ -693,64 +714,359 @@
       addDecor('art', bx + bw * 0.5, by + WALL + 6, { s: 1 });
     }
 
+    // ---- back of house: corridor, offices, cubicles ----
+    // A bank is not one open hall with a strongroom dropped in the middle:
+    // there is a corridor off the counter, rooms either side of it, and
+    // the vault at the end.
+    const backBot = backBot0;
+    if (roomy) {
+      const DOOR = 74;                       // a doorway a body fits through
+      const WALLT = 18;                      // same thickness as the shell
+
+      // A corridor runs across the back, in front of the vaults, so there
+      // is always a route from the counter gaps to the strongroom.
+      const vaultBot = Math.max.apply(null, world.vaults.map(v => v.y + v.h));
+      const corrTop = Math.min(vaultBot + 34, backBot - 150);
+      const corrBot = corrTop + 78;          // a corridor, not a concourse
+
+      // Partition between the corridor and the rooms behind the counter,
+      // with two doorways off it.
+      const doorAts = [bx + bw * between(0.22, 0.34), bx + bw * between(0.66, 0.78)];
+      const runWall = (y, gaps) => {
+        const cuts = gaps.slice().sort((a, b) => a - b);
+        let cursor = bx + WALL;
+        cuts.forEach(gx => {
+          const from = cursor, to = gx - DOOR / 2;
+          if (to - from > 26) {
+            obstacles.push({ x: from, y, w: to - from, h: WALLT, kind: 'partition' });
+          }
+          cursor = gx + DOOR / 2;
+        });
+        if (bx + bw - WALL - cursor > 26) {
+          obstacles.push({ x: cursor, y, w: bx + bw - WALL - cursor, h: WALLT, kind: 'partition' });
+        }
+      };
+      runWall(corrBot, doorAts);
+
+      // Rooms between that partition and the counter, split by cross walls
+      // with a doorway in each. Three or four of them across the width.
+      const roomTop = corrBot + WALLT;
+      const roomBot = backBot;
+      const roomCount = bank.size === 'huge' ? 5 : 3;
+      const cross = [];
+      for (let i = 1; i < roomCount; i++) {
+        const cx2 = bx + WALL + (bw - 2 * WALL) * (i / roomCount);
+        cross.push(cx2);
+        // a wall with a gap in it, so the rooms interconnect as well
+        const gapAt = roomTop + (roomBot - roomTop) * between(0.35, 0.65);
+        if (gapAt - roomTop > 26) {
+          obstacles.push({ x: cx2 - WALLT / 2, y: roomTop, w: WALLT,
+                           h: gapAt - roomTop - DOOR / 2, kind: 'partition' });
+        }
+        const lower = gapAt + DOOR / 2;
+        if (roomBot - lower > 26) {
+          obstacles.push({ x: cx2 - WALLT / 2, y: lower, w: WALLT,
+                           h: roomBot - lower, kind: 'partition' });
+        }
+      }
+
+      // Furnish each room. What goes in it depends on which room it is,
+      // and one of them is the safe-deposit room.
+      const edges = [bx + WALL].concat(cross).concat([bx + bw - WALL]);
+      const KINDS = ['cubicles', 'offices', 'records', 'break'];
+
+      for (let i = 0; i < roomCount; i++) {
+        const x0 = edges[i] + 16, x1 = edges[i + 1] - 16;
+        const w2 = x1 - x0;
+        if (w2 < 90) continue;
+        const cy2 = (roomTop + roomBot) / 2;
+
+        const kind = KINDS[Math.floor(R() * KINDS.length)];
+
+        // the room itself, so the floor and the props can match
+        world.rooms.push({ x: x0 - 16, y: roomTop, w: w2 + 32, h: roomBot - roomTop, kind });
+
+        if (kind === 'cubicles') {
+          // An open-plan bay: dividers you can shoot over, a workstation in
+          // each pen, and a chair pushed back from every one of them.
+          const cols = Math.max(1, Math.floor(w2 / 104));
+          for (let c2 = 0; c2 < cols; c2++) {
+            const px2 = x0 + (c2 + 0.5) * (w2 / cols);
+            for (const oy of [-56, 20]) {
+              if (cy2 + oy < roomTop + 24 || cy2 + oy > roomBot - 30) continue;
+              obstacles.push({ x: px2 - 40, y: cy2 + oy, w: 80, h: 11,
+                               low: true, kind: 'cubicle' });
+              obstacles.push({ x: px2 - 40, y: cy2 + oy, w: 11, h: 40,
+                               low: true, kind: 'cubicle' });
+              addDecor('workstation', px2, cy2 + oy + 28, { solid: [58, 26] });
+              addDecor('officechair', px2 + rand(-10, 10), cy2 + oy + 50,
+                       { solid: [22, 22] });
+            }
+          }
+          if (w2 > 150) addDecor('printer', x1 - 26, roomBot - 26, { solid: [34, 24] });
+
+        } else if (kind === 'offices') {
+          // A manager's room: desk facing the door, a chair behind it, and
+          // filing along the back wall.
+          addDecor('workstation', x0 + w2 * 0.5, cy2 - 18, { solid: [58, 26] });
+          addDecor('officechair', x0 + w2 * 0.5, cy2 + 16, { solid: [22, 22] });
+          obstacles.push({ x: x0 + 8, y: roomTop + 24, w: Math.min(66, w2 * 0.35), h: 24,
+                           low: true, kind: 'shelf' });
+          if (w2 > 170) addDecor('whiteboard', x1 - 34, roomTop + 20, { solid: [52, 14] });
+          addDecor('plant', x1 - 24, roomBot - 30, { solid: [30, 30] });
+          addDecor('coatstand', x0 + 22, roomBot - 28, { solid: [18, 18] });
+
+        } else if (kind === 'records') {
+          // Aisles of filing, front to back, with a workbench at the end.
+          const rows = Math.max(1, Math.floor(w2 / 78));
+          for (let c2 = 0; c2 < rows; c2++) {
+            const px2 = x0 + (c2 + 0.5) * (w2 / rows);
+            obstacles.push({ x: px2 - 24, y: cy2 - 50, w: 48, h: 28,
+                             low: true, kind: 'shelf' });
+            obstacles.push({ x: px2 - 24, y: cy2 + 14, w: 48, h: 28,
+                             low: true, kind: 'shelf' });
+          }
+          addDecor('printer', x0 + 28, roomBot - 26, { solid: [34, 24] });
+          addDecor('board', x0 + w2 * 0.5, roomTop + 12, { s: 1 });
+
+        } else {
+          // Staff room: a table with chairs round it, a cooler, a board.
+          addDecor('table', x0 + w2 * 0.5, cy2, { solid: [76, 40] });
+          addDecor('officechair', x0 + w2 * 0.5 - 54, cy2, { solid: [22, 22] });
+          addDecor('officechair', x0 + w2 * 0.5 + 54, cy2, { solid: [22, 22] });
+          addDecor('officechair', x0 + w2 * 0.5, cy2 - 42, { solid: [22, 22] });
+          addDecor('cooler', x1 - 26, roomTop + 32, { solid: [26, 26] });
+          addDecor('whiteboard', x0 + w2 * 0.5, roomTop + 14, { solid: [52, 14] });
+          addDecor('coatstand', x0 + 24, roomBot - 28, { solid: [18, 18] });
+        }
+      }
+
+      // the corridor is a room in its own right, floor-wise
+      world.rooms.push({ x: bx + WALL, y: corrTop, w: bw - 2 * WALL,
+                         h: corrBot - corrTop, kind: 'corridor' });
+
+      // ---- safe-deposit boxes down the corridor ----
+      // Two banks of them facing each other along the strongroom corridor.
+      // They are wall-mounted and do not block, so the corridor stays a
+      // corridor, and it is always connected to the vaults.
+      if (boxCount > 0) {
+        const amounts = splitCash(bank.haul * boxShare, boxCount, 0.25);
+        const left = bx + WALL + 56;
+        const span = bw - 2 * WALL - 112;
+        const perSide = Math.ceil(boxCount / 2);
+        const gap = span / Math.max(1, perSide - 1);
+        for (let k = 0; k < boxCount; k++) {
+          const side = k % 2;
+          const idx = Math.floor(k / 2);
+          world.deposits.push({
+            x: perSide > 1 ? left + idx * gap : bx + bw / 2,
+            y: side ? corrBot - 22 : corrTop + 22,
+            r: 16, amount: amounts[k],
+            open: false, hp: 60, shake: 0,
+          });
+        }
+      }
+    }
+
     buildNav(world);
-    clearRouteToDoor(world);
+    proveRoutes(world);
     return world;
   }
 
-  // ---- prove you can actually walk from the car to the front door ----
-  // The street furniture is placed by tier and by taste, and any given
-  // arrangement can wall the pavement off - especially now the car is not
-  // always parked at the entrance. Rather than hand-tuning every prop,
-  // check the route and take out whatever is in the way until it opens.
-  // Only loose street furniture is ever removed; walls and vehicles stay.
-  function clearRouteToDoor(world) {
-    const CELL = NAV_CELL;
-    const doorPt = { x: world.door.x + world.door.w / 2, y: world.door.y + 40 };
+  // Everywhere the player has to be able to stand.
+  function objectives(world) {
+    const out = [{ x: world.door.x + world.door.w / 2, y: world.door.y + 40, what: 'door' }];
+    world.vaults.forEach((v, i) => out.push({ x: v.drillX, y: v.drillY, what: 'vault ' + i }));
+    world.registers.forEach((t, i) => out.push({ x: t.x, y: world.counterY + 34, what: 'till ' + i }));
+    world.atms.forEach((a, i) => out.push({
+      x: a.x + Math.cos(a.facing) * 34, y: a.y + Math.sin(a.facing) * 34, what: 'atm ' + i,
+    }));
+    world.deposits.forEach((d, i) => out.push({ x: d.x, y: d.y + 32, what: 'box ' + i }));
+    return out;
+  }
 
-    const connected = () => {
+  // Flood the nav grid from the car and report which objectives it reaches.
+  function reachSet(world) {
+    const nav = world.nav, CELL = NAV_CELL;
+    const sx = Math.floor(world.car.x / CELL), sy = Math.floor(world.car.y / CELL);
+    const seen = new Uint8Array(nav.cols * nav.rows);
+    if (nav.blocked[sy * nav.cols + sx]) return seen;
+    const q = [sx, sy];
+    seen[sy * nav.cols + sx] = 1;
+    for (let h = 0; h < q.length; h += 2) {
+      const x = q[h], y = q[h + 1];
+      for (let d = 0; d < 4; d++) {
+        const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d];
+        if (nx < 0 || ny < 0 || nx >= nav.cols || ny >= nav.rows) continue;
+        const i = ny * nav.cols + nx;
+        if (seen[i] || nav.blocked[i]) continue;
+        seen[i] = 1;
+        q.push(nx, ny);
+      }
+    }
+    return seen;
+  }
+
+  function unreached(world) {
+    const seen = reachSet(world);
+    const nav = world.nav, CELL = NAV_CELL;
+    return objectives(world).filter(o => {
+      const cx = Math.floor(o.x / CELL), cy = Math.floor(o.y / CELL);
+      if (cx < 0 || cy < 0 || cx >= nav.cols || cy >= nav.rows) return true;
+      // Exact cell only. Accepting a neighbouring free cell let this pass
+      // declare victory while the objective itself was still walled in.
+      return !seen[cy * nav.cols + cx];
+    });
+  }
+
+  // Take out whatever is sealing something off. Loose scenery goes first,
+  // then cubicle dividers and filing, then a doorway through a partition -
+  // never the shell of the building or a vault wall.
+  // Order matters: cutting a doorway through a partition is what a real
+  // route looks like, and it keeps the room. Deleting the furniture is the
+  // fallback, and deleting scenery outright is the last resort - doing it
+  // first stripped whole banks bare.
+  const CLEARABLE = ['partition', 'cubicle', 'shelf', 'desk', 'decor'];
+
+  // Grid of what is blocked by things we are NOT allowed to move: the
+  // shell, the vaults, the counters. Everything else counts as passable,
+  // because we can put a doorway through it.
+  function hardGrid(world) {
+    const nav = world.nav;
+    const hard = new Uint8Array(nav.cols * nav.rows);
+    const PAD_WALL = 15, PAD_LOW = 8;
+    for (const o of world.obstacles) {
+      if (o.kind === 'vaultdoor' && !o.solid) continue;
+      if (CLEARABLE.indexOf(o.kind) >= 0) continue;
+      const PAD = o.low ? PAD_LOW : PAD_WALL;
+      const x0 = Math.max(0, Math.floor((o.x - PAD) / NAV_CELL));
+      const y0 = Math.max(0, Math.floor((o.y - PAD) / NAV_CELL));
+      const x1 = Math.min(nav.cols - 1, Math.floor((o.x + o.w + PAD) / NAV_CELL));
+      const y1 = Math.min(nav.rows - 1, Math.floor((o.y + o.h + PAD) / NAV_CELL));
+      for (let cy = y0; cy <= y1; cy++)
+        for (let cx = x0; cx <= x1; cx++) hard[cy * nav.cols + cx] = 1;
+    }
+    return hard;
+  }
+
+  // Shortest run of cells from the car to a point, ignoring anything we
+  // could clear. Returns the cells, or null if even that cannot get there.
+  function softRoute(world, tx, ty) {
+    const nav = world.nav;
+    const hard = hardGrid(world);
+    const sx = Math.floor(world.car.x / NAV_CELL), sy = Math.floor(world.car.y / NAV_CELL);
+    const gx = Math.floor(tx / NAV_CELL), gy = Math.floor(ty / NAV_CELL);
+    if (gx < 0 || gy < 0 || gx >= nav.cols || gy >= nav.rows) return null;
+    if (hard[gy * nav.cols + gx] || hard[sy * nav.cols + sx]) return null;
+
+    const prev = new Int32Array(nav.cols * nav.rows).fill(-1);
+    const seen = new Uint8Array(nav.cols * nav.rows);
+    const q = [sx, sy];
+    seen[sy * nav.cols + sx] = 1;
+    for (let h = 0; h < q.length; h += 2) {
+      const x = q[h], y = q[h + 1];
+      if (x === gx && y === gy) break;
+      for (let d = 0; d < 4; d++) {
+        const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d];
+        if (nx < 0 || ny < 0 || nx >= nav.cols || ny >= nav.rows) continue;
+        const i = ny * nav.cols + nx;
+        if (seen[i] || hard[i]) continue;
+        seen[i] = 1;
+        prev[i] = y * nav.cols + x;
+        q.push(nx, ny);
+      }
+    }
+    if (!seen[gy * nav.cols + gx]) return null;
+
+    const out = [];
+    let cur = gy * nav.cols + gx;
+    while (cur >= 0) { out.push(cur); cur = prev[cur]; }
+    return out;
+  }
+
+  // Open a route to everything the player has to reach. Rather than
+  // removing props and hoping, work out the route first and then clear
+  // only what is standing on it.
+  function proveRoutes(world) {
+    // A drill point has to be somewhere a body can actually stand.
+    world.vaults.forEach(v => {
+      for (let step2 = 0; step2 < 8; step2++) {
+        const cx = Math.floor(v.drillX / NAV_CELL), cy = Math.floor(v.drillY / NAV_CELL);
+        if (cy >= world.nav.rows) break;
+        if (!world.nav.blocked[cy * world.nav.cols + cx]) break;
+        v.drillY += 10;
+      }
+    });
+
+    for (let pass = 0; pass < 30; pass++) {
+      const bad = unreached(world);
+      if (!bad.length) return;
+      const target = bad[0];
+
+      const route = softRoute(world, target.x, target.y);
+      if (!route) return;                 // sealed by something we may not move
+
+      // Everything clearable sitting on that run has to give way.
       const nav = world.nav;
-      const sx = Math.floor(world.car.x / CELL), sy = Math.floor(world.car.y / CELL);
-      const gx = Math.floor(doorPt.x / CELL), gy = Math.floor(doorPt.y / CELL);
-      if (nav.blocked[sy * nav.cols + sx]) return false;
-      const seen = new Uint8Array(nav.cols * nav.rows);
-      const q = [sx, sy];
-      seen[sy * nav.cols + sx] = 1;
-      for (let h = 0; h < q.length; h += 2) {
-        const x = q[h], y = q[h + 1];
-        if (x === gx && y === gy) return true;
-        for (let d = 0; d < 4; d++) {
-          const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d];
-          if (nx < 0 || ny < 0 || nx >= nav.cols || ny >= nav.rows) continue;
-          const i = ny * nav.cols + nx;
-          if (seen[i] || nav.blocked[i]) continue;
-          seen[i] = 1;
-          q.push(nx, ny);
+      const onRoute = new Set(route);
+      const doomed = [];
+      for (const o of world.obstacles) {
+        if (CLEARABLE.indexOf(o.kind) < 0) continue;
+        const PAD = o.low ? 8 : 15;
+        const x0 = Math.max(0, Math.floor((o.x - PAD) / NAV_CELL));
+        const y0 = Math.max(0, Math.floor((o.y - PAD) / NAV_CELL));
+        const x1 = Math.min(nav.cols - 1, Math.floor((o.x + o.w + PAD) / NAV_CELL));
+        const y1 = Math.min(nav.rows - 1, Math.floor((o.y + o.h + PAD) / NAV_CELL));
+        let hits = false;
+        for (let cy = y0; cy <= y1 && !hits; cy++)
+          for (let cx = x0; cx <= x1; cx++) {
+            if (onRoute.has(cy * nav.cols + cx)) { hits = true; break; }
+          }
+        if (hits) doomed.push(o);
+      }
+      if (!doomed.length) return;
+      doomed.forEach(o => cutOrRemove(world, o));
+      buildNav(world);
+    }
+  }
+
+  // Cut a doorway through a long wall; take a small thing away entirely.
+  function cutOrRemove(world, o) {
+    const i = world.obstacles.indexOf(o);
+    if (i < 0) return;
+    world.obstacles.splice(i, 1);
+
+    if (o.kind === 'partition' && Math.max(o.w, o.h) > 110) {
+      const DOOR = 76;
+      if (o.w > o.h) {
+        const midx = o.x + o.w / 2;
+        if (midx - DOOR / 2 - o.x > 24) {
+          world.obstacles.push({ x: o.x, y: o.y, w: midx - DOOR / 2 - o.x,
+                                 h: o.h, kind: 'partition' });
+        }
+        const right = midx + DOOR / 2;
+        if (o.x + o.w - right > 24) {
+          world.obstacles.push({ x: right, y: o.y, w: o.x + o.w - right,
+                                 h: o.h, kind: 'partition' });
+        }
+      } else {
+        const midy = o.y + o.h / 2;
+        if (midy - DOOR / 2 - o.y > 24) {
+          world.obstacles.push({ x: o.x, y: o.y, w: o.w,
+                                 h: midy - DOOR / 2 - o.y, kind: 'partition' });
+        }
+        const low = midy + DOOR / 2;
+        if (o.y + o.h - low > 24) {
+          world.obstacles.push({ x: o.x, y: low, w: o.w,
+                                 h: o.y + o.h - low, kind: 'partition' });
         }
       }
-      return false;
-    };
-
-    if (connected()) return;
-
-    // Everything loose on the street, nearest the route first.
-    const midX = (world.car.x + doorPt.x) / 2;
-    const loose = world.obstacles
-      .map((o, i) => ({ o, i }))
-      .filter(({ o }) => o.kind === 'decor' && o.y > world.walkY - 40)
-      .sort((a, b) => Math.abs(a.o.x - midX) - Math.abs(b.o.x - midX));
-
-    for (const { o } of loose) {
-      const at = world.obstacles.indexOf(o);
-      if (at < 0) continue;
-      world.obstacles.splice(at, 1);
-      // and take the visible prop with it, so nothing is left floating
-      const dec = world.decor.find(d => d.solid &&
-        Math.abs(d.x - (o.x + o.w / 2)) < 1 && Math.abs(d.y - (o.y + o.h / 2)) < 1);
-      if (dec) world.decor.splice(world.decor.indexOf(dec), 1);
-      buildNav(world);
-      if (connected()) return;
+      return;
     }
+
+    const dec = world.decor.find(d => d.solid &&
+      Math.abs(d.x - (o.x + o.w / 2)) < 1 && Math.abs(d.y - (o.y + o.h / 2)) < 1);
+    if (dec) world.decor.splice(world.decor.indexOf(dec), 1);
   }
 
   // ==================== ENTITY FACTORY ====================
@@ -1453,7 +1769,8 @@
     if (a.downed || a.dead) return;
     if (a.iframes > 0) return;
     const armor = D.ARMOR[a.char.armor] || D.ARMOR.none;
-    let d = dmg * (1 - (armor.dr || 0));
+    // A hard-shelled mask is armour as much as disguise.
+    let d = dmg * (1 - (armor.dr || 0)) * perk(a, 'tough');
     if (armor.frontal && fromX != null) {
       const toward = Math.atan2(fromY - a.y, fromX - a.x);
       if (Math.abs(normAngle(toward - a.angle)) < Math.PI * 0.45) d *= (1 - armor.frontal);
@@ -1555,6 +1872,7 @@
     v.open = true;
     v.drilling = false;
     v.door.solid = false;
+    H.world.obIndex = null;         // the door stopped blocking; reindex
     v.door.open = true;
     H.world.navDirty = true;      // the vault is a doorway now
     H.world.loot.forEach(l => { if (l.kind === 'vault' && l.vaultId === v.id) l.locked = false; });
@@ -1657,7 +1975,6 @@
         let rate = (1 - d / SIGHT) * inView;
         if (armed)  rate *= 3.2;
         if (masked) rate *= 2.0;
-        rate *= perk(tgt, 'unseen');      // a bare face reads as a customer
         if (H.alarm) rate = 4;
         e.suspicion = Math.min(1, e.suspicion + rate * dt / 1000);
         // turn toward whatever caught his eye
@@ -2128,12 +2445,22 @@
         // and what he is standing on.
         const off = [[-132, 110], [132, 110], [0, 168]][c.slot - 1] || [0, 140];
         let tx = p.x + off[0], ty = p.y + off[1];
-        // A formation slot can land inside a wall - the corner vaults make
-        // that common - and they would hover outside it forever. Snap the
-        // slot to the nearest ground they can actually stand on.
+        // A formation slot can land inside a wall, and in a corridor the
+        // wide spacing does not fit at all. Tuck in toward the player
+        // before giving up and snapping to whatever ground is nearest -
+        // trailing him down a hallway is what you want there anyway.
         if (navBlockedAt(H.world.nav, tx, ty)) {
-          const cell = nearestFree(H.world.nav, Math.floor(tx / NAV_CELL), Math.floor(ty / NAV_CELL));
-          if (cell) { tx = cellCentre(cell[0]); ty = cellCentre(cell[1]); }
+          let found = false;
+          for (const squeeze of [0.7, 0.45, 0.25]) {
+            const sx2 = p.x + off[0] * squeeze, sy2 = p.y + off[1] * squeeze;
+            if (!navBlockedAt(H.world.nav, sx2, sy2)) {
+              tx = sx2; ty = sy2; found = true; break;
+            }
+          }
+          if (!found) {
+            const cell = nearestFree(H.world.nav, Math.floor(tx / NAV_CELL), Math.floor(ty / NAV_CELL));
+            if (cell) { tx = cellCentre(cell[0]); ty = cellCentre(cell[1]); }
+          }
         }
         const d = Math.hypot(tx - c.x, ty - c.y);
         if (d > 68) {
@@ -3158,10 +3485,49 @@
     a.walkPhase += Math.hypot(dx, dy) * 0.09 * step;
   }
 
+  // Obstacles bucketed into a coarse grid. Rebuilt whenever the obstacle
+  // list changes, which is rare: a vault opening, or a wall coming down.
+  const OB_CELL = 96;
+
+  function buildObstacleIndex(world) {
+    const cols = Math.ceil(world.w / OB_CELL);
+    const rows = Math.ceil(world.h / OB_CELL);
+    const cells = new Array(cols * rows);
+    for (const o of world.obstacles) {
+      const x0 = Math.max(0, Math.floor(o.x / OB_CELL));
+      const y0 = Math.max(0, Math.floor(o.y / OB_CELL));
+      const x1 = Math.min(cols - 1, Math.floor((o.x + o.w) / OB_CELL));
+      const y1 = Math.min(rows - 1, Math.floor((o.y + o.h) / OB_CELL));
+      for (let cy = y0; cy <= y1; cy++) {
+        for (let cx = x0; cx <= x1; cx++) {
+          const i = cy * cols + cx;
+          (cells[i] || (cells[i] = [])).push(o);
+        }
+      }
+    }
+    world.obIndex = { cols, rows, cells, n: world.obstacles.length };
+  }
+
   function blocked(x, y, r) {
-    for (const o of H.world.obstacles) {
-      if (o.kind === 'vaultdoor' && !o.solid) continue;
-      if (circleRect(x, y, r, o)) return true;
+    const w = H.world;
+    // The index is keyed on the obstacle count, so anything that adds or
+    // removes one rebuilds it without every caller having to remember.
+    if (!w.obIndex || w.obIndex.n !== w.obstacles.length) buildObstacleIndex(w);
+    const ix = w.obIndex;
+    const x0 = Math.max(0, Math.floor((x - r) / OB_CELL));
+    const y0 = Math.max(0, Math.floor((y - r) / OB_CELL));
+    const x1 = Math.min(ix.cols - 1, Math.floor((x + r) / OB_CELL));
+    const y1 = Math.min(ix.rows - 1, Math.floor((y + r) / OB_CELL));
+    for (let cy = y0; cy <= y1; cy++) {
+      for (let cx = x0; cx <= x1; cx++) {
+        const list = ix.cells[cy * ix.cols + cx];
+        if (!list) continue;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i];
+          if (o.kind === 'vaultdoor' && !o.solid) continue;
+          if (circleRect(x, y, r, o)) return true;
+        }
+      }
     }
     return false;
   }
@@ -3581,6 +3947,55 @@
       ctx.fill();
     }
     ctx.restore();
+  }
+
+  const ROOM_FLOOR = {
+    corridor: { base: 'rgba(126,134,146,0.10)', line: 'rgba(255,255,255,0.05)', tile: 52 },
+    cubicles: { base: 'rgba(96,110,126,0.09)',  line: 'rgba(0,0,0,0.10)',      tile: 0 },
+    offices:  { base: 'rgba(112,84,68,0.13)',   line: 'rgba(0,0,0,0.09)',      tile: 0 },
+    records:  { base: 'rgba(84,92,104,0.12)',   line: 'rgba(255,255,255,0.04)', tile: 44 },
+    break:    { base: 'rgba(94,118,110,0.12)',  line: 'rgba(255,255,255,0.05)', tile: 38 },
+  };
+
+  function drawRoomFloors() {
+    const rooms = H.world.rooms;
+    if (!rooms || !rooms.length) return;
+    for (let i = 0; i < rooms.length; i++) {
+      const r = rooms[i];
+      const f = ROOM_FLOOR[r.kind];
+      if (!f) continue;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(r.x, r.y, r.w, r.h);
+      ctx.clip();
+
+      ctx.fillStyle = f.base;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+
+      if (f.tile) {
+        // laid tiles or vinyl sheet joins
+        ctx.strokeStyle = f.line;
+        ctx.lineWidth = 1;
+        for (let x2 = r.x; x2 < r.x + r.w; x2 += f.tile) {
+          ctx.beginPath(); ctx.moveTo(x2, r.y); ctx.lineTo(x2, r.y + r.h); ctx.stroke();
+        }
+        for (let y2 = r.y; y2 < r.y + r.h; y2 += f.tile) {
+          ctx.beginPath(); ctx.moveTo(r.x, y2); ctx.lineTo(r.x + r.w, y2); ctx.stroke();
+        }
+      } else {
+        // carpet: a soft grain rather than a grid
+        ctx.strokeStyle = f.line;
+        ctx.lineWidth = 1;
+        for (let y2 = r.y + 4; y2 < r.y + r.h; y2 += 7) {
+          ctx.beginPath(); ctx.moveTo(r.x, y2); ctx.lineTo(r.x + r.w, y2); ctx.stroke();
+        }
+      }
+
+      // a threshold strip at the top edge, where a doorway would be
+      ctx.fillStyle = 'rgba(0,0,0,0.14)';
+      ctx.fillRect(r.x, r.y, r.w, 3);
+      ctx.restore();
+    }
   }
 
   function drawDecals() {
@@ -4425,6 +4840,10 @@
       else if (o.kind === 'till' || o.kind === 'atm' || o.kind === 'decor') { continue; }   // drawn as props
       else if (o.kind === 'vaultwall') { fill = '#464F59'; top = '#5A6570'; edge = '#252B32'; }
       else if (o.kind === 'vaultdoor') { fill = '#8A6520'; top = '#C79A3C'; edge = '#4A360F'; }
+      // these are furniture, not blocks, and have renderers of their own
+      else if (o.kind === 'cubicle')   { drawCubicle(o); continue; }
+      else if (o.kind === 'shelf')     { drawFiling(o); continue; }
+      else if (o.kind === 'partition') { drawPartition(o); continue; }
 
       // drop shadow so props sit on the floor
       ctx.fillStyle = 'rgba(0,0,0,0.32)';
@@ -4455,6 +4874,7 @@
     }
 
     // ---- blood on the floor ----
+    drawRoomFloors();
     drawDecals();
     for (let i = 0; i < H.bodies.length; i++) drawBody(H.bodies[i]);
 
@@ -4903,6 +5323,117 @@
         ctx.beginPath(); ctx.roundRect(-11, -13, 22, 6, 2); ctx.fill();
         break;
 
+      case 'workstation': {
+        // A desk with a monitor, a keyboard, a mug and somebody's paperwork.
+        ctx.fillStyle = 'rgba(0,0,0,0.38)';
+        ctx.beginPath(); ctx.roundRect(-27, -8, 58, 26, 3); ctx.fill();
+        // desktop, with an edge band so it has thickness
+        const dg = ctx.createLinearGradient(0, -14, 0, 14);
+        dg.addColorStop(0, '#5B4733'); dg.addColorStop(1, '#3E3122');
+        ctx.fillStyle = dg;
+        ctx.beginPath(); ctx.roundRect(-29, -13, 58, 26, 3); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(-29, 9, 58, 4);
+        // grain
+        ctx.strokeStyle = 'rgba(255,225,180,0.06)'; ctx.lineWidth = 1;
+        for (let gx4 = -25; gx4 < 27; gx4 += 9) {
+          ctx.beginPath(); ctx.moveTo(gx4, -11); ctx.lineTo(gx4 + 3, 8); ctx.stroke();
+        }
+        // monitor: stand, back panel, screen glow
+        ctx.fillStyle = '#22262B';
+        ctx.fillRect(-4, -14, 8, 4);
+        ctx.beginPath(); ctx.roundRect(-13, -24, 26, 12, 2); ctx.fill();
+        ctx.fillStyle = '#2E6B7A';
+        ctx.beginPath(); ctx.roundRect(-11.5, -22.5, 23, 9, 1.5); ctx.fill();
+        ctx.fillStyle = 'rgba(150,220,240,0.35)';
+        ctx.fillRect(-10, -21, 12, 1.4);
+        ctx.fillRect(-10, -18.4, 18, 1.4);
+        ctx.fillRect(-10, -15.8, 8, 1.4);
+        // keyboard
+        ctx.fillStyle = '#1E2126';
+        ctx.beginPath(); ctx.roundRect(-13, -6, 26, 8, 1.5); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        for (let ky = -4.5; ky < 0.5; ky += 2.4) {
+          for (let kx = -11; kx < 11; kx += 3.4) ctx.fillRect(kx, ky, 2.4, 1.4);
+        }
+        // mouse, mug, paper
+        ctx.fillStyle = '#2A2F35';
+        ctx.beginPath(); ctx.ellipse(18, -2, 3, 4.4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#B8482F';
+        ctx.beginPath(); ctx.arc(-20, 2, 3.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.arc(-20, 2, 2.1, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(238,232,214,0.85)';
+        ctx.fillRect(6, 2, 13, 9);
+        ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+        ctx.strokeRect(6.5, 2.5, 12, 8);
+        break;
+      }
+
+      case 'officechair': {
+        // Five-star base, gas lift, seat and a mesh back.
+        ctx.fillStyle = 'rgba(0,0,0,0.34)';
+        ctx.beginPath(); ctx.ellipse(2, 9, 13, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#2A2F35'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+        for (let i = 0; i < 5; i++) {
+          const a = i * Math.PI * 2 / 5 + 0.3;
+          ctx.beginPath(); ctx.moveTo(0, 4);
+          ctx.lineTo(Math.cos(a) * 12, 4 + Math.sin(a) * 6);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#343A41';
+        ctx.beginPath(); ctx.roundRect(-10, -6, 20, 14, 4); ctx.fill();
+        ctx.fillStyle = '#3E464F';
+        ctx.beginPath(); ctx.roundRect(-9, -14, 18, 9, 3); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+        for (let mx = -7; mx < 8; mx += 3) {
+          ctx.beginPath(); ctx.moveTo(mx, -13); ctx.lineTo(mx, -6); ctx.stroke();
+        }
+        break;
+      }
+
+      case 'printer':
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.roundRect(-16, 2, 34, 12, 3); ctx.fill();
+        ctx.fillStyle = '#4A5057';
+        ctx.beginPath(); ctx.roundRect(-17, -12, 34, 24, 3); ctx.fill();
+        ctx.fillStyle = '#2E3339';
+        ctx.beginPath(); ctx.roundRect(-14, -9, 28, 7, 2); ctx.fill();
+        ctx.fillStyle = 'rgba(238,232,214,0.9)';
+        ctx.fillRect(-11, 1, 22, 7);
+        ctx.fillStyle = '#6FBF8A';
+        ctx.beginPath(); ctx.arc(12, -6, 1.8, 0, Math.PI * 2); ctx.fill();
+        break;
+
+      case 'whiteboard':
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(-25, -4, 52, 8);
+        ctx.fillStyle = '#C9CED4';
+        ctx.beginPath(); ctx.roundRect(-26, -9, 52, 14, 2); ctx.fill();
+        ctx.fillStyle = '#EDF1F4';
+        ctx.fillRect(-24, -7, 48, 10);
+        ctx.strokeStyle = 'rgba(60,90,140,0.45)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(-19, -4); ctx.lineTo(-4, -4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-19, -1); ctx.lineTo(8, -1); ctx.stroke();
+        ctx.strokeStyle = 'rgba(170,60,50,0.5)';
+        ctx.beginPath(); ctx.moveTo(-19, 2); ctx.lineTo(0, 2); ctx.stroke();
+        break;
+
+      case 'coatstand':
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
+        ctx.beginPath(); ctx.ellipse(2, 10, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#4A4038'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(0, -16); ctx.stroke();
+        ctx.lineWidth = 2;
+        for (const a of [-0.9, 0.9]) {
+          ctx.beginPath(); ctx.moveTo(0, -14);
+          ctx.lineTo(Math.cos(a - Math.PI / 2) * 8, -14 + Math.sin(a - Math.PI / 2) * 4);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#2E3A4A';
+        ctx.beginPath(); ctx.roundRect(-9, -12, 9, 16, 3); ctx.fill();
+        break;
+
       case 'cooler':
         ctx.fillStyle = 'rgba(0,0,0,0.35)';
         ctx.beginPath(); ctx.ellipse(2, 12, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
@@ -5149,6 +5680,132 @@
     for (const c of H.crew) if (!c.dead && !c.downed) drawReloadSpinner(c);
     if (!H.robo.dead && !H.robo.downed) drawReloadSpinner(H.robo);
     for (const e of H.enemies) if (!e.dead) drawReloadSpinner(e);
+  }
+
+  // A stud-wall partition, seen from above: skirting on both faces, a
+  // capping rail down the middle, and the odd scuff.
+  function drawPartition(o) {
+    const horiz = o.w >= o.h;
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.fillRect(o.x + 3, o.y + 5, o.w, o.h);
+
+    const g = horiz
+      ? ctx.createLinearGradient(0, o.y, 0, o.y + o.h)
+      : ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
+    g.addColorStop(0, '#4E5A68');
+    g.addColorStop(0.45, '#3B4550');
+    g.addColorStop(1, '#2C343D');
+    ctx.fillStyle = g;
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+
+    // skirting on each face
+    ctx.fillStyle = 'rgba(12,16,20,0.55)';
+    if (horiz) {
+      ctx.fillRect(o.x, o.y, o.w, 2.5);
+      ctx.fillRect(o.x, o.y + o.h - 2.5, o.w, 2.5);
+    } else {
+      ctx.fillRect(o.x, o.y, 2.5, o.h);
+      ctx.fillRect(o.x + o.w - 2.5, o.y, 2.5, o.h);
+    }
+    // capping rail
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    if (horiz) ctx.fillRect(o.x, o.y + o.h * 0.42, o.w, 1.4);
+    else ctx.fillRect(o.x + o.w * 0.42, o.y, 1.4, o.h);
+
+    // studs, spaced like a real wall
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    if (horiz) {
+      for (let x2 = o.x + 22; x2 < o.x + o.w - 8; x2 += 44) ctx.fillRect(x2, o.y + 3, 1.6, o.h - 6);
+    } else {
+      for (let y2 = o.y + 22; y2 < o.y + o.h - 8; y2 += 44) ctx.fillRect(o.x + 3, y2, o.w - 6, 1.6);
+    }
+
+    // a doorframe reveal at each open end, so gaps read as doorways
+    ctx.fillStyle = '#6E7B88';
+    if (horiz) {
+      ctx.fillRect(o.x - 1, o.y, 3, o.h);
+      ctx.fillRect(o.x + o.w - 2, o.y, 3, o.h);
+    } else {
+      ctx.fillRect(o.x, o.y - 1, o.w, 3);
+      ctx.fillRect(o.x, o.y + o.h - 2, o.w, 3);
+    }
+    ctx.strokeStyle = 'rgba(10,14,18,0.6)'; ctx.lineWidth = 1;
+    ctx.strokeRect(o.x + .5, o.y + .5, o.w - 1, o.h - 1);
+  }
+
+  // A cubicle divider: fabric panel in an aluminium frame, with feet.
+  function drawCubicle(o) {
+    const horiz = o.w >= o.h;
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    ctx.fillRect(o.x + 2, o.y + 4, o.w, o.h);
+
+    ctx.fillStyle = '#4A5157';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    // fabric
+    ctx.fillStyle = '#5A636B';
+    ctx.fillRect(o.x + 1.5, o.y + 1.5, o.w - 3, o.h - 3);
+    // weave
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)'; ctx.lineWidth = 1;
+    if (horiz) {
+      for (let x2 = o.x + 3; x2 < o.x + o.w - 2; x2 += 4) {
+        ctx.beginPath(); ctx.moveTo(x2, o.y + 2); ctx.lineTo(x2, o.y + o.h - 2); ctx.stroke();
+      }
+    } else {
+      for (let y2 = o.y + 3; y2 < o.y + o.h - 2; y2 += 4) {
+        ctx.beginPath(); ctx.moveTo(o.x + 2, y2); ctx.lineTo(o.x + o.w - 2, y2); ctx.stroke();
+      }
+    }
+    // aluminium capping catches the light
+    ctx.fillStyle = 'rgba(200,214,226,0.30)';
+    if (horiz) ctx.fillRect(o.x, o.y, o.w, 2);
+    else ctx.fillRect(o.x, o.y, 2, o.h);
+    // feet
+    ctx.fillStyle = '#23282C';
+    if (horiz) {
+      ctx.fillRect(o.x + 2, o.y + o.h - 1, 6, 3);
+      ctx.fillRect(o.x + o.w - 8, o.y + o.h - 1, 6, 3);
+    } else {
+      ctx.fillRect(o.x + o.w - 1, o.y + 2, 3, 6);
+      ctx.fillRect(o.x + o.w - 1, o.y + o.h - 8, 3, 6);
+    }
+  }
+
+  // A run of filing cabinets: drawer fronts, handles, and paper on top.
+  function drawFiling(o) {
+    ctx.fillStyle = 'rgba(0,0,0,0.36)';
+    ctx.fillRect(o.x + 2, o.y + 4, o.w, o.h);
+
+    const g = ctx.createLinearGradient(0, o.y, 0, o.y + o.h);
+    g.addColorStop(0, '#4C463C');
+    g.addColorStop(1, '#332E27');
+    ctx.fillStyle = g;
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+
+    const cols = Math.max(1, Math.round(o.w / 22));
+    for (let c2 = 0; c2 < cols; c2++) {
+      const cw = o.w / cols;
+      const cx2 = o.x + c2 * cw;
+      // drawer face
+      ctx.fillStyle = '#413A31';
+      ctx.fillRect(cx2 + 1.5, o.y + 2, cw - 3, o.h - 4);
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1;
+      ctx.strokeRect(cx2 + 1.5, o.y + 2, cw - 3, o.h - 4);
+      // handle
+      ctx.fillStyle = '#9A8F7C';
+      ctx.fillRect(cx2 + cw / 2 - 5, o.y + o.h / 2 - 1, 10, 2);
+      // label holder
+      ctx.fillStyle = 'rgba(240,236,220,0.55)';
+      ctx.fillRect(cx2 + cw / 2 - 4, o.y + 4, 8, 2.4);
+    }
+    // a stack of paper left on top
+    if (o.w > 30) {
+      ctx.fillStyle = 'rgba(238,232,214,0.75)';
+      ctx.fillRect(o.x + o.w - 16, o.y + 3, 11, 7);
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.strokeRect(o.x + o.w - 16.5, o.y + 2.5, 12, 8);
+    }
+    ctx.strokeStyle = 'rgba(15,13,10,0.7)'; ctx.lineWidth = 1;
+    ctx.strokeRect(o.x + .5, o.y + .5, o.w - 1, o.h - 1);
   }
 
   function drawCar(car) {

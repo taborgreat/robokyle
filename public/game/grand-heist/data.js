@@ -128,39 +128,40 @@ window.GH_DATA = (() => {
 
   // ==================== MASKS ====================
   // Cosmetic identity, with deliberately tiny perks.
-  // Every mask earns its price. `perk` is { kind, value } and the engine
-  // reads it directly - nothing here is decoration with a claim attached.
+  // Every mask earns its price, and the perk follows from the object.
+  // `perk` is { kind, value } and the engine reads it directly.
   //
-  //   unseen : guards grow suspicious of you this much more slowly
-  //   crack  : machines and tills come open this much faster
-  //   rob    : wallets come out this much faster
-  //   calm   : the radius your noise panics people over
-  //   cow    : people you frighten cower instead of running for the door
-  //   melee  : damage multiplier with anything swung by hand
-  //   fear   : hostiles near you shoot this much wider
-  //   carry  : how much you can walk out with
-  //   drill  : how fast a vault cuts when you set the rig
+  //   crack : machines and tills come open this much faster
+  //   rob   : wallets come out this much faster
+  //   calm  : the radius your noise panics people over
+  //   cow   : people you frighten cower instead of running for the door
+  //   melee : damage multiplier with anything swung by hand
+  //   fear  : hostiles near you shoot this much wider
+  //   carry : how much you can walk out with
+  //   drill : how fast a vault cuts when you set the rig
+  //   tough : incoming damage multiplier
   const MASKS = {
-    none:     { name: 'Bare Face', cost: 0,   color: null,      blurb: 'No mask at all. You look like a customer, right up until you do not.',
-                perk: { kind: 'unseen', value: 0.7 } },
-    ski:      { name: 'Ski Mask',  cost: 150, color: '#22252C', blurb: 'Classic. You have done this before and it shows in the hands.',
+    none:     { name: 'Bare Face', cost: 0,   color: null,      blurb: 'No mask at all. Nothing between you and the cameras, and nothing to help you either.' },
+    ski:      { name: 'Ski Mask',  cost: 150, color: '#22252C', blurb: 'The working thief\'s mask. You have popped a machine before and it shows in the hands.',
                 perk: { kind: 'crack', value: 1.25 } },
-    bandana:  { name: 'Bandana',   cost: 150, color: '#B4231C', blurb: 'Cheap, quick, and nobody argues with it.',
+    bandana:  { name: 'Bandana',   cost: 150, color: '#B4231C', blurb: 'Cheap, quick, and nobody argues with it. Pockets empty faster.',
                 perk: { kind: 'rob', value: 1.45 } },
-    balaclava:{ name: 'Balaclava', cost: 250, color: '#15171F', blurb: 'All business. You work quietly.',
+    balaclava:{ name: 'Balaclava', cost: 250, color: '#15171F', blurb: 'All business. No shouting, no theatrics, and half the room never looks up.',
                 perk: { kind: 'calm', value: 0.7 } },
+    welder:   { name: "Welder's Mask", cost: 350, color: '#2B3630', blurb: 'You have stood behind a torch for a living. The vault does not take as long.',
+                perk: { kind: 'drill', value: 1.3 }, trim: '#1A1D22' },
     clown:    { name: 'Clown Mask',cost: 400, color: '#F1E4D2', blurb: 'Unsettling enough that people freeze instead of running.',
                 perk: { kind: 'cow', value: 1 }, trim: '#E3552B' },
-    hockey:   { name: 'Hockey Mask',cost:400, color: '#E8E2D0', blurb: 'Nothing about this is subtle, least of all you.',
+    hockey:   { name: 'Hockey Mask',cost:400, color: '#E8E2D0', blurb: 'Hard shell, worn by somebody who swings things. Hits land heavier.',
                 perk: { kind: 'melee', value: 1.3 }, trim: '#7C6459' },
-    skull:    { name: 'Skull Mask',cost: 650, color: '#EDE6D6', blurb: 'Nobody standing near you shoots straight.',
+    skull:    { name: 'Skull Mask',cost: 650, color: '#EDE6D6', blurb: 'A death\'s head at close range. Nobody standing near you shoots straight.',
                 perk: { kind: 'fear', value: 1.9 }, trim: '#2A2320' },
-    pig:      { name: 'Pig Mask',  cost: 650, color: '#E7A0A8', blurb: 'Greedy. Somehow you always find room for more.',
+    pig:      { name: 'Pig Mask',  cost: 650, color: '#E7A0A8', blurb: 'Greedy. Somehow you always find room for one more bundle.',
                 perk: { kind: 'carry', value: 1.15 }, trim: '#C4707C' },
-    gas:      { name: 'Gas Mask',  cost: 900, color: '#3E4A3A', blurb: 'Military surplus. You have used a drill like this before.',
-                perk: { kind: 'drill', value: 1.3 }, trim: '#6FBFCB' },
+    gas:      { name: 'Gas Mask',  cost: 900, color: '#3E4A3A', blurb: 'Military surplus, and it is armour as much as disguise. Filters, lenses, a hard shell over the whole face.',
+                perk: { kind: 'tough', value: 0.85 }, trim: '#6FBFCB' },
   };
-  const MASK_ORDER = ['none','ski','bandana','balaclava','clown','hockey','skull','pig','gas'];
+  const MASK_ORDER = ['none','ski','bandana','balaclava','welder','clown','hockey','skull','pig','gas'];
 
   // Outfit colours crew can wear. Purely identity.
   const OUTFITS = [
@@ -244,7 +245,10 @@ window.GH_DATA = (() => {
     e_revolver: { dmg: 9,  cd: 900, spread: 0.10, pellets: 1, speed: 9,  range: 420, burst: 1 },
     e_pistol:   { dmg: 10, cd: 760, spread: 0.09, pellets: 1, speed: 10, range: 470, burst: 2 },
     e_shotgun:  { dmg: 8,  cd: 1100,spread: 0.34, pellets: 6, speed: 9,  range: 260, burst: 1 },
-    e_smg:      { dmg: 7,  cd: 105, spread: 0.13, pellets: 1, speed: 11, range: 520, burst: 5 },
+    // Was 7 damage on a 105ms cycle in bursts of five: 86 sustained damage
+    // a second, five and a half times a pistol, and SWAT carry it from
+    // bank 6 on. Shorter bursts, a real pause between them, less per hit.
+    e_smg:      { dmg: 5,  cd: 300, spread: 0.16, pellets: 1, speed: 11, range: 520, burst: 3 },
     e_rifle:    { dmg: 13, cd: 190, spread: 0.07, pellets: 1, speed: 13, range: 640, burst: 3 },
     e_minigun:  { dmg: 9,  cd: 70,  spread: 0.16, pellets: 1, speed: 12, range: 640, burst: 14 },
     e_cannon:   { dmg: 34, cd: 1800,spread: 0.02, pellets: 1, speed: 10, range: 720, burst: 1, splash: 80 },
@@ -265,93 +269,93 @@ window.GH_DATA = (() => {
   // drill       : seconds to drill the vault
   const BANKS = [
     { id: 1,  name: 'Pawn & Loan',              act: 1, size: 'small', guards: 1, guardWpn: 'guard_baton',
-      copWaves: [], respond: 90, breach: 70, haul: 1210, drill: 12, atms: 1, vaults: 1,
+      copWaves: [], respond: 90, breach: 70, haul: 1331, drill: 12, atms: 1, vaults: 1,
       blurb: 'A counter, a back room, and one bored guard with a stick. Everybody starts here.' },
 
     { id: 2,  name: 'Corner Credit Union',      act: 1, size: 'small', guards: 2, guardWpn: 'guard_baton',
-      copWaves: [['cop', 1]], respond: 80, breach: 68, haul: 2090, drill: 14, atms: 1, vaults: 1,
+      copWaves: [['cop', 1]], respond: 80, breach: 68, haul: 2299, drill: 14, atms: 1, vaults: 1,
       blurb: 'First real gunfight. Beat cops roll up slow and shoot slower.' },
 
     { id: 3,  name: 'Suburb Savings',           act: 1, size: 'small', guards: 3, guardWpn: 'guard_pistol',
-      copWaves: [['cop', 1]], respond: 70, breach: 66, haul: 3300, drill: 15, atms: 1, vaults: 1, boxes: 3,
+      copWaves: [['cop', 1]], respond: 70, breach: 66, haul: 3630, drill: 15, atms: 1, vaults: 1, boxes: 3,
       blurb: 'Deposit boxes in the back for anyone willing to go deeper.' },
 
     { id: 4,  name: 'Midtown Trust',            act: 1, size: 'mid',   guards: 3, guardWpn: 'guard_pistol',
-      copWaves: [['cop', 2], ['riot', 1]], respond: 60, breach: 64, haul: 4840, drill: 17, atms: 2, vaults: 1, boxes: 4,
+      copWaves: [['cop', 2], ['riot', 1]], respond: 60, breach: 64, haul: 5324, drill: 17, atms: 2, vaults: 1, boxes: 4,
       blurb: 'Riot shields show up. Get around them or get nowhere.' },
 
     { id: 5,  name: 'First National',           act: 1, size: 'mid',   guards: 4, guardWpn: 'guard_pistol',
-      copWaves: [['riot', 2], ['cop', 1]], respond: 50, breach: 62, haul: 8800, drill: 20, atms: 2, vaults: 1, boxes: 4,
+      copWaves: [['riot', 2], ['cop', 1]], respond: 50, breach: 62, haul: 9680, drill: 20, atms: 2, vaults: 1, boxes: 4,
       boss: 'captain', bossName: 'Bank Captain',
       blurb: 'ACT ONE FINALE. An armoured captain holds the vault floor and rallies the guards.' },
 
     { id: 6,  name: 'Harbor Federal',           act: 2, size: 'mid',   guards: 4, guardWpn: 'guard_pistol',
-      copWaves: [['riot', 2], ['swat', 1]], respond: 48, breach: 60, haul: 6500, drill: 18, atms: 2, vaults: 1, boxes: 4,
+      copWaves: [['riot', 2], ['swat', 1]], respond: 48, breach: 60, haul: 7150, drill: 18, atms: 2, vaults: 1, boxes: 4,
       blurb: 'SWAT debuts. They move as a unit and they actually aim.' },
 
     { id: 7,  name: 'Uptown Holdings',          act: 2, size: 'large', guards: 4, guardWpn: 'guard_pistol',
-      copWaves: [['swat', 2], ['riot', 1]], respond: 49, breach: 58, haul: 8500, drill: 20, atms: 2, vaults: 1, boxes: 5,
+      copWaves: [['swat', 2], ['riot', 1]], respond: 49, breach: 58, haul: 9350, drill: 20, atms: 2, vaults: 1, boxes: 5,
       blurb: 'Big floor plan. The vault is a long, exposed run from the door.' },
 
     { id: 8,  name: 'Diamond Exchange',         act: 2, size: 'large', guards: 5, guardWpn: 'guard_smg',
-      copWaves: [['swat', 3], ['riot', 1]], respond: 50, breach: 56, haul: 11000, drill: 22, atms: 2, vaults: 1, boxes: 6,
+      copWaves: [['swat', 3], ['riot', 1]], respond: 50, breach: 56, haul: 12100, drill: 22, atms: 2, vaults: 1, boxes: 6,
       blurb: 'Guards carry SMGs now. The gear gap starts to bite.' },
 
     { id: 9,  name: 'Continental Bank',         act: 2, size: 'large', guards: 5, guardWpn: 'guard_smg',
-      copWaves: [['swat', 3], ['heavy', 1]], respond: 47, breach: 54, haul: 14000, drill: 20, atms: 2, vaults: 2, boxes: 6,
+      copWaves: [['swat', 3], ['heavy', 1]], respond: 47, breach: 54, haul: 15400, drill: 20, atms: 2, vaults: 2, boxes: 6,
       blurb: 'Two vaults. Twice the drilling, twice the exposure, twice the money.' },
 
     { id: 10, name: 'Gold Reserve Depository',  act: 2, size: 'large', guards: 6, guardWpn: 'guard_smg',
-      copWaves: [['heavy', 2], ['swat', 2]], respond: 50, breach: 52, haul: 24000, drill: 24, atms: 3, vaults: 2, boxes: 6,
+      copWaves: [['heavy', 2], ['swat', 2]], respond: 50, breach: 52, haul: 26400, drill: 24, atms: 3, vaults: 2, boxes: 6,
       boss: 'nest', bossName: 'Minigun Nest',
       blurb: 'ACT TWO FINALE. A minigun nest covers the street between you and the car.' },
 
     { id: 11, name: 'Skyline Private Bank',     act: 3, size: 'large', guards: 5, guardWpn: 'guard_smg',
-      copWaves: [['heavy', 2], ['swat', 3]], respond: 47, breach: 50, haul: 20000, drill: 22, atms: 3, vaults: 2, boxes: 7,
+      copWaves: [['heavy', 2], ['swat', 3]], respond: 47, breach: 50, haul: 22000, drill: 22, atms: 3, vaults: 2, boxes: 7,
       blurb: 'Private money, private army. Everything here is tougher than it looks.' },
 
     { id: 12, name: 'The Vault Club',           act: 3, size: 'huge',  guards: 6, guardWpn: 'guard_smg',
-      copWaves: [['heavy', 3], ['swat', 3]], respond: 49, breach: 48, haul: 27000, drill: 25, atms: 3, vaults: 2, boxes: 8,
+      copWaves: [['heavy', 3], ['swat', 3]], respond: 49, breach: 48, haul: 29700, drill: 25, atms: 3, vaults: 2, boxes: 8,
       breachWalls: true,
       blurb: 'Some walls here are thin enough to blow. An RPG turns the layout inside out.' },
 
     { id: 13, name: 'Metro Central',            act: 3, size: 'huge',  guards: 6, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 3], ['swat', 3]], respond: 49, breach: 46, haul: 34000, drill: 26, atms: 3, vaults: 2, boxes: 8,
+      copWaves: [['heavy', 3], ['swat', 3]], respond: 49, breach: 46, haul: 37400, drill: 26, atms: 3, vaults: 2, boxes: 8,
       breachWalls: true,
       blurb: 'Flashbangs come standard. Expect to fight half-blind.' },
 
     { id: 14, name: 'Titan National',           act: 3, size: 'huge',  guards: 7, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 4], ['swat', 2]], respond: 50, breach: 44, haul: 44000, drill: 28, atms: 3, vaults: 2, boxes: 9,
+      copWaves: [['heavy', 4], ['swat', 2]], respond: 50, breach: 44, haul: 48400, drill: 28, atms: 3, vaults: 2, boxes: 9,
       breachWalls: true,
       blurb: 'Armour everywhere. Bring something that punches through it.' },
 
     { id: 15, name: 'The Federal Reserve',      act: 3, size: 'huge',  guards: 8, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 4], ['swat', 3]], respond: 51, breach: 42, haul: 78000, drill: 30, atms: 3, vaults: 2, boxes: 9,
+      copWaves: [['heavy', 4], ['swat', 3]], respond: 51, breach: 42, haul: 85800, drill: 30, atms: 3, vaults: 2, boxes: 9,
       boss: 'apc', bossName: 'Police APC', breachWalls: true,
       blurb: 'ACT THREE FINALE. An APC parks itself on your extraction and dares you to leave.' },
 
     { id: 16, name: 'Fort Knox Annex',          act: 4, size: 'huge',  guards: 8, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 5], ['swat', 3]], respond: 50, breach: 40, haul: 88000, drill: 30, atms: 3, vaults: 2, boxes: 10,
+      copWaves: [['heavy', 5], ['swat', 3]], respond: 50, breach: 40, haul: 96800, drill: 30, atms: 3, vaults: 2, boxes: 10,
       breachWalls: true,
       blurb: 'Post-campaign. The response never really stops coming.' },
 
     { id: 17, name: 'Blacksite Depository',     act: 4, size: 'huge',  guards: 9, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 5], ['swat', 3]], respond: 50, breach: 38, haul: 100000, drill: 31, atms: 3, vaults: 2, boxes: 10,
+      copWaves: [['heavy', 5], ['swat', 3]], respond: 50, breach: 38, haul: 110000, drill: 31, atms: 3, vaults: 2, boxes: 10,
       breachWalls: true,
       blurb: 'Officially this building does not exist. Neither will you.' },
 
     { id: 18, name: 'The Gilded Vault',         act: 4, size: 'huge',  guards: 9, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 6], ['swat', 3]], respond: 50, breach: 36, haul: 115000, drill: 32, atms: 3, vaults: 3, boxes: 11,
+      copWaves: [['heavy', 6], ['swat', 3]], respond: 50, breach: 36, haul: 126500, drill: 32, atms: 3, vaults: 3, boxes: 11,
       breachWalls: true,
       blurb: 'Three vaults, and enough gold to buy something that fires plasma.' },
 
     { id: 19, name: 'Continental Reserve',      act: 4, size: 'huge',  guards: 10, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 6], ['swat', 4]], respond: 50, breach: 34, haul: 130000, drill: 33, atms: 3, vaults: 3, boxes: 11,
+      copWaves: [['heavy', 6], ['swat', 4]], respond: 50, breach: 34, haul: 143000, drill: 33, atms: 3, vaults: 3, boxes: 11,
       breachWalls: true,
       blurb: 'The last stop before the big one. Treat it as a dress rehearsal.' },
 
     { id: 20, name: 'The Treasury',             act: 4, size: 'huge',  guards: 10, guardWpn: 'guard_rifle',
-      copWaves: [['heavy', 7], ['swat', 4]], respond: 51, breach: 32, haul: 190000, drill: 35, atms: 3, vaults: 3, boxes: 12,
+      copWaves: [['heavy', 7], ['swat', 4]], respond: 51, breach: 32, haul: 209000, drill: 35, atms: 3, vaults: 3, boxes: 12,
       boss: 'warden', bossName: 'The Warden', breachWalls: true,
       blurb: 'THE FINALE. The Warden runs the federal response personally. Clear it and the Singularity is yours.' },
   ];
@@ -365,6 +369,8 @@ window.GH_DATA = (() => {
   const TAGS     = ['Two-Time','The Drill','Nine Lives','No-Knock','Half-Past','The Nail','Sunday','Clockwork','Loose Change','The Hinge'];
 
   // ==================== TRAITS ====================
+  // `rare` traits only turn up on the people worth paying for, and they
+  // cost accordingly.
   const TRAITS = {
     none:        { name: '-',             blurb: 'No standout quirk.' },
     triggerhappy:{ name: 'Trigger Happy', blurb: 'Fires faster, reloads slower.', fireRate: 0.85, reloadRate: 1.25 },
@@ -372,8 +378,29 @@ window.GH_DATA = (() => {
     sponge:      { name: 'Bullet Sponge', blurb: 'Tougher, but a worse shot.',    hpMul: 1.30, shootMul: 0.85 },
     cheapskate:  { name: 'Cheapskate',    blurb: 'Their gear costs 10% less.',    discount: 0.10 },
     lucky:       { name: 'Lucky',         blurb: 'Sometimes survives a fatal hit at 1 HP.', cheatDeath: 0.30 },
+
+    psycho:      { name: 'Psychopath',    rare: true,
+                   blurb: 'Nothing that happens on a job touches them. Morale never drags their work down.',
+                   moraleProof: true },
+    surgeon:     { name: 'Field Medic',   rare: true,
+                   blurb: 'Gets people back on their feet in half the time.',
+                   reviveRate: 0.5 },
+    marksman:    { name: 'Marksman',      rare: true,
+                   blurb: 'Puts rounds exactly where they are aimed.',
+                   spreadMul: 0.45, shootMul: 1.15 },
   };
   const TRAIT_KEYS = ['none','triggerhappy','mule','sponge','cheapskate','lucky'];
+  const RARE_TRAIT_KEYS = ['psycho','surgeon','marksman'];
+
+  // What turns up when you put the word out. Weights shift toward the
+  // better end as the campaign goes on, so bank 15 is not offering the
+  // same people bank 1 did.
+  const RECRUIT_TIERS = [
+    { key: 'street',  name: 'Street',    weight: 46, weightLate: 12, statBonus: 0, levelMul: 0.7, price: 0.8,  rare: 0 },
+    { key: 'pro',     name: 'Pro',       weight: 34, weightLate: 34, statBonus: 2, levelMul: 1.0, price: 1.0,  rare: 0 },
+    { key: 'veteran', name: 'Veteran',   weight: 16, weightLate: 36, statBonus: 5, levelMul: 1.25, price: 1.5, rare: 0.25 },
+    { key: 'elite',   name: 'Elite',     weight: 4,  weightLate: 18, statBonus: 9, levelMul: 1.55, price: 2.4, rare: 0.7 },
+  ];
 
   // ==================== TUNING ====================
   // Optional side loot, as a share of what it costs to crack it open.
@@ -394,7 +421,7 @@ window.GH_DATA = (() => {
     crewDeath: -14,         // watching a friend die
     failedJob: -10,
     cleanBonus: 8,          // no civilians harmed, job completed
-    benchRecovery: 12,      // per completed job spent on the bench
+    benchRecovery: 24,      // per completed job spent on the bench
     benchHealFrac: 0.30,    // and this much max HP back
     // Below `comfortable` morale starts biting; at 0 they are barely useful.
     comfortable: 70,
@@ -450,7 +477,7 @@ window.GH_DATA = (() => {
 
   return {
     WEAPONS, WEAPON_ORDER, BAGS, BAG_ORDER, ARMOR, ARMOR_ORDER,
-    MASKS, MASK_ORDER, OUTFITS, SKIN_TONES,
+    MASKS, MASK_ORDER, OUTFITS, SKIN_TONES, RARE_TRAIT_KEYS, RECRUIT_TIERS,
     ENEMIES, ENEMY_WEAPONS, BANKS,
     HANDLES, PREFIXES, FIRSTS, TAGS, TRAITS, TRAIT_KEYS, TUNE, LOOT, MORALE,
   };

@@ -58,6 +58,9 @@
     hockey:    svg('<path d="M6 8a6 6 0 0112 0v5a6 6 0 01-12 0z" fill="currentColor" fill-opacity=".2"/><circle cx="9.5" cy="10" r=".9" fill="currentColor"/><circle cx="14.5" cy="10" r=".9" fill="currentColor"/><circle cx="12" cy="13.5" r=".8" fill="currentColor"/>'),
     skull:     svg('<path d="M5 10a7 7 0 0114 0v3l-2 2v3H7v-3l-2-2z" fill="currentColor" fill-opacity=".22"/><circle cx="9.5" cy="10.5" r="1.6" fill="currentColor"/><circle cx="14.5" cy="10.5" r="1.6" fill="currentColor"/><path d="M12 13v2"/>'),
     pig:       svg('<circle cx="12" cy="12" r="7" fill="currentColor" fill-opacity=".18"/><ellipse cx="12" cy="14" rx="3" ry="2.2" fill="currentColor" fill-opacity=".5"/><circle cx="11" cy="14" r=".6" fill="currentColor"/><circle cx="13" cy="14" r=".6" fill="currentColor"/><path d="M7 7l1.5 2"/><path d="M17 7l-1.5 2"/>'),
+    welder:    svg('<path d="M6 5h12v9a6 6 0 01-12 0z" fill="currentColor" fill-opacity=".24"/>' +
+                   '<rect x="8" y="8.5" width="8" height="3.2" rx=".6" fill="currentColor"/>' +
+                   '<path d="M6 5h12"/><path d="M9 17.5h6"/>'),
     gas:       svg('<path d="M6 8a6 6 0 0112 0v3a6 6 0 01-6 6 6 6 0 01-6-6z" fill="currentColor" fill-opacity=".22"/><circle cx="9.5" cy="10" r="1.8"/><circle cx="14.5" cy="10" r="1.8"/><path d="M10 16.5c1.2.8 2.8.8 4 0"/>'),
   };
 
@@ -237,6 +240,127 @@
 
     return '<svg class="portrait' + (o.big ? ' big' : '') + '" viewBox="0 0 48 48" ' +
            'aria-hidden="true" role="img">' + inner + '</svg>';
+  };
+
+
+  // ==================== BANK CRESTS ====================
+  // Every bank on the board has its own mark, so the jobs screen reads as
+  // twenty different places rather than twenty rows of the same card.
+  // A crest is a frame, a glyph and a palette, hand-assigned per bank.
+
+  const CREST_FRAME = {
+    // classical pediment on columns
+    temple: '<path d="M6 20 L24 9 L42 20 Z"/>' +
+            '<rect x="9" y="20" width="30" height="3"/>' +
+            '<rect x="12" y="23" width="4" height="15"/>' +
+            '<rect x="22" y="23" width="4" height="15"/>' +
+            '<rect x="32" y="23" width="4" height="15"/>' +
+            '<rect x="8" y="38" width="32" height="3"/>',
+    // heraldic shield
+    shield: '<path d="M24 6 L40 12 v12 c0 9 -7 15 -16 20 c-9 -5 -16 -11 -16 -20 V12 Z"/>',
+    // a coin or seal
+    roundel: '<circle cx="24" cy="24" r="17"/>',
+    // hexagonal plate, for the modern ones
+    hex:    '<path d="M24 6 L39 15 v18 L24 42 L9 33 V15 Z"/>',
+    // a hanging trade sign
+    banner: '<path d="M10 7 h28 v24 l-14 11 l-14 -11 Z"/>',
+    // vault-door wheel
+    wheel:  '<circle cx="24" cy="24" r="16"/><circle cx="24" cy="24" r="10"/>',
+  };
+
+  const CREST_GLYPH = {
+    tag:      '<path d="M18 17 h9 l6 6 -9 9 -6 -6 Z"/><circle cx="21" cy="20" r="1.6"/>',
+    handshake:'<path d="M15 25 l4 -4 5 3 5 -3 4 4 -5 5 -4 -3 -4 3 Z"/>',
+    house:    '<path d="M16 26 L24 19 L32 26 v7 H16 Z"/><rect x="22" y="28" width="4" height="5"/>',
+    tower:    '<rect x="21" y="16" width="6" height="16"/><path d="M18 16 h12 l-3 -4 h-6 Z"/>',
+    star:     '<path d="M24 14 l3 7 7 1 -5 5 1.5 7 -6.5 -3.5 -6.5 3.5 1.5 -7 -5 -5 7 -1 Z"/>',
+    anchor:   '<circle cx="24" cy="16" r="2.4"/><rect x="22.8" y="18" width="2.4" height="13"/>' +
+              '<path d="M16 25 c0 6 4 8 8 8 s8 -2 8 -8"/><rect x="19" y="20" width="10" height="2"/>',
+    diamond:  '<path d="M24 15 l7 6 -7 11 -7 -11 Z"/><path d="M17 21 h14"/>',
+    globe:    '<circle cx="24" cy="24" r="8"/><path d="M16 24 h16"/><path d="M24 16 c4 4 4 12 0 16 c-4 -4 -4 -12 0 -16"/>',
+    ingot:    '<path d="M16 28 h16 l-2 -6 h-12 Z"/><path d="M18 22 h12"/>',
+    crown:    '<path d="M15 30 l-1 -11 5 5 5 -8 5 8 5 -5 -1 11 Z"/>',
+    key:      '<circle cx="19" cy="21" r="4"/><rect x="22" y="20" width="12" height="2.4"/>' +
+              '<rect x="30" y="22" width="2.4" height="4"/><rect x="26" y="22" width="2.4" height="3"/>',
+    lion:     '<circle cx="24" cy="24" r="7"/><path d="M24 17 l-3 -4 4 2 4 -2 -3 4"/>' +
+              '<circle cx="21.5" cy="23" r="1.2"/><circle cx="26.5" cy="23" r="1.2"/>' +
+              '<path d="M21 28 q3 2 6 0"/>',
+    obelisk:  '<path d="M22 32 h4 l-1 -16 -1 -3 -1 3 Z"/><rect x="20" y="32" width="8" height="2.4"/>',
+    scales:   '<rect x="23" y="15" width="2" height="16"/><path d="M15 20 h18"/>' +
+              '<path d="M12 20 l3 6 3 -6"/><path d="M30 20 l3 6 3 -6"/>',
+    eagle:    '<path d="M24 17 l8 5 -4 1 3 5 -7 -4 -7 4 3 -5 -4 -1 Z"/>',
+    ship:     '<path d="M14 29 h20 l-3 4 h-14 Z"/><rect x="23" y="15" width="2" height="14"/>' +
+              '<path d="M25 17 l6 4 -6 3 Z"/>',
+    laurel:   '<path d="M24 14 v18"/><path d="M24 18 q-6 1 -6 6 q6 0 6 -6"/>' +
+              '<path d="M24 18 q6 1 6 6 q-6 0 -6 -6"/><path d="M24 25 q-5 1 -5 5 q5 0 5 -5"/>' +
+              '<path d="M24 25 q5 1 5 5 q-5 0 -5 -5"/>',
+    vaultpin: '<circle cx="24" cy="24" r="4"/><rect x="23" y="12" width="2" height="6"/>' +
+              '<rect x="23" y="30" width="2" height="6"/><rect x="12" y="23" width="6" height="2"/>' +
+              '<rect x="30" y="23" width="6" height="2"/>',
+    ledger:   '<rect x="17" y="16" width="14" height="16" rx="1.5"/><path d="M20 21 h8"/>' +
+              '<path d="M20 25 h8"/><path d="M20 29 h5"/>',
+    stack:    '<rect x="16" y="27" width="16" height="4" rx="1"/>' +
+              '<rect x="18" y="22" width="12" height="4" rx="1"/>' +
+              '<rect x="20" y="17" width="8" height="4" rx="1"/>',
+  };
+
+  // ink, plate, and the accent that carries the glyph
+  const CREST_PALETTE = {
+    brass:  { plate: '#3A2E1C', line: '#8A6D34', glyph: '#E0B44C' },
+    slate:  { plate: '#1E2732', line: '#48606F', glyph: '#9FC6DA' },
+    green:  { plate: '#1A2A20', line: '#3E6B4E', glyph: '#7BC59A' },
+    oxblood:{ plate: '#2C1618', line: '#6E3232', glyph: '#E08C82' },
+    ivory:  { plate: '#2A2A26', line: '#6E6B5E', glyph: '#EDE6D6' },
+    teal:   { plate: '#122A2C', line: '#2F6468', glyph: '#6FBFCB' },
+    violet: { plate: '#241A2E', line: '#57406E', glyph: '#B79BD6' },
+  };
+
+  // One line per bank. No two share both a frame and a glyph.
+  const CREST = {
+    1:  ['banner',  'tag',       'oxblood'],
+    2:  ['shield',  'handshake', 'green'],
+    3:  ['banner',  'house',     'green'],
+    4:  ['temple',  'tower',     'slate'],
+    5:  ['shield',  'star',      'brass'],
+    6:  ['roundel', 'anchor',    'teal'],
+    7:  ['hex',     'tower',     'slate'],
+    8:  ['roundel', 'diamond',   'ivory'],
+    9:  ['temple',  'globe',     'slate'],
+    10: ['shield',  'ingot',     'brass'],
+    11: ['hex',     'crown',     'violet'],
+    12: ['roundel', 'key',       'violet'],
+    13: ['temple',  'lion',      'ivory'],
+    14: ['hex',     'obelisk',   'teal'],
+    15: ['shield',  'scales',    'brass'],
+    16: ['wheel',   'eagle',     'green'],
+    17: ['hex',     'ship',      'slate'],
+    18: ['shield',  'laurel',    'brass'],
+    19: ['wheel',   'vaultpin',  'oxblood'],
+    20: ['temple',  'stack',     'brass'],
+  };
+
+  // The mark for a bank: frame filled and outlined, glyph struck over it,
+  // with a rivet in each corner so it reads as a plate on a wall.
+  GH.bankMark = (bank) => {
+    const spec = CREST[bank.id] || ['shield', 'star', 'slate'];
+    const frame = CREST_FRAME[spec[0]] || CREST_FRAME.shield;
+    const glyph = CREST_GLYPH[spec[1]] || CREST_GLYPH.star;
+    const pal = CREST_PALETTE[spec[2]] || CREST_PALETTE.slate;
+
+    let out = '<svg class="bank-mark" viewBox="0 0 48 48" aria-hidden="true" role="img">';
+    out += '<rect x="1" y="1" width="46" height="46" rx="7" fill="' + pal.plate + '"/>';
+    out += '<g fill="' + pal.line + '" fill-opacity=".34" stroke="' + pal.line +
+           '" stroke-width="1.4" stroke-linejoin="round">' + frame + '</g>';
+    out += '<g fill="' + pal.glyph + '" fill-opacity=".9" stroke="' + pal.glyph +
+           '" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round">' +
+           glyph + '</g>';
+    // rivets
+    out += '<g fill="' + pal.line + '" fill-opacity=".55">' +
+           '<circle cx="5.5" cy="5.5" r="1.3"/><circle cx="42.5" cy="5.5" r="1.3"/>' +
+           '<circle cx="5.5" cy="42.5" r="1.3"/><circle cx="42.5" cy="42.5" r="1.3"/></g>';
+    out += '<rect x="1" y="1" width="46" height="46" rx="7" fill="none" ' +
+           'stroke="rgba(255,255,255,.12)"/>';
+    return out + '</svg>';
   };
 
   const fallback = svg('<circle cx="12" cy="12" r="8"/>');

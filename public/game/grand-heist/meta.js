@@ -208,17 +208,63 @@ window.GH = (() => {
     while (taken.has(D.HANDLES[0] + ' ' + i)) i++;
     return D.HANDLES[0] + ' ' + i;
   }
+  // Who is available depends on how far you have got. Early on it is
+  // whoever is hanging around; by the back half of the campaign the people
+  // putting themselves forward have done this for years, and the ones at
+  // the top of the pile are frightening.
+  function rollTier(progress) {
+    const tiers = D.RECRUIT_TIERS;
+    let total = 0;
+    const w = tiers.map(t2 => {
+      const weight = t2.weight + (t2.weightLate - t2.weight) * progress;
+      total += weight;
+      return weight;
+    });
+    let r = Math.random() * total;
+    for (let i = 0; i < tiers.length; i++) {
+      r -= w[i];
+      if (r <= 0) return tiers[i];
+    }
+    return tiers[0];
+  }
+
   function makeRecruit(taken) {
     const s = GH.state;
     const t = taken || usedNames();
     const name = rollName(t);
     t.add(name);
+
+    // 0 at the first bank, 1 by the last
+    const unlocked = s ? s.unlocked : 1;
+    const progress = clamp((unlocked - 1) / (D.BANKS.length - 1), 0, 1);
+    const tier = rollTier(progress);
+
+    // Somebody worth hiring at bank 15 has been working since bank 1.
+    const baseLevel = 1 + (unlocked - 1) * 0.55;
+    const level = clamp(Math.round(baseLevel * tier.levelMul + rint(-1, 1)), 1, 14);
+
+    // Their stats reflect that: the points they would have earned, plus
+    // whatever their tier is worth on top.
+    // Levelling hands out one point per level, so this is what they would
+    // have banked getting to where they are.
+    const earned = Math.max(0, level - 1);
+    const spread = earned + tier.statBonus;
+    const toShoot = rint(Math.floor(spread * 0.3), Math.ceil(spread * 0.7));
+    const toCarry = rint(0, Math.max(0, spread - toShoot));
+    const toHp = Math.max(0, spread - toShoot - toCarry);
+
+    const rare = Math.random() < tier.rare;
+    const trait = rare ? pick(D.RARE_TRAIT_KEYS)
+                : Math.random() < 0.65 ? pick(D.TRAIT_KEYS.slice(1))
+                : 'none';
+
     return {
-      id: s ? s.nextCrewId++ : 0, name, level: 1, xp: 0,
-      shooting: rint(T.crewStart.min, T.crewStart.max),
-      carry:    rint(T.crewStart.min, T.crewStart.max),
-      hpStat:   rint(0, 2),
-      trait: Math.random() < 0.65 ? pick(D.TRAIT_KEYS.slice(1)) : 'none',
+      id: s ? s.nextCrewId++ : 0, name, level, xp: 0,
+      tier: tier.key,
+      shooting: rint(T.crewStart.min, T.crewStart.max) + toShoot,
+      carry:    rint(T.crewStart.min, T.crewStart.max) + toCarry,
+      hpStat:   rint(0, 2) + toHp,
+      trait,
       skin: pick(D.SKIN_TONES), outfit: pick(D.OUTFITS).color,
       hair: pick(HAIR_COLORS), hairStyle: pick(HAIR_STYLE_KEYS),
       mask: 'none', weapon: 'knife', bag: 'none', armor: 'none',
@@ -249,8 +295,11 @@ window.GH = (() => {
     const tr = D.TRAITS[c.trait] || {};
     return (1 + c.shooting * T.shootDmgPerPoint) * (tr.shootMul || 1) * GH.moraleMul(c);
   };
-  GH.spreadMul = (c) =>
-    Math.max(0.35, 1 - c.shooting * T.shootSpreadPerPoint) / GH.moraleMul(c);
+  GH.spreadMul = (c) => {
+    const tr = D.TRAITS[c.trait] || {};
+    return Math.max(0.28, (1 - c.shooting * T.shootSpreadPerPoint) * (tr.spreadMul || 1)) /
+           GH.moraleMul(c);
+  };
   GH.moveMul = (c) => {
     const tr = D.TRAITS[c.trait] || {};
     return (D.BAGS[c.bag] || D.BAGS.none).moveMod * (D.ARMOR[c.armor] || D.ARMOR.none).moveMod *
@@ -262,7 +311,12 @@ window.GH = (() => {
   // ---- morale ----
   // Above `comfortable` there is no penalty. Below it everything they do
   // gets worse, down to a floor, and it takes time on the bench to mend.
+  // A psychopath's work is not affected by how the job is going.
   GH.moraleMul = (c) => {
+    if ((D.TRAITS[c.trait] || {}).moraleProof) return 1;
+    return GH.moraleMulRaw(c);
+  };
+  GH.moraleMulRaw = (c) => {
     const m = c.morale == null ? MO.start : c.morale;
     if (m >= MO.comfortable) return 1;
     const t = Math.max(0, m) / MO.comfortable;
@@ -399,6 +453,27 @@ window.GH = (() => {
 
   GH.showAllBanks = false;
 
+  const ACT_NAMES = {
+    1: 'Small time',
+    2: 'Getting noticed',
+    3: 'Serious money',
+    4: 'The big ones',
+  };
+  const SIZE_WORD = { small: 'Small', mid: 'Medium', large: 'Large', huge: 'Huge' };
+
+  // Green through amber to red, for how little room a job gives you.
+  function heatColor(t) {
+    const stops = [[0, [95, 191, 135]], [0.5, [224, 180, 76]], [1, [196, 69, 58]]];
+    for (let i = 1; i < stops.length; i++) {
+      if (t > stops[i][0] && i < stops.length - 1) continue;
+      const a = stops[i - 1], b = stops[i];
+      const k = (t - a[0]) / (b[0] - a[0] || 1);
+      const mix = (j) => Math.round(a[1][j] + (b[1][j] - a[1][j]) * clamp(k, 0, 1));
+      return 'rgb(' + mix(0) + ',' + mix(1) + ',' + mix(2) + ')';
+    }
+    return 'rgb(196,69,58)';
+  }
+
   RENDER.map = () => {
     const s = GH.state;
     $('map-cash').textContent = money(s.cash);
@@ -413,7 +488,30 @@ window.GH = (() => {
     const wrap = $('map-list');
     wrap.innerHTML = '';
 
+    // ---- how far through the whole thing you are ----
+    const bar = el('div', 'campaign-bar');
+    const doneN = s.cleared.length;
+    bar.innerHTML =
+      '<span class="cb-track"><i style="width:' +
+        (doneN / D.BANKS.length * 100).toFixed(1) + '%"></i></span>' +
+      '<span class="cb-text">' + doneN + ' of ' + D.BANKS.length + ' done</span>';
+    wrap.appendChild(bar);
+
+    let shownAct = null;
+
     visible.forEach(bank => {
+      // ---- act headers, so the board reads as a campaign ----
+      if (bank.act !== shownAct) {
+        shownAct = bank.act;
+        const inAct = D.BANKS.filter(b => b.act === shownAct);
+        const clearedInAct = inAct.filter(b => s.cleared.includes(b.id)).length;
+        const head = el('div', 'act-head' + (clearedInAct === inAct.length ? ' is-done' : ''));
+        head.innerHTML =
+          '<span class="act-no">Act ' + shownAct + '</span>' +
+          '<span class="act-name">' + (ACT_NAMES[shownAct] || '') + '</span>' +
+          '<span class="act-count">' + clearedInAct + ' / ' + inAct.length + '</span>';
+        wrap.appendChild(head);
+      }
       const locked  = bank.id > s.unlocked;
       const cleared = s.cleared.includes(bank.id);
       const isNext  = bank.id === s.unlocked && !cleared;
@@ -428,18 +526,38 @@ window.GH = (() => {
         .map(k => '<span class="unlock-chip">' + GH.icon.weapon(k) + D.WEAPONS[k].name + '</span>')
         .join('');
 
+      // How tight the job is: what you have left once the vault is open.
+      const spare = bank.respond - bank.drill;
+      const heat = clamp(1 - (spare - 14) / 60, 0, 1);      // 0 easy, 1 brutal
+      const heatWord = spare >= 45 ? 'Roomy' : spare >= 30 ? 'Steady'
+                     : spare >= 22 ? 'Tight' : spare >= 17 ? 'Very tight' : 'Brutal';
+
       card.innerHTML =
-        '<div class="bank-top">' +
-          '<span class="bank-no">' + (bank.boss ? '★ BOSS' : 'Bank ' + bank.id) + '</span>' +
-          (isNext  ? '<span class="bank-tag next">Next job</span>' : '') +
-          (cleared ? '<span class="bank-tag done">Cleared</span>' : '') +
-          (locked  ? '<span class="bank-tag lock">Locked</span>'  : '') +
+        '<div class="bank-head">' +
+          GH.bankMark(bank) +
+          '<div class="bank-id">' +
+            '<div class="bank-top">' +
+              '<span class="bank-no">' + (bank.boss ? '\u2605 BOSS' : 'Bank ' + bank.id) + '</span>' +
+              (isNext  ? '<span class="bank-tag next">Next job</span>' : '') +
+              (cleared ? '<span class="bank-tag done">Cleared</span>' : '') +
+              (locked  ? '<span class="bank-tag lock">Locked</span>'  : '') +
+            '</div>' +
+            '<h3>' + bank.name + '</h3>' +
+            '<p class="bank-sub">' + SIZE_WORD[bank.size] + ' floor plan' +
+              (bank.vaults > 1 ? ' \u00b7 ' + bank.vaults + ' vaults' : '') + '</p>' +
+          '</div>' +
         '</div>' +
-        '<h3>' + bank.name + '</h3>' +
         '<div class="bank-intel">' +
           '<div class="intel take"><span class="lbl">Est. take</span><b>' + money(bank.haul) + '</b></div>' +
           '<div class="intel"><span class="lbl">Guards</span><b>' + bank.guards + '</b></div>' +
-          '<div class="intel"><span class="lbl">Response</span><b>' + bank.respond + 's</b></div>' +
+          '<div class="intel"><span class="lbl">Drill</span><b>' + bank.drill + 's</b></div>' +
+          '<div class="intel"><span class="lbl">Police in</span><b>' + bank.respond + 's</b></div>' +
+        '</div>' +
+        '<div class="bank-heat" style="--heat:' + heatColor(heat) + '">' +
+          '<span class="lbl">Working time</span>' +
+          '<span class="heat-track"><i style="width:' +
+            ((1 - heat) * 100).toFixed(0) + '%"></i></span>' +
+          '<b>' + heatWord + '</b>' +
         '</div>' +
         '<p class="bank-police"><span class="lbl">Police</span> ' + copTierLabel(bank) + '</p>' +
         (unlocks ? '<div class="bank-unlock">Clearing unlocks ' + unlocks + '</div>' : '');
@@ -726,7 +844,6 @@ window.GH = (() => {
     if (!it.perk) return 'Cosmetic';
     const pct = (v) => Math.round(Math.abs(1 - v) * 100) + '%';
     switch (it.perk.kind) {
-      case 'unseen': return 'Noticed ' + pct(it.perk.value) + ' slower';
       case 'crack':  return 'Machines open ' + pct(it.perk.value) + ' faster';
       case 'rob':    return 'Wallets ' + pct(it.perk.value) + ' faster';
       case 'calm':   return 'Panics people ' + pct(it.perk.value) + ' less far';
@@ -735,6 +852,7 @@ window.GH = (() => {
       case 'fear':   return 'Hostiles nearby shoot wide';
       case 'carry':  return '+' + pct(it.perk.value) + ' carry';
       case 'drill':  return 'Drills ' + pct(it.perk.value) + ' faster';
+      case 'tough':  return 'Takes ' + pct(it.perk.value) + ' less damage';
       default:       return 'Cosmetic';
     }
   }
@@ -834,8 +952,24 @@ window.GH = (() => {
   }
 
   // ==================== RECRUITING ====================
-  GH.hireCost = () => GH.state.roster.length < T.crewPerHeist
-    ? 0 : T.hireBaseCost + T.hireCostPerBank * GH.state.unlocked;
+  // Short-handed after a bad job? The next body is free. Beyond that you
+  // pay for what you are getting: their level, their stats, their tier,
+  // and a premium for anyone with a rare trait.
+  GH.hireCost = (c) => {
+    if (GH.state.roster.length < T.crewPerHeist) return 0;
+    const base = T.hireBaseCost + T.hireCostPerBank * GH.state.unlocked;
+    if (!c) return base;
+
+    const tier = (D.RECRUIT_TIERS.find(t2 => t2.key === c.tier) || { price: 1 });
+    const stats = (c.shooting || 0) + (c.carry || 0) + (c.hpStat || 0);
+    const tr = D.TRAITS[c.trait] || {};
+
+    let worth = tier.price;
+    worth *= 1 + ((c.level || 1) - 1) * 0.22;
+    worth *= 1 + stats * 0.035;
+    if (tr.rare) worth *= 1.45;
+    return Math.round(base * worth / 50) * 50;
+  };
 
   // Don't like any of them? Put the word out again. It costs, and it costs
   // more each time you do it on the same trip, so it is a decision rather
@@ -859,8 +993,10 @@ window.GH = (() => {
       const taken = usedNames();
       GH.recruitOffers = [0, 1, 2].map(() => makeRecruit(taken));
     }
-    const cost = GH.hireCost();
-    $('recruit-cost').textContent = cost === 0 ? 'Free' : money(cost);
+    const shortHanded = GH.state.roster.length < T.crewPerHeist;
+    $('recruit-cost').textContent = shortHanded
+      ? 'the next body is free'
+      : 'what they are worth';
     $('recruit-cash').textContent = money(GH.state.cash);
 
     const rc = GH.rerollCost();
@@ -873,18 +1009,32 @@ window.GH = (() => {
     wrap.innerHTML = '';
     GH.recruitOffers.forEach(c => {
       const tr = D.TRAITS[c.trait];
-      const card = el('button', 'mate-card is-offer');
+      const price = GH.hireCost(c);
+      const tier = D.RECRUIT_TIERS.find(t2 => t2.key === c.tier);
+      const canAfford = GH.state.cash >= price;
+
+      const card = el('button', 'mate-card is-offer' +
+        (tr.rare ? ' is-rare' : '') + (canAfford ? '' : ' is-dear'));
       card.innerHTML =
         '<div class="mate-head">' + avatarHtml(c, true) +
-          '<div class="mate-id"><h4>' + c.name + '</h4>' +
-          '<p class="mate-sub">' + (c.trait !== 'none' ? '<b>' + tr.name + '</b>' : 'No standout quirk') + '</p>' +
-          (c.trait !== 'none' ? '<p class="trait-note">' + tr.blurb + '</p>' : '') +
-          '</div></div>' +
+          '<div class="mate-id">' +
+            '<h4><span class="mate-name">' + c.name + '</span>' +
+              (tier ? '<span class="tier-tag t-' + c.tier + '">' + tier.name + '</span>' : '') +
+            '</h4>' +
+            '<p class="mate-sub">' + GH.icon.stat('level') + 'Level ' + c.level +
+              (c.trait !== 'none' ? ' \u00b7 <b>' + tr.name + '</b>' : '') +
+              (tr.rare ? '<span class="rare-tag">Rare</span>' : '') + '</p>' +
+            (c.trait !== 'none' ? '<p class="trait-note">' + tr.blurb + '</p>' : '') +
+          '</div>' +
+        '</div>' +
         statChips(c) +
         '<p class="recruit-note">Starts with a knife and nothing else. Anything you buy them is theirs alone.</p>' +
-        '<div class="mate-actions"><span class="btn-edit">Hire</span></div>';
+        '<div class="mate-actions">' +
+          '<span class="btn-edit hire-btn">Hire ' +
+            (price === 0 ? '\u00b7 free' : '\u00b7 ' + money(price)) + '</span>' +
+        '</div>';
       card.addEventListener('click', () => {
-        const s = GH.state, c2 = GH.hireCost();
+        const s = GH.state, c2 = GH.hireCost(c);
         if (s.cash < c2) { sfx('error'); flash('recruit-cash'); return; }
         if (s.roster.length >= T.rosterCap) return;
         s.cash -= c2;
