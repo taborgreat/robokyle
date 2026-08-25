@@ -1198,7 +1198,12 @@ window.GH = (() => {
       '</div>' +
       (bank ? '<div class="db-bar"><i style="width:' +
                 (Math.min(1, share) * 100).toFixed(1) + '%"></i>' +
-              '<span>' + Math.round(share * 100) + '% of what was in there</span></div>' : '');
+              // Wallets, dropped bags and a lucky pair of hands can all
+              // push you past the estimate, so do not print 240%.
+              '<span>' + (share > 1.02
+                ? 'everything they had, and then some'
+                : Math.round(share * 100) + '% of what was in there') +
+              '</span></div>' : '');
     wrap.appendChild(head);
 
     // ---- the numbers behind it ----

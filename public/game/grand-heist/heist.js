@@ -4764,7 +4764,7 @@
 
     // 1. the street, from the car
     beats.push({
-      hold: 2000, zoom: 0.85,
+      hold: 3400, zoom: 0.85,
       cam: { x: world.car.x, y: world.car.y - 40 },
       pan: { x: world.entranceX, y: world.door.y - 60 },
       title: bank.name.toUpperCase(),
@@ -4775,7 +4775,7 @@
 
     // 2. the way in
     beats.push({
-      hold: 1700, zoom: 1.25,
+      hold: 3000, zoom: 1.25,
       cam: { x: world.entranceX, y: world.door.y - 30 },
       title: 'THE WAY IN',
       sub: world.guardsOutside
@@ -4788,7 +4788,7 @@
     // 3. the counter and the tills
     if (tills.length) {
       beats.push({
-        hold: 2200, zoom: fit(tills, 1.15),
+        hold: 3600, zoom: fit(tills, 1.15),
         cam: mid(tills) || { x: world.building.x + world.building.w / 2, y: world.counterY },
         title: 'THE COUNTER',
         sub: plural(tills.length, 'till', 'tills') +
@@ -4801,7 +4801,7 @@
     // 4. the machines
     if (atms.length) {
       beats.push({
-        hold: 1900, zoom: fit(atms, 1.2),
+        hold: 3200, zoom: fit(atms, 1.2),
         cam: mid(atms),
         title: 'CASH MACHINES',
         sub: plural(atms.length, 'machine', 'machines') +
@@ -4814,7 +4814,7 @@
     // 5. the boxes
     if (boxes.length) {
       beats.push({
-        hold: 1900, zoom: fit(boxes, 1.05),
+        hold: 3200, zoom: fit(boxes, 1.05),
         cam: mid(boxes),
         title: 'SAFE DEPOSIT',
         sub: plural(boxes.length, 'box', 'boxes') +
@@ -4826,7 +4826,7 @@
 
     // 6. the vault, which is the job
     beats.push({
-      hold: 2400, zoom: fit(vaults.map(v => ({ x: v.drillX, y: v.drillY })), 1.1),
+      hold: 4000, zoom: fit(vaults.map(v => ({ x: v.drillX, y: v.drillY })), 1.1),
       cam: vaults.length
         ? { x: vaults[0].x + vaults[0].w / 2, y: vaults[0].y + vaults[0].h / 2 }
         : { x: world.building.x + world.building.w / 2, y: world.counterY },
@@ -4839,7 +4839,7 @@
 
     // 7. who is watching
     beats.push({
-      hold: 2200, zoom: fit(guards, 1.0),
+      hold: 3600, zoom: fit(guards, 1.0),
       cam: mid(guards) || { x: world.building.x + world.building.w / 2, y: world.counterY - 60 },
       title: guards.length ? 'WHO IS WATCHING' : 'NOBODY WATCHING',
       sub: (guards.length
@@ -4852,7 +4852,7 @@
 
     // 8. everybody else
     beats.push({
-      hold: 2000, zoom: fit(H.civilians, 0.95),
+      hold: 3400, zoom: fit(H.civilians, 0.95),
       cam: mid(H.civilians) || { x: world.building.x + world.building.w / 2, y: world.counterY + 90 },
       title: 'AND EVERYONE ELSE',
       sub: plural(customers.length, 'customer', 'customers') + ' and ' +
@@ -4864,7 +4864,7 @@
 
     // 9. go
     beats.push({
-      hold: 1300, zoom: 1.1,
+      hold: 1800, zoom: 1.1,
       cam: { x: H.robo.x, y: H.robo.y },
       title: 'GO',
       sub: 'Any key skips this.',
@@ -6432,6 +6432,10 @@
     const prog = clamp((t.prog || 0) / LO.registerPry, 0, 1);
     ctx.save();
     ctx.translate(t.x + shake, t.y);
+    // Turned to face the counter. Looking straight down at a till you see
+    // the keypad nearest whoever is using it and the screen beyond it, so
+    // the whole unit points the opposite way to how it first read.
+    ctx.rotate(Math.PI);
 
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath(); ctx.ellipse(1, 5, 17, 6, 0, 0, Math.PI * 2); ctx.fill();
