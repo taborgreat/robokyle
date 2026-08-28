@@ -653,6 +653,13 @@ window.GH = (() => {
       '</div>';
   }
 
+  // A figure that runs up from zero when the debrief plays.
+  function runner(n, fmt) {
+    return '<i data-run="' + Math.round(n) + '"' +
+           (fmt ? ' data-fmt="' + fmt + '"' : '') + '>' +
+           (fmt === 'money' ? money(0) : '0') + '</i>';
+  }
+
   function statChips(c) {
     const hp = GH.curHp(c), max = GH.maxHp(c);
     const mm = GH.moraleMul(c);
@@ -1104,7 +1111,31 @@ window.GH = (() => {
   // Bring the report in a line at a time, and run the take up to its
   // figure. Cheap, and it makes a list of numbers feel like a result.
   let debriefTimers = [];
-  function animateDebrief(wrap, target) {
+  // Run one figure up from zero. Calls back when it lands, so the next
+  // one can start: they go in order down the page rather than all at once.
+  function runNumber(node, done) {
+    const target = Number(node.getAttribute && node.getAttribute('data-run')) || 0;
+    const fmt = node.getAttribute && node.getAttribute('data-fmt');
+    const write = (v) => { node.textContent = fmt === 'money' ? money(v) : String(v); };
+
+    if (!(target > 0)) { write(0); node.classList.add('is-landed'); done(); return; }
+
+    // A big haul gets longer to climb; a 2 would look silly taking a
+    // second to get there.
+    const DUR = clamp(240 + target * 0.9, 300, 1100);
+    const started = Date.now();
+    const step = () => {
+      const k = Math.min(1, (Date.now() - started) / DUR);
+      const ease = 1 - Math.pow(1 - k, 3);
+      write(Math.round(target * ease));
+      if (k < 1) { debriefTimers.push(setTimeout(step, 28)); return; }
+      node.classList.add('is-landed');
+      done();
+    };
+    step();
+  }
+
+  function animateDebrief(wrap) {
     debriefTimers.forEach(clearTimeout);
     debriefTimers = [];
 
@@ -1114,22 +1145,17 @@ window.GH = (() => {
       debriefTimers.push(setTimeout(() => node.classList.add('is-shown'), 90 + i * 110));
     });
 
-    // The figure is handed in rather than read back off the element: the
-    // number is the source of truth, not the markup.
-    const counter = wrap.querySelector('.db-take .v');
-    if (!counter) return;
-    if (!(target > 0)) { counter.textContent = money(0); return; }
+    // Everything that counts, in the order it appears down the page.
+    const nodes = Array.prototype.slice.call(wrap.querySelectorAll('[data-run]'));
+    if (!nodes.length) return;
 
-    const DUR = 900;
-    const started = Date.now();
-    const tick = () => {
-      const k = Math.min(1, (Date.now() - started) / DUR);
-      const ease = 1 - Math.pow(1 - k, 3);
-      counter.textContent = money(Math.round(target * ease));
-      if (k < 1) debriefTimers.push(setTimeout(tick, 32));
-      else counter.classList.add('is-landed');
+    let i = 0;
+    const next = () => {
+      if (i >= nodes.length) return;
+      const node = nodes[i++];
+      runNumber(node, () => { debriefTimers.push(setTimeout(next, 80)); });
     };
-    debriefTimers.push(setTimeout(tick, 420));
+    debriefTimers.push(setTimeout(next, 420));
   }
 
   function flash(id) {
@@ -1194,7 +1220,8 @@ window.GH = (() => {
       '<div class="db-take">' +
         '<span class="k">' + (result.escaped ? 'Out the door with'
                               : result.abandoned ? 'Walked away from' : 'Left on the floor') + '</span>' +
-        '<b class="v">' + money(0) + '</b>' +
+        '<b class="v" data-run="' + Math.round(took) + '" data-fmt="money">' +
+          money(0) + '</b>' +
       '</div>' +
       (bank ? '<div class="db-bar"><i style="width:' +
                 (Math.min(1, share) * 100).toFixed(1) + '%"></i>' +
@@ -1218,9 +1245,9 @@ window.GH = (() => {
       tile('Bank', bank ? bank.name : '?', '') +
       tile('Vault', result.vaultCracked ? 'Cracked' : 'Untouched',
            result.vaultCracked ? 'good' : 'bad') +
-      tile('Hostiles down', kills, kills ? 'warn' : '') +
-      tile('Bystanders hurt', civs0, civs0 ? 'bad' : 'good') +
-      tile('Crew lost', lost, lost ? 'bad' : 'good');
+      tile('Hostiles down', runner(kills), kills ? 'warn' : '') +
+      tile('Bystanders hurt', runner(civs0), civs0 ? 'bad' : 'good') +
+      tile('Crew lost', runner(lost), lost ? 'bad' : 'good');
     wrap.appendChild(tiles);
 
     // Say plainly why the board did not move, rather than leaving the
@@ -1297,7 +1324,7 @@ window.GH = (() => {
       const hp = GH.curHp(c), max = GH.maxHp(c);
       row.innerHTML = '<span class="who">' + c.name +
           (hp < max ? ' <em class="hurt">' + hp + '/' + max + ' hp</em>' : '') + '</span>' +
-        '<span class="xp">+' + gained + ' XP</span>' +
+        '<span class="xp">+' + runner(gained) + ' XP</span>' +
         '<span class="mo' + (moraleDelta < 0 ? ' down' : moraleDelta > 0 ? ' up' : '') + '">' +
           (moraleDelta ? (moraleDelta > 0 ? '+' : '') + moraleDelta + ' morale' : GH.moraleLabel(c)) + '</span>' +
         '<span class="lv">Lvl ' + c.level + (levels ? ' <b class="up">+' + levels + '</b>' : '') + '</span>';
@@ -1348,7 +1375,7 @@ window.GH = (() => {
 
     GH.save();
     renderLevelUps();
-    animateDebrief(wrap, took);
+    animateDebrief(wrap);
 
     GH.go('debrief', {
       title: result.escaped ? 'Clean Getaway' : 'Job Blown',

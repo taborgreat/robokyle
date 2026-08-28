@@ -1196,6 +1196,7 @@
       alarm: false, alarmT: 0,
       policeLeft: bank.respond * 1000,
       zoom: clamp(GH.settings.zoom || 1, ZOOM_MIN, ZOOM_MAX),
+      zoomTo: clamp(GH.settings.zoom || 1, ZOOM_MIN, ZOOM_MAX),
       copsHere: false, breachLeft: bank.breach * 1000, breached: false,
       waveTimer: 0, waveNo: 0, waveGap: T.copWaveInterval,
       cam: { x: spawn0.x, y: spawn0.y, zoom: 1 },
@@ -1309,9 +1310,11 @@
   canvas.addEventListener('wheel', (e) => {
     if (!H || !H.running) return;
     e.preventDefault();
+    // The wheel sets where the camera is heading; the frame eases it
+    // there. Snapping straight to the new zoom made every notch a jolt.
     const step = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-    H.zoom = clamp((H.zoom || 1) * step, ZOOM_MIN, ZOOM_MAX);
-    GH.settings.zoom = H.zoom;                // remembered between jobs
+    H.zoomTo = clamp((H.zoomTo || H.zoom || 1) * step, ZOOM_MIN, ZOOM_MAX);
+    GH.settings.zoom = H.zoomTo;              // remembered between jobs
     GH.saveSettings && GH.saveSettings();
   }, { passive: false });
 
@@ -4079,10 +4082,22 @@
         for (const c of H.civilians) {
           if (c.dead || c.prone) continue;
           if (dist(b, c) > c.r) continue;
-          // A stray round from one of your own crew is a graze. They are
-          // not aiming at anybody in the room, and you cannot take the
-          // trigger off them, so it should not cost you the job.
-          const fromCrew = b.owner && b.owner.side === 'crew' && !b.owner.isRobo;
+          // Whose round it was decides what it costs you.
+          //
+          // Police and guards do not hurt the people in the room at all.
+          // You are the one the morale system judges, and being punished
+          // for a round somebody else fired is not a mechanic, it is bad
+          // luck. Their shots still crack past and frighten everybody.
+          //
+          // A stray from one of your own crew is a graze, because you
+          // cannot take the trigger off them either.
+          const shooter = b.owner;
+          if (shooter && shooter.side === 'foe') {
+            scare(c, 'shot', shooter);
+            hit = true;
+            break;
+          }
+          const fromCrew = shooter && shooter.side === 'crew' && !shooter.isRobo;
           c.hp -= b.dmg * (fromCrew ? 0.2 : 1); c.hitFlash = 10;
           bloodSpray(c.x, c.y, b.vx, b.vy, Math.min(9, 3 + b.dmg / 10));
           c.bleed = Math.max(c.bleed || 0, 6000);
@@ -4910,6 +4925,7 @@
     if (!H || !H.intro) return;
     H.intro = null;
     H.zoom = clamp(GH.settings.zoom || 1, ZOOM_MIN, ZOOM_MAX);
+    H.zoomTo = H.zoom;
     const wrap = canvas.parentElement;
     if (wrap) wrap.classList.remove('is-intro');
     H.last = performance.now();
@@ -5127,6 +5143,14 @@
     // camera
     H.cam.x = lerp(H.cam.x, H.robo.x, 0.10);
     H.cam.y = lerp(H.cam.y, H.robo.y, 0.10);
+    // and ease toward whatever the wheel last asked for, framerate
+    // independent so it feels the same on any machine
+    if (H.zoomTo != null && Math.abs(H.zoomTo - H.zoom) > 0.0008) {
+      const k = 1 - Math.pow(0.0016, dt / 1000);
+      H.zoom += (H.zoomTo - H.zoom) * k;
+    } else if (H.zoomTo != null) {
+      H.zoom = H.zoomTo;
+    }
 
     draw();
     updateHud();

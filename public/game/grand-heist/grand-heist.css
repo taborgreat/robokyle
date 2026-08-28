@@ -55,8 +55,14 @@ body.gh-body::before {
 
 .game-shell {
     position: relative; z-index: 1;
-    max-width: 1280px; margin: 0 auto;
-    padding: clamp(.8rem, 2.5vw, 2rem) clamp(.6rem, 2vw, 1.4rem) 2rem;
+    /* Wide enough to use a big monitor, capped so the text does not end
+       up a metre apart on an ultrawide. */
+    width: min(1800px, 98vw);
+    margin: 0 auto;
+    padding: clamp(.4rem, 1.4vw, 1rem) clamp(.4rem, 1.4vw, 1rem) clamp(.6rem, 1.6vw, 1.2rem);
+    display: flex; flex-direction: column;
+    /* the whole page fits the window: game, then the site strip */
+    min-height: 100vh; min-height: 100dvh;
 }
 .game-frame {
     position: relative;
@@ -64,14 +70,20 @@ body.gh-body::before {
     border: 1px solid var(--line);
     border-radius: 12px;
     overflow: hidden;
-    min-height: 680px;
+    /* Take the height that is going, less the site strip below it, and
+       never so little that the HUD has nowhere to sit. */
+    flex: 1 1 auto;
+    min-height: min(560px, 78vh);
+    display: flex; flex-direction: column;
 }
 
 .ico { width: 1em; height: 1em; flex: none; vertical-align: -.14em; }
 
 /* ---------- screens ---------- */
-.screen { display: none; padding: clamp(1rem, 2.6vw, 2rem); min-height: 680px; }
-.screen.active { display: block; }
+.screen { display: none; padding: clamp(1rem, 2.6vw, 2rem); min-height: 0; }
+/* the active screen fills the frame and scrolls inside it if it must,
+   rather than growing the page and pushing the game off the bottom */
+.screen.active { display: block; flex: 1 1 auto; overflow-y: auto; }
 .screen.is-heist { padding: 0; }
 .screen.is-title.active { display: grid; }
 
@@ -737,6 +749,35 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .reroll-btn.is-broke .rr-price { color: var(--red); }
 .reroll-btn.is-broke { border-color: rgba(196,69,58,.4); }
 
+/* ---------- fullscreen ---------- */
+.fs-btn {
+    position: absolute; top: .6rem; right: .6rem; z-index: 60;
+    display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
+    background: rgba(8,12,16,.82); border: 1px solid var(--line);
+    border-radius: 6px; padding: .3rem .55rem; color: var(--ink-soft);
+    font-family: 'Oswald', Impact, sans-serif; font-size: .64rem;
+    letter-spacing: .12em; text-transform: uppercase;
+    transition: border-color .14s, color .14s, background .14s;
+}
+.fs-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(8,12,16,.95); }
+.fs-btn svg { width: 13px; height: 13px; }
+/* out of the way while a cutscene is running */
+.heist-wrap.is-intro ~ .fs-btn, .heist-wrap.is-cine ~ .fs-btn { opacity: 0; pointer-events: none; }
+
+.game-frame.is-fullscreen, .game-frame:fullscreen {
+    border-radius: 0; border: 0; width: 100vw; height: 100vh; height: 100dvh;
+}
+.game-frame.is-maxed {
+    position: fixed; inset: 0; z-index: 999;
+    border-radius: 0; border: 0; width: 100vw; height: 100vh; height: 100dvh;
+}
+
+/* Short windows: the site strip is the first thing to give. */
+@media (max-height: 620px) {
+    .back-strip { display: none; }
+    .game-shell { padding-bottom: .3rem; }
+}
+
 /* ---------- bench ---------- */
 .bench {
     display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
@@ -854,7 +895,10 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 /* ============================================================
    HEIST
    ============================================================ */
-.heist-wrap { position: relative; width: 100%; height: min(78vh, 800px); min-height: 460px; background: #06090C; }
+/* The mission canvas takes the whole frame; the frame is what decides
+   how big that is, so one rule covers every monitor and fullscreen too. */
+.heist-wrap { position: relative; width: 100%; flex: 1 1 auto; min-height: 0; background: #06090C; }
+.screen.is-heist.active { display: flex; flex-direction: column; overflow: hidden; }
 #heist-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
 .hud { position: absolute; inset: 0; pointer-events: none; display: flex; justify-content: space-between; align-items: flex-start; padding: .7rem; gap: .7rem; }
