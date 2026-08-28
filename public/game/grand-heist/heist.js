@@ -617,13 +617,38 @@
         d.x = clamp(x + shift, bx + 40, bx + bw - 40);
         if (inLane(d.x, d.y)) return d;                       // still bad: skip it
       }
-      world.decor.push(d);
       if (d.solid) {
+        // Nothing solid goes down inside something else. Try a couple of
+        // small nudges first, because a chair 20cm to the left is still a
+        // chair, then give up rather than stack them.
+        const bw2 = d.solid[0], bh2 = d.solid[1];
+        const clashes = (px, py) => {
+          for (const o of obstacles) {
+            if (o.kind === 'till' || o.kind === 'atm') continue;
+            if (px - bw2 / 2 < o.x + o.w - 3 && px + bw2 / 2 > o.x + 3 &&
+                py - bh2 / 2 < o.y + o.h - 3 && py + bh2 / 2 > o.y + 3) return true;
+          }
+          return false;
+        };
+        let px2 = d.x, py2 = d.y, ok = !clashes(px2, py2);
+        if (!ok) {
+          const tries = [[0, -34], [0, 34], [-38, 0], [38, 0], [-38, -34], [38, -34]];
+          for (const [ox2, oy2] of tries) {
+            if (!clashes(d.x + ox2, d.y + oy2)) {
+              px2 = d.x + ox2; py2 = d.y + oy2; ok = true; break;
+            }
+          }
+        }
+        if (!ok) return d;                    // no room for it; leave it out
+        d.x = px2; d.y = py2;
+        world.decor.push(d);
         obstacles.push({
-          x: d.x - d.solid[0] / 2, y: d.y - d.solid[1] / 2,
-          w: d.solid[0], h: d.solid[1], low: true, kind: 'decor',
+          x: d.x - bw2 / 2, y: d.y - bh2 / 2,
+          w: bw2, h: bh2, low: true, kind: 'decor',
         });
+        return d;
       }
+      world.decor.push(d);
       return d;
     };
 
@@ -722,6 +747,7 @@
     if (roomy) {
       const DOOR = 74;                       // a doorway a body fits through
       const WALLT = 18;                      // same thickness as the shell
+      const MIN_WALL = 70;                   // shorter than this is a stub, not a wall
 
       // A corridor runs across the back, in front of the vaults, so there
       // is always a route from the counter gaps to the strongroom.
@@ -732,39 +758,48 @@
       // Partition between the corridor and the rooms behind the counter,
       // with two doorways off it.
       const doorAts = [bx + bw * between(0.22, 0.34), bx + bw * between(0.66, 0.78)];
+      // A run of wall with doorways cut out of it. Anything left over
+      // that is shorter than a doorway gets dropped: a 34px nub of
+      // plasterboard standing on its own is scenery nobody built.
       const runWall = (y, gaps) => {
         const cuts = gaps.slice().sort((a, b) => a - b);
+        const spans = [];
         let cursor = bx + WALL;
         cuts.forEach(gx => {
-          const from = cursor, to = gx - DOOR / 2;
-          if (to - from > 26) {
-            obstacles.push({ x: from, y, w: to - from, h: WALLT, kind: 'partition' });
-          }
+          spans.push([cursor, gx - DOOR / 2]);
           cursor = gx + DOOR / 2;
         });
-        if (bx + bw - WALL - cursor > 26) {
-          obstacles.push({ x: cursor, y, w: bx + bw - WALL - cursor, h: WALLT, kind: 'partition' });
-        }
+        spans.push([cursor, bx + bw - WALL]);
+        spans.forEach(([from, to]) => {
+          if (to - from < MIN_WALL) return;
+          obstacles.push({ x: from, y, w: to - from, h: WALLT, kind: 'partition' });
+        });
       };
       runWall(corrBot, doorAts);
 
       // Rooms between that partition and the counter, split by cross walls
       // with a doorway in each. Three or four of them across the width.
       const roomTop = corrBot + WALLT;
-      const roomBot = backBot;
+      // The rooms run all the way down to the counter, which is their
+      // fourth wall. Stopping short of it left every side wall dangling
+      // in open floor.
+      const roomBot = counterY - 10;
       const roomCount = bank.size === 'huge' ? 5 : 3;
       const cross = [];
       for (let i = 1; i < roomCount; i++) {
         const cx2 = bx + WALL + (bw - 2 * WALL) * (i / roomCount);
         cross.push(cx2);
-        // a wall with a gap in it, so the rooms interconnect as well
+        // A side wall from the corridor down to the counter, with one
+        // doorway through it so the rooms interconnect. Either piece
+        // that comes out too short to be a wall is left out instead.
         const gapAt = roomTop + (roomBot - roomTop) * between(0.35, 0.65);
-        if (gapAt - roomTop > 26) {
-          obstacles.push({ x: cx2 - WALLT / 2, y: roomTop, w: WALLT,
-                           h: gapAt - roomTop - DOOR / 2, kind: 'partition' });
-        }
+        const upper = gapAt - DOOR / 2 - roomTop;
         const lower = gapAt + DOOR / 2;
-        if (roomBot - lower > 26) {
+        if (upper >= MIN_WALL) {
+          obstacles.push({ x: cx2 - WALLT / 2, y: roomTop, w: WALLT,
+                           h: upper, kind: 'partition' });
+        }
+        if (roomBot - lower >= MIN_WALL) {
           obstacles.push({ x: cx2 - WALLT / 2, y: lower, w: WALLT,
                            h: roomBot - lower, kind: 'partition' });
         }
@@ -868,10 +903,118 @@
       }
     }
 
+    tidyFurniture(world);
+    dropOrphanWalls(world);
     clearAroundLootables(world);
     buildNav(world);
     proveRoutes(world);
+    // Cutting a doorway can leave the panel beside it running to nothing,
+    // so sweep once more. Taking a wall away only ever opens routes up,
+    // never closes them, so the proof above still holds.
+    dropOrphanWalls(world);
+    buildNav(world);
     return world;
+  }
+
+  // Two things left a hand's width apart look like a way through and are
+  // not, which is worse than a solid run. Rather than shove them into
+  // each other, take the smaller one out: rows of filing and cubicles are
+  // laid on a grid, so dropping one leaves a proper aisle.
+  //
+  // Furniture only. Walls are never touched, and the corridor is kept
+  // clear of furniture entirely, because it is the route to the vault.
+  const NUDGEABLE = ['cubicle', 'shelf', 'decor', 'desk'];
+
+  function tidyFurniture(world) {
+    const MIN_WALKABLE = 34;                  // a body plus a little air
+    const doomed = new Set();
+
+    const items = world.obstacles.filter(o => NUDGEABLE.indexOf(o.kind) >= 0);
+    // Walls count as the other side of a gap, but are never the thing
+    // that gets removed to close it.
+    const fixed = world.obstacles.filter(o =>
+      ['partition', 'wall', 'vaultwall', 'counter'].indexOf(o.kind) >= 0);
+    const area = (o) => o.w * o.h;
+
+    for (let i = 0; i < items.length; i++) {
+      const a = items[i];
+      if (doomed.has(a)) continue;
+      for (let j = 0; j < items.length + fixed.length; j++) {
+        if (j < items.length && j <= i) continue;
+        const b = j < items.length ? items[j] : fixed[j - items.length];
+        if (b === a || doomed.has(b)) continue;
+
+        const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+
+        // inside each other, or a slot too narrow to walk through
+        const stacked = overlapX > 6 && overlapY > 6;
+        const slotX = overlapY > 20 &&
+          (Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w)) > 1 &&
+          (Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w)) < MIN_WALKABLE;
+        const slotY = overlapX > 20 &&
+          (Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h)) > 1 &&
+          (Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h)) < MIN_WALKABLE;
+
+        if (!(stacked || slotX || slotY)) continue;
+        // a wall never loses; between two pieces of furniture the smaller
+        // one goes
+        if (fixed.indexOf(b) >= 0) doomed.add(a);
+        else doomed.add(area(a) <= area(b) ? a : b);
+      }
+    }
+
+    // and nothing stands in the strongroom corridor
+    const corr = (world.rooms || []).find(r => r.kind === 'corridor');
+    if (corr) {
+      items.forEach(o => {
+        const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+        if (cx > corr.x && cx < corr.x + corr.w && cy > corr.y && cy < corr.y + corr.h) {
+          doomed.add(o);
+        }
+      });
+    }
+
+    if (!doomed.size) return;
+    world.obstacles = world.obstacles.filter(o => !doomed.has(o));
+    // take the visible props with them
+    world.decor = world.decor.filter(d => {
+      if (!d.solid) return true;
+      for (const o of doomed) {
+        if (Math.abs(d.x - (o.x + o.w / 2)) < 1 && Math.abs(d.y - (o.y + o.h / 2)) < 1) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  // A wall has to start and finish somewhere. Cutting doorways can leave
+  // a panel touching nothing at either end and lined up with nothing
+  // either, which reads as a slab dropped in the middle of a room.
+  function dropOrphanWalls(world) {
+    const solid = world.obstacles.filter(o =>
+      ['partition', 'wall', 'vaultwall', 'counter'].indexOf(o.kind) >= 0);
+    const parts = world.obstacles.filter(o => o.kind === 'partition');
+    const orphans = new Set();
+
+    parts.forEach(o => {
+      const horiz = o.w >= o.h;
+      const ends = horiz ? [[o.x, o.y + o.h / 2], [o.x + o.w, o.y + o.h / 2]]
+                         : [[o.x + o.w / 2, o.y], [o.x + o.w / 2, o.y + o.h]];
+      const anchored = ends.some(([ex, ey]) => solid.some(other =>
+        other !== o &&
+        ex > other.x - 14 && ex < other.x + other.w + 14 &&
+        ey > other.y - 14 && ey < other.y + other.h + 14));
+      const inARun = parts.some(other => other !== o &&
+        (horiz ? Math.abs(other.y - o.y) < 2 && other.w >= other.h
+               : Math.abs(other.x - o.x) < 2 && other.h > other.w));
+      if (!anchored && !inARun) orphans.add(o);
+    });
+
+    if (orphans.size) {
+      world.obstacles = world.obstacles.filter(o => !orphans.has(o));
+    }
   }
 
   // A cash machine is a fixture; the potted plant is not. Anything loose
@@ -1066,28 +1209,28 @@
     world.obstacles.splice(i, 1);
 
     if (o.kind === 'partition' && Math.max(o.w, o.h) > 110) {
-      const DOOR = 76;
+      const DOOR = 76, MIN_WALL = 70;
       if (o.w > o.h) {
         const midx = o.x + o.w / 2;
-        if (midx - DOOR / 2 - o.x > 24) {
-          world.obstacles.push({ x: o.x, y: o.y, w: midx - DOOR / 2 - o.x,
-                                 h: o.h, kind: 'partition' });
-        }
+        const left = midx - DOOR / 2 - o.x;
         const right = midx + DOOR / 2;
-        if (o.x + o.w - right > 24) {
+        if (left >= MIN_WALL) {
+          world.obstacles.push({ x: o.x, y: o.y, w: left, h: o.h, kind: 'partition' });
+        }
+        if (o.x + o.w - right >= MIN_WALL) {
           world.obstacles.push({ x: right, y: o.y, w: o.x + o.w - right,
                                  h: o.h, kind: 'partition' });
         }
       } else {
         const midy = o.y + o.h / 2;
-        if (midy - DOOR / 2 - o.y > 24) {
-          world.obstacles.push({ x: o.x, y: o.y, w: o.w,
-                                 h: midy - DOOR / 2 - o.y, kind: 'partition' });
-        }
+        const up = midy - DOOR / 2 - o.y;
         const low = midy + DOOR / 2;
-        if (o.y + o.h - low > 24) {
-          world.obstacles.push({ x: o.x, y: low, w: o.w,
-                                 h: o.y + o.h - low, kind: 'partition' });
+        if (up >= MIN_WALL) {
+          world.obstacles.push({ x: o.x, y: o.y, w: o.w, h: up, kind: 'partition' });
+        }
+        if (o.y + o.h - low >= MIN_WALL) {
+          world.obstacles.push({ x: o.x, y: low, w: o.w, h: o.y + o.h - low,
+                                 kind: 'partition' });
         }
       }
       return;
@@ -4771,43 +4914,39 @@
     const tills = world.registers, atms = world.atms, boxes = world.deposits;
     const vaults = world.vaults;
     const guards = H.enemies.filter(e => !e.dead);
-    const customers = H.civilians.filter(c => c.kind === 'customer');
-    const staff = H.civilians.filter(c => c.kind === 'teller');
-    const plural = (n, one2, many) => n + ' ' + (n === 1 ? one2 : many);
+    const people = H.civilians.filter(c => !c.dead);
+    // "5 TILLS", "1 VAULT". The count is the point, so it is the whole
+    // caption: a second line of prose underneath was just noise.
+    const count = (n, one2, many) =>
+      n + ' ' + (n === 1 ? one2 : (many || one2 + 'S'));
 
     const beats = [];
 
     // 1. the street, from the car
     beats.push({
-      hold: 3400, zoom: 0.85,
+      hold: 3000, zoom: 0.85,
       cam: { x: world.car.x, y: world.car.y - 40 },
       pan: { x: world.entranceX, y: world.door.y - 60 },
       title: bank.name.toUpperCase(),
-      sub: 'The car waits here. Everything you carry out has to come back to it.',
       marks: [{ x: world.car.x, y: world.car.y, r: 40 }],
       color: '#E8EDF2',
     });
 
     // 2. the way in
     beats.push({
-      hold: 3000, zoom: 1.25,
+      hold: 2400, zoom: 1.25,
       cam: { x: world.entranceX, y: world.door.y - 30 },
       title: 'THE WAY IN',
-      sub: world.guardsOutside
-        ? 'Front doors, and there are men on the street between you and them.'
-        : 'Front doors, straight off the pavement.',
       marks: [{ x: world.entranceX, y: world.door.y - 10, r: 46 }],
       color: '#E8EDF2',
     });
 
-    // 3. the counter and the tills
+    // 3. the counter
     if (tills.length) {
       beats.push({
-        hold: 3600, zoom: fit(tills, 1.15),
+        hold: 3000, zoom: fit(tills, 1.15),
         cam: mid(tills) || { x: world.building.x + world.building.w / 2, y: world.counterY },
-        title: 'THE COUNTER',
-        sub: plural(tills.length, 'till', 'tills') +
-             ', and whatever the staff have not banked yet. Quick money, and quiet if you lever them.',
+        title: count(tills.length, 'TILL'),
         marks: tills.map(t => ({ x: t.x, y: t.y, r: 20 })),
         color: '#E0B44C',
       });
@@ -4816,11 +4955,9 @@
     // 4. the machines
     if (atms.length) {
       beats.push({
-        hold: 3200, zoom: fit(atms, 1.2),
+        hold: 2600, zoom: fit(atms, 1.2),
         cam: mid(atms),
-        title: 'CASH MACHINES',
-        sub: plural(atms.length, 'machine', 'machines') +
-             '. Worth more than a till, and forcing one is not subtle.',
+        title: count(atms.length, 'CASH MACHINE'),
         marks: atms.map(a => ({ x: a.x, y: a.y, r: 22 })),
         color: '#4FB3C4',
       });
@@ -4829,11 +4966,9 @@
     // 5. the boxes
     if (boxes.length) {
       beats.push({
-        hold: 3200, zoom: fit(boxes, 1.05),
+        hold: 2600, zoom: fit(boxes, 1.05),
         cam: mid(boxes),
-        title: 'SAFE DEPOSIT',
-        sub: plural(boxes.length, 'box', 'boxes') +
-             ' along the wall. Somebody else\'s valuables, and they lever open fast.',
+        title: count(boxes.length, 'DEPOSIT BOX', 'DEPOSIT BOXES'),
         marks: boxes.map(b => ({ x: b.x, y: b.y, r: 18 })),
         color: '#B79BD6',
       });
@@ -4841,48 +4976,38 @@
 
     // 6. the vault, which is the job
     beats.push({
-      hold: 4000, zoom: fit(vaults.map(v => ({ x: v.drillX, y: v.drillY })), 1.1),
+      hold: 3200, zoom: fit(vaults.map(v => ({ x: v.drillX, y: v.drillY })), 1.1),
       cam: vaults.length
         ? { x: vaults[0].x + vaults[0].w / 2, y: vaults[0].y + vaults[0].h / 2 }
         : { x: world.building.x + world.building.w / 2, y: world.counterY },
-      title: vaults.length > 1 ? 'THE VAULTS' : 'THE VAULT',
-      sub: 'Most of the ' + money(bank.haul) + ' is in there. ' + bank.drill +
-           ' seconds on the drill, and the job does not count without it.',
+      title: count(vaults.length, 'VAULT') + ', ' + money(bank.haul) + ' INSIDE',
       marks: vaults.map(v => ({ x: v.drillX, y: v.drillY, r: 30 })),
       color: '#E3552B',
     });
 
     // 7. who is watching
     beats.push({
-      hold: 3600, zoom: fit(guards, 1.0),
+      hold: 3000, zoom: fit(guards, 1.0),
       cam: mid(guards) || { x: world.building.x + world.building.w / 2, y: world.counterY - 60 },
-      title: guards.length ? 'WHO IS WATCHING' : 'NOBODY WATCHING',
-      sub: (guards.length
-              ? plural(guards.length, 'of them on the floor', 'of them on the floor') + '. '
-              : 'Not a soul on the floor. ') +
-           'Police take ' + bank.respond + ' seconds once it goes loud.',
+      title: guards.length ? count(guards.length, 'GUARD') : 'NOBODY WATCHING',
       marks: guards.map(e => ({ x: e.x, y: e.y, r: 24 })),
       color: '#C4453A',
     });
 
     // 8. everybody else
     beats.push({
-      hold: 3400, zoom: fit(H.civilians, 0.95),
-      cam: mid(H.civilians) || { x: world.building.x + world.building.w / 2, y: world.counterY + 90 },
-      title: 'AND EVERYONE ELSE',
-      sub: plural(customers.length, 'customer', 'customers') + ' and ' +
-           plural(staff.length, 'behind the counter', 'behind the counter') +
-           '. Hurt one and the crew will not forget it.',
-      marks: H.civilians.map(c => ({ x: c.x, y: c.y, r: 18 })),
+      hold: 2800, zoom: fit(people, 0.95),
+      cam: mid(people) || { x: world.building.x + world.building.w / 2, y: world.counterY + 90 },
+      title: count(people.length, 'PERSON INSIDE', 'PEOPLE INSIDE'),
+      marks: people.map(c => ({ x: c.x, y: c.y, r: 18 })),
       color: '#9FB0BF',
     });
 
-    // 9. go
+    // 9. and the clock
     beats.push({
-      hold: 1800, zoom: 1.1,
+      hold: 2000, zoom: 1.1,
       cam: { x: H.robo.x, y: H.robo.y },
-      title: 'GO',
-      sub: 'Any key skips this.',
+      title: bank.respond + ' SECONDS TO THE POLICE',
       marks: [], color: '#5FBF87',
     });
 
@@ -5015,14 +5140,11 @@
     // ---- caption ----
     ctx.textAlign = 'center';
     ctx.globalAlpha = Math.min(1, I.t / 220) * I.bars;
-    ctx.font = '700 24px "Black Ops One", Impact, sans-serif';
+    ctx.font = '700 30px "Black Ops One", Impact, sans-serif';
     ctx.fillStyle = beat.color;
-    ctx.fillText(beat.title, VW / 2, VH - barH + 24);
-    if (beat.sub) {
-      ctx.font = '600 12px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(232,237,242,0.72)';
-      ctx.fillText(beat.sub, VW / 2, VH - barH + 43);
-    }
+    // One line, centred in the bar. The caption says what it is and how
+    // many; a second line of prose under it was noise.
+    ctx.fillText(beat.title, VW / 2, VH - barH + 34);
 
     // ---- how far through, and how to leave ----
     ctx.globalAlpha = I.bars;
