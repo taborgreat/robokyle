@@ -47,6 +47,41 @@ const BALLOON_COLOURS = [0xE2402F, 0xE8B444, 0x5FBF87, 0xE06FA8, 0x6FA8E0];
 // would pass through it.
 const BUILT_SCALE = 1.15;
 
+// Where the hillside actually is, at a horizontal distance d from the middle
+// of an island of radius r and height h.
+//
+// The hill is a cone scaled by (r, h, r) and sat at y = h/2 - 2, so its base
+// is at -2 and its tip at h - 2, and the surface at distance d is
+// h * (1 - d / r) - 2. Placement used to multiply by 0.82 instead of
+// subtracting the 2, which on a hundred unit hill buried a house sixteen
+// units into the slope.
+//
+// The cone is nine sided, so between vertices the real surface sits lower
+// than the ideal cone by cos(pi/9). Working in that inscribed radius means a
+// building is always on or a little into the ground and never floating over
+// a notch, which is the failure that looks worse.
+const CONE_FACES = 9;
+const CONE_SEG = (Math.PI * 2) / CONE_FACES;
+const CONE_APOTHEM = Math.cos(Math.PI / CONE_FACES);
+
+// worldAngle is the bearing of the point from the middle of the island, in
+// the same convention the placement code uses (x = cos, z = sin). hillRot is
+// the random spin given to that island's cone.
+function islandSurface(h, r, d, worldAngle, hillRot) {
+  // three.js builds a cone with x = sin(theta), z = cos(theta), so a bearing
+  // measured as atan2(x, z) is pi/2 minus the placement angle, and the mesh
+  // rotation adds straight onto it.
+  const theta = (Math.PI / 2 - worldAngle) - hillRot;
+  let t = theta % CONE_SEG;
+  if (t < 0) t += CONE_SEG;
+  // Angle away from the middle of the facet we are standing on.
+  const psi = t - CONE_SEG / 2;
+  // A regular polygon's edge sits at apothem / cos(psi) from the middle, so
+  // the radius parameter that puts the surface exactly under us is
+  // d * cos(psi) / apothem.
+  return h * (1 - (d * Math.cos(psi)) / (r * CONE_APOTHEM)) - 2;
+}
+
 /* ===== deterministic noise ===== */
 
 // Same chunk coordinates always produce the same stream of numbers.
@@ -318,9 +353,10 @@ export function createWorld(scene) {
       const r  = 55 + rnd() * 130;
       const h  = 22 + rnd() * 95;
 
+      const hillRot = rnd() * 6.28;
       landParts.push(piece(GEO.beach, C.sand, ix, -3, iz, r * 1.18, 8, r * 1.18, 0));
       landParts.push(piece(GEO.hill, rnd() < 0.5 ? C.grass : C.grass2,
-                           ix, h / 2 - 2, iz, r, h, r, rnd() * 6.28));
+                           ix, h / 2 - 2, iz, r, h, r, hillRot));
 
       // A second, smaller peak makes the silhouette less like a traffic cone.
       if (rnd() < 0.55) {
@@ -337,7 +373,7 @@ export function createWorld(scene) {
         const tx = ix + Math.cos(a) * d;
         const tz = iz + Math.sin(a) * d;
         // Sit the tree on the cone's slope rather than at sea level.
-        const ty = Math.max(2, h * (1 - d / r) * 0.82);
+        const ty = Math.max(0.5, islandSurface(h, r, d, a, hillRot) - 0.6);
         const th = (11 + rnd() * 11) * 0.8;   // palms 20 per cent shorter
 
         // A palm: a leaning tapered trunk, a crown of drooping fronds, and
@@ -394,7 +430,8 @@ export function createWorld(scene) {
         const d = r * (0.22 + rnd() * 0.45);
         const px = ix + Math.cos(a) * d;
         const pz = iz + Math.sin(a) * d;
-        const py = Math.max(1, h * (1 - d / r) * 0.82);
+        // Bedded in by half a unit so it never hovers on a seam.
+        const py = Math.max(0.5, islandSurface(h, r, d, a, hillRot) - 0.5);
         const make = PROPS[Math.floor(rnd() * PROPS.length)];
         const def = make(rnd);
         const m = new THREE.Mesh(def.geo, landMat);
