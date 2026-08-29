@@ -3,19 +3,25 @@
    Self-contained: this page does not load index.css, so the
    shared bits (palette, skip link, focus ring) are repeated
    here on purpose. Palette matches the games' dark shell.
+
+   Each card carries its own --accent so the border, the Play
+   button and the tag chips all pick up that game's colour
+   without a second block of per-game rules.
    ============================================================ */
 
 :root {
-    --gm-bg:        #07060A;
-    --gm-panel:     #14100F;
-    --gm-panel-2:   #1E1715;
+    --gm-bg:        #06050A;
+    --gm-bg-2:      #0A0810;
+    --gm-panel:     #100D0E;
+    --gm-panel-2:   #1A1416;
     --gm-line:      #37211C;
-    --gm-line-soft: #241614;
+    --gm-line-soft: #211517;
     --gm-ink:       #F1E4D2;
     --gm-ink-soft:  #BFA898;
     --gm-ink-mute:  #7C6459;
     --gm-orange:    #E3552B;
     --gm-orange-hot:#FF7A3D;
+    --gm-gold:      #E0B44C;
     --gm-teal:      #6FBFCB;
     --gm-red:       #B4231C;
     --gm-blood:     #8E0F14;
@@ -35,14 +41,28 @@ body.hub-body {
     overflow-x: hidden;
 }
 
-/* Hell-glow behind the page, same trick the games use. */
+/* Backdrop: a hairline grid for depth, then the same warm bloom the
+   games open on, so the hub feels like the room they are kept in. */
 body.hub-body::before {
     content: "";
     position: fixed;
     inset: 0;
     background:
-        radial-gradient(70% 50% at 50% 110%, rgba(180,35,28,.28) 0%, transparent 65%),
-        radial-gradient(50% 40% at 15% -10%, rgba(227,85,43,.14) 0%, transparent 60%);
+        linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px) 0 0 / 100% 46px,
+        linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px) 0 0 / 46px 100%;
+    mask-image: radial-gradient(80% 60% at 50% 0%, #000 0%, transparent 78%);
+    -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, #000 0%, transparent 78%);
+    pointer-events: none;
+    z-index: 0;
+}
+body.hub-body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(72% 46% at 50% 108%, rgba(180,35,28,.30) 0%, transparent 66%),
+        radial-gradient(46% 38% at 12% -8%, rgba(227,85,43,.16) 0%, transparent 62%),
+        radial-gradient(42% 34% at 92% 4%, rgba(224,180,76,.10) 0%, transparent 64%);
     pointer-events: none;
     z-index: 0;
 }
@@ -80,249 +100,445 @@ body.hub-body::before {
 .hub-shell {
     position: relative;
     z-index: 1;
-    max-width: 1080px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: clamp(1.8rem, 4vw, 3.5rem) clamp(1.1rem, 4vw, 2.5rem) 3rem;
+    padding: clamp(2rem, 5vw, 4rem) clamp(1.1rem, 4vw, 2.5rem) 3rem;
 }
 
 /* ---------- Masthead ---------- */
 .hub-head {
-    margin-bottom: clamp(1.8rem, 4vw, 2.8rem);
-    padding-bottom: 1.4rem;
+    margin-bottom: clamp(2rem, 4.5vw, 3rem);
+    padding-bottom: clamp(1.4rem, 3vw, 2rem);
     border-bottom: 1px solid var(--gm-line-soft);
+}
+
+.hub-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 0 0 .85rem;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--gm-ink-soft);
+    padding: .34rem .7rem .34rem .6rem;
+    border: 1px solid var(--gm-line);
+    border-radius: 999px;
+    background: rgba(20,14,15,.6);
+}
+.hub-eyebrow .pip {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--gm-green);
+    box-shadow: 0 0 0 0 rgba(123,197,154,.55);
+    animation: pipPulse 2.4s ease-out infinite;
+}
+@keyframes pipPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(123,197,154,.5); }
+    70%  { box-shadow: 0 0 0 7px rgba(123,197,154,0); }
+    100% { box-shadow: 0 0 0 0 rgba(123,197,154,0); }
 }
 
 .hub-logo {
     font-family: 'Black Ops One', 'Fraunces', Impact, sans-serif;
-    font-size: clamp(1.9rem, 5.5vw, 3.1rem);
-    line-height: .95;
+    font-size: clamp(2.3rem, 7.5vw, 4.4rem);
+    line-height: .92;
     letter-spacing: .01em;
-    margin: 0 0 .3rem;
+    margin: 0 0 .55rem;
     text-transform: uppercase;
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
     gap: .1em;
-    filter: drop-shadow(0 5px 10px rgba(0,0,0,.5));
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.6));
 }
 .hub-logo .robo {
     color: #F4EADA;
     -webkit-text-stroke: 1.5px #000;
-    text-shadow: 0 2px 0 #000;
+    text-shadow: 0 3px 0 #000;
     transform: skew(-6deg);
 }
 .hub-logo .kyle {
     color: var(--gm-orange);
     -webkit-text-stroke: 1.5px #000;
-    text-shadow: 0 2px 0 #000, 0 0 24px rgba(227,85,43,.55);
+    text-shadow: 0 3px 0 #000, 0 0 28px rgba(227,85,43,.6);
     transform: skew(-6deg);
+    animation: emberFlicker 3.5s ease-in-out infinite;
 }
+@keyframes emberFlicker {
+    0%, 100% { filter: brightness(1); }
+    45%      { filter: brightness(1.14); }
+    55%      { filter: brightness(.94); }
+}
+/* "Arcade" drops to a quieter weight so the wordmark stays the wordmark. */
 .hub-logo .arcade {
+    font-size: .42em;
+    letter-spacing: .3em;
     color: var(--gm-ink-mute);
     -webkit-text-stroke: 0;
     text-shadow: none;
     transform: skew(-6deg);
+    margin-left: .35em;
 }
 
 .hub-blurb {
     color: var(--gm-ink-soft);
-    max-width: 60ch;
+    max-width: 56ch;
     margin: 0;
-    font-size: clamp(.9rem, 2vw, 1rem);
-    line-height: 1.6;
+    font-size: clamp(.92rem, 2vw, 1.03rem);
+    line-height: 1.65;
 }
 
-/* ---------- Scrolling card list ---------- */
+.hub-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem .5rem;
+    list-style: none;
+    padding: 0;
+    margin: 1.15rem 0 0;
+}
+.hub-facts li {
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--gm-ink-mute);
+    border: 1px solid var(--gm-line-soft);
+    background: rgba(16,13,14,.7);
+    border-radius: 6px;
+    padding: .32rem .6rem;
+}
+
+/* ---------- Card grid ---------- */
 .game-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
-    gap: clamp(.9rem, 2vw, 1.4rem);
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: clamp(1rem, 2.4vw, 1.6rem);
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
 .game-card {
+    --accent: var(--gm-orange);
     position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--gm-panel);
+    background: linear-gradient(var(--gm-panel), var(--gm-bg-2));
     border: 1px solid var(--gm-line-soft);
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
+.game-card.card-undead { --accent: var(--gm-orange); }
+.game-card.card-heist  { --accent: var(--gm-gold); }
 
 a.game-card:hover,
 a.game-card:focus-visible {
-    transform: translateY(-3px);
-    border-color: var(--gm-orange);
-    box-shadow: 0 12px 28px rgba(0,0,0,.55), 0 0 30px rgba(180,35,28,.2);
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+    box-shadow:
+        0 18px 40px rgba(0,0,0,.6),
+        0 0 34px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-/* ---------- Thumbnail: a mini version of the game's title screen ---------- */
+/* ---------- Thumbnail ---------- */
 .card-thumb {
     position: relative;
-    aspect-ratio: 16 / 10;
-    display: grid;
-    place-items: center;
-    text-align: center;
+    aspect-ratio: 16 / 9;
     overflow: hidden;
-    background: #07060A;
+    background: #06050A;
     border-bottom: 1px solid var(--gm-line-soft);
 }
-/* Each game's own title-screen backdrop. */
-.card-thumb.thumb-undead {
-    background:
-        radial-gradient(70% 55% at 50% 112%, rgba(180,35,28,.55) 0%, transparent 66%),
-        radial-gradient(50% 40% at 15% -10%, rgba(227,85,43,.22) 0%, transparent 60%),
-        #07060A;
-}
-.card-thumb.thumb-heist {
-    background:
-        radial-gradient(65% 50% at 50% 110%, rgba(227,178,60,.30) 0%, transparent 66%),
-        radial-gradient(55% 45% at 78% -8%, rgba(180,35,28,.28) 0%, transparent 62%),
-        #07060A;
-}
-.card-thumb.thumb-tba {
-    background:
-        repeating-linear-gradient(45deg, #100B10 0 10px, #0C080C 10px 20px);
-}
-.thumb-sub.gold {
-    color: #E3B23C;
-    text-shadow: 0 1px 0 #000, 0 0 14px rgba(227,178,60,.65);
-}
 
-.thumb-inner { padding: .5rem; }
-
-.thumb-logo {
-    font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: clamp(1.35rem, 3.6vw, 1.85rem);
-    line-height: .9;
-    text-transform: uppercase;
-    display: inline-flex;
-    gap: .08em;
-    margin: 0;
-    filter: drop-shadow(0 3px 6px rgba(0,0,0,.6));
-}
-.thumb-logo .robo {
-    color: #F4EADA;
-    -webkit-text-stroke: 1px #000;
-    text-shadow: 0 2px 0 #000;
-    transform: skew(-6deg);
-}
-.thumb-logo .kyle {
-    color: var(--gm-orange);
-    -webkit-text-stroke: 1px #000;
-    text-shadow: 0 2px 0 #000, 0 0 16px rgba(227,85,43,.6);
-    transform: skew(-6deg);
-}
-
-.thumb-sub {
-    font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: .62rem;
-    letter-spacing: .17em;
-    text-transform: uppercase;
-    color: var(--gm-ink);
-    margin: .3rem 0 0;
-    opacity: .9;
-    text-shadow: 0 1px 0 #000, 0 0 12px rgba(142,15,20,.7);
-}
-
-.thumb-tagline {
-    font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: .5rem;
-    letter-spacing: .22em;
-    text-transform: uppercase;
-    color: var(--gm-ink-mute);
-    margin: .5rem 0 0;
-}
-
-.thumb-q {
-    font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: 2.4rem;
-    color: var(--gm-line);
-    margin: 0;
-}
-
-/* Play overlay, revealed on hover/focus. */
-.thumb-play {
+.thumb-art {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
-    background: rgba(7,6,10,.62);
-    opacity: 0;
-    transition: opacity .16s ease;
+    transition: transform .45s cubic-bezier(.2,.7,.3,1);
+    will-change: transform;
 }
-a.game-card:hover .thumb-play,
-a.game-card:focus-visible .thumb-play { opacity: 1; }
-.thumb-play span {
+.thumb-art .art {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+a.game-card:hover .thumb-art,
+a.game-card:focus-visible .thumb-art { transform: scale(1.055); }
+
+/* Darkens the bottom-left so the wordmark always has something to sit on,
+   which is why the busy half of both scenes is drawn to the right. */
+.thumb-scrim {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(to top, rgba(4,3,8,.92) 0%, rgba(4,3,8,.62) 14%, rgba(4,3,8,.18) 32%, rgba(4,3,8,0) 46%),
+        linear-gradient(to right, rgba(4,3,8,.58) 0%, rgba(4,3,8,0) 48%);
+    transition: opacity .2s ease;
+}
+
+.thumb-mark {
+    position: absolute;
+    left: clamp(.85rem, 3.5%, 1.15rem);
+    bottom: clamp(.7rem, 3.5%, 1rem);
+    right: 5.5rem;
+}
+.mark-title { margin: 0; }
+.mark-brand {
+    display: inline-flex;
+    gap: .08em;
     font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: clamp(.9rem, 2.7vw, 1.05rem);
+    letter-spacing: .02em;
+    line-height: 1;
     text-transform: uppercase;
-    letter-spacing: .1em;
-    font-size: .82rem;
-    color: var(--gm-bg);
-    background: var(--gm-orange);
-    border-radius: 7px;
-    padding: .5rem 1rem;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.85));
+}
+.mark-brand .robo {
+    color: #FFF6E8;
+    text-shadow: 0 1.5px 0 #000, 0 0 8px rgba(0,0,0,.9);
+    transform: skew(-6deg);
+}
+.mark-brand .kyle {
+    color: var(--gm-orange-hot);
+    text-shadow: 0 1.5px 0 #000, 0 0 8px rgba(0,0,0,.9), 0 0 16px rgba(227,85,43,.7);
+    transform: skew(-6deg);
+}
+.mark-name {
+    display: block;
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: clamp(1.15rem, 4.4vw, 1.62rem);
+    line-height: 1.02;
+    letter-spacing: .015em;
+    text-transform: uppercase;
+    color: #F6ECDC;
+    margin-top: .16em;
+    transform: skew(-6deg);
+    -webkit-text-stroke: 1px #000;
+    text-shadow: 0 2px 0 #000, 0 0 22px rgba(180,35,28,.55);
+}
+.mark-name.gold {
+    color: #F2CE72;
+    text-shadow: 0 2px 0 #000, 0 0 20px rgba(224,180,76,.6);
+}
+
+/* Play button. Sits bottom-right, quiet until the card is hovered. */
+.card-cta {
+    position: absolute;
+    right: clamp(.7rem, 3%, 1rem);
+    bottom: clamp(.7rem, 3.5%, 1rem);
+    display: inline-flex;
+    align-items: center;
+    gap: .38rem;
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: .48rem .78rem;
+    border-radius: 8px;
+    color: var(--gm-ink);
+    background: rgba(9,7,12,.72);
+    border: 1px solid rgba(241,228,210,.22);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    transition: color .18s ease, background-color .18s ease,
+                border-color .18s ease, transform .18s ease;
+}
+.card-cta svg { width: .62em; height: .62em; }
+a.game-card:hover .card-cta,
+a.game-card:focus-visible .card-cta {
+    color: #08070B;
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: translateX(-2px);
 }
 
 /* Status flag */
 .card-flag {
     position: absolute;
-    top: .55rem;
-    left: .55rem;
+    top: .7rem;
+    left: .7rem;
     z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: .38rem;
     font-size: .6rem;
     font-weight: 700;
-    letter-spacing: .12em;
+    letter-spacing: .13em;
     text-transform: uppercase;
-    padding: .24rem .5rem;
+    padding: .28rem .58rem;
     border-radius: 999px;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.card-flag i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
 }
 .card-flag.is-live {
     color: var(--gm-green);
-    background: rgba(12,30,20,.85);
-    border: 1px solid rgba(123,197,154,.4);
+    background: rgba(9,24,17,.8);
+    border: 1px solid rgba(123,197,154,.38);
 }
 .card-flag.is-soon {
     color: var(--gm-ink-mute);
-    background: rgba(22,16,15,.85);
+    background: rgba(20,15,16,.85);
     border: 1px solid var(--gm-line);
 }
 
 /* ---------- Card text ---------- */
 .card-body {
-    padding: .75rem .85rem .9rem;
+    padding: .95rem 1.05rem 1.1rem;
     display: flex;
     flex-direction: column;
-    gap: .3rem;
+    gap: .5rem;
     flex: 1;
 }
 
-.card-title {
-    font-size: .97rem;
-    font-weight: 700;
-    line-height: 1.25;
+.card-tagline {
+    font-family: 'Black Ops One', Impact, sans-serif;
+    font-size: .6rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: .85;
     margin: 0;
-    color: var(--gm-ink);
 }
 
 .card-desc {
-    color: var(--gm-ink-mute);
-    font-size: .78rem;
-    line-height: 1.45;
+    color: var(--gm-ink-soft);
+    font-size: .84rem;
+    line-height: 1.55;
     margin: 0;
 }
 
-/* ---------- Placeholder card ---------- */
+.card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .34rem;
+    list-style: none;
+    padding: 0;
+    margin: auto 0 0;
+    padding-top: .3rem;
+}
+.card-tags li {
+    font-size: .64rem;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--gm-ink-mute);
+    border: 1px solid var(--gm-line-soft);
+    border-radius: 5px;
+    padding: .24rem .48rem;
+    transition: color .18s ease, border-color .18s ease;
+}
+a.game-card:hover .card-tags li {
+    color: var(--gm-ink-soft);
+    border-color: var(--gm-line);
+}
+
+/* ---------- Placeholder card, for a title that is not playable yet ---------- */
 .game-card.is-placeholder {
     border-style: dashed;
-    opacity: .72;
+    opacity: .7;
+    pointer-events: none;
 }
-.game-card.is-placeholder .card-title { color: var(--gm-ink-mute); }
+.game-card.is-placeholder .mark-name { color: var(--gm-ink-mute); }
+
+.hub-note {
+    margin: clamp(1.6rem, 3.5vw, 2.4rem) 0 0;
+    font-size: .78rem;
+    color: var(--gm-ink-mute);
+    text-align: center;
+}
+
+/* ============================================================
+   Thumbnail art animation
+
+   Everything below drives the inline SVG in game.html. Two rules
+   throughout: a CSS transform overrides an element's transform
+   attribute, so anything animated is either wrapped in a plain
+   translated <g> or positioned by geometry instead; and
+   transform-box says which coordinate system the origin is in.
+   ============================================================ */
+
+/* -- Undead Nightmare: embers rising off the street -- */
+.un-ember {
+    transform-box: fill-box;
+    transform-origin: center;
+    opacity: 0;
+    animation: unEmber 7s linear infinite;
+    animation-delay: calc(var(--i) * -1.1s);
+}
+@keyframes unEmber {
+    0%   { opacity: 0;   transform: translateY(8px)   scale(.7); }
+    16%  { opacity: .95; }
+    72%  { opacity: .45; }
+    100% { opacity: 0;   transform: translateY(-38px) scale(.4); }
+}
+
+/* Muzzle flash: bursts, holds, bursts again. */
+.un-shot {
+    transform-box: view-box;
+    transform-origin: 235px 138px;
+    animation: unShot 3.4s ease-out infinite;
+}
+@keyframes unShot {
+    0%          { opacity: 1;   transform: scale(1); }
+    5%          { opacity: .3;  transform: scale(.86); }
+    9%          { opacity: 1;   transform: scale(1.06); }
+    14%         { opacity: .35; transform: scale(.88); }
+    18%         { opacity: .95; transform: scale(1); }
+    30%, 100%   { opacity: .62; transform: scale(.94); }
+}
+
+/* -- Grand Heist: the door works, the torch sweeps, the gold winks -- */
+.gh-ring {
+    transform-box: view-box;
+    transform-origin: 312px 100px;
+    animation: ghSpin 38s linear infinite;
+}
+.gh-dial {
+    transform-box: view-box;
+    transform-origin: 312px 100px;
+    animation: ghSpin 24s linear infinite reverse;
+}
+@keyframes ghSpin { to { transform: rotate(360deg); } }
+
+.gh-beam {
+    transform-box: view-box;
+    transform-origin: 44px 0;
+    animation: ghSweep 11s ease-in-out infinite alternate;
+}
+@keyframes ghSweep {
+    from { transform: rotate(-11deg); }
+    to   { transform: rotate(13deg); }
+}
+
+.gh-glint {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ghTwinkle 3.6s ease-in-out infinite;
+    animation-delay: calc(var(--i) * -.72s);
+}
+@keyframes ghTwinkle {
+    0%, 100% { opacity: .12; transform: scale(.45); }
+    50%      { opacity: 1;   transform: scale(1); }
+}
+
+/* Hovering a card spins its vault up - the one bit of art that reacts. */
+a.game-card:hover .gh-ring,
+a.game-card:focus-visible .gh-ring { animation-duration: 9s; }
+a.game-card:hover .gh-dial,
+a.game-card:focus-visible .gh-dial { animation-duration: 6s; }
 
 /* ---------- Footer nav ---------- */
 .back-strip {
@@ -330,8 +546,8 @@ a.game-card:focus-visible .thumb-play { opacity: 1; }
     flex-wrap: wrap;
     justify-content: center;
     gap: clamp(1rem, 4vw, 2.2rem);
-    margin-top: clamp(2.2rem, 5vw, 3.2rem);
-    padding-top: 1.5rem;
+    margin-top: clamp(2.4rem, 5vw, 3.4rem);
+    padding-top: 1.6rem;
     border-top: 1px solid var(--gm-line-soft);
 }
 .back-strip a {
@@ -342,7 +558,22 @@ a.game-card:focus-visible .thumb-play { opacity: 1; }
 }
 .back-strip a:hover { color: var(--gm-orange); }
 
+/* ---------- Narrow screens ---------- */
+@media (max-width: 420px) {
+    .game-list { grid-template-columns: 1fr; }
+    .thumb-mark { right: 4.6rem; }
+    .card-cta { font-size: .66rem; padding: .42rem .62rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .game-card, .thumb-play { transition: none; }
+    .game-card, .thumb-art, .card-cta, .thumb-scrim { transition: none; }
     a.game-card:hover, a.game-card:focus-visible { transform: none; }
+    a.game-card:hover .thumb-art,
+    a.game-card:focus-visible .thumb-art { transform: none; }
+    .hub-eyebrow .pip,
+    .hub-logo .kyle,
+    .un-ember, .un-shot,
+    .gh-ring, .gh-dial, .gh-beam, .gh-glint { animation: none; }
+    .un-ember { opacity: .8; }
+    .gh-glint { opacity: .85; }
 }
