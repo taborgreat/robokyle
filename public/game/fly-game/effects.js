@@ -69,9 +69,12 @@ export function createEffects(scene) {
     p.life = p.max = opts.life;
     p.flat = !!opts.flat;      // lie the ring flat on the water
     p.fadePow = opts.fadePow || 1;
+    // Held back, so one call can lay out a sequence rather than needing a
+    // timer outside. A secondary detonation is the only thing using it.
+    p.delay = opts.delay || 0;
     p.mesh.scale.setScalar(p.from);
     if (p.flat) p.mesh.rotation.set(-Math.PI / 2, 0, 0);
-    p.mesh.visible = true;
+    p.mesh.visible = p.delay <= 0;
     live.push(p);
     return p;
   }
@@ -229,28 +232,60 @@ export function createEffects(scene) {
     /* A ship going down: fire, timber, and the water it displaces. */
     wreck(pos) {
       const at = pos.clone(); at.y = Math.max(1.5, pos.y);
-      spawn('sphere', { pos: at, color: 0xFFF3C4, from: 1, to: 16, life: 0.28, opacity: 1, fadePow: 1.6 });
-      spawn('sphere', { pos: at, color: 0xFF9A3C, from: 2, to: 24, life: 0.5, opacity: 0.9, fadePow: 1.4 });
-      spawn('ring', { pos: new THREE.Vector3(at.x, 0.6, at.z), color: 0xEAF6FF,
-                      flat: true, from: 4, to: 40, life: 0.9, opacity: 0.8 });
 
-      for (let i = 0; i < 20; i++) {
-        const v = dir(rand(10, 30));
-        v.y = Math.abs(v.y) + rand(8, 22);
-        spawn('box', {
-          pos: at, color: [0x5A3A22, 0x6B4A2F, 0xF4EFE2, 0x3A2A1A][i % 4],
-          vel: v, grav: 30, spin: rand(-12, 12),
-          from: rand(0.4, 1.5), to: rand(0.3, 1.0),
-          life: rand(1.0, 2.0),
+      // A hull nearly forty long should not die inside a fireball smaller
+      // than it is. This is scaled to the ship rather than to a house, and
+      // most of it goes upward: a column reads as a magazine letting go,
+      // where a sphere just reads as a bang.
+      spawn('sphere', { pos: at, color: 0xFFFFF0, from: 1, to: 26, life: 0.3, opacity: 1, fadePow: 1.7 });
+      spawn('sphere', { pos: at, color: 0xFFC44A, from: 2, to: 40, life: 0.55, opacity: 0.95, fadePow: 1.4 });
+      spawn('sphere', { pos: at, color: 0xE2622A, from: 3, to: 54, life: 0.9, opacity: 0.7, fadePow: 1.3 });
+      spawn('ring', { pos: new THREE.Vector3(at.x, 0.6, at.z), color: 0xEAF6FF,
+                      flat: true, from: 6, to: 66, life: 1.1, opacity: 0.8 });
+
+      // the column, climbing and mushrooming out at the top
+      for (let i = 0; i < 9; i++) {
+        spawn('sphere', {
+          pos: at, color: i < 4 ? 0xFF9A3C : 0x54524E,
+          vel: dir(rand(2, 7)).add(_v.set(0, rand(18, 34), 0)),
+          grav: 5, drag: 0.8,
+          from: rand(3, 6), to: rand(14, 24),
+          life: rand(1.6, 2.8), opacity: 0.8, fadePow: 1.8,
         });
       }
-      for (let i = 0; i < 12; i++) {
+
+      // A second detonation a beat later. One bang is an impact; two is a
+      // ship coming apart.
+      spawn('sphere', { pos: at, color: 0xFFD86A, delay: 0.34, from: 2, to: 30,
+                        life: 0.5, opacity: 0.9, fadePow: 1.5 });
+
+      for (let i = 0; i < 30; i++) {
+        const v = dir(rand(16, 46));
+        v.y = Math.abs(v.y) + rand(14, 38);
+        spawn('box', {
+          pos: at, color: [0x5A3A22, 0x6B4A2F, 0xF4EFE2, 0x3A2A1A, 0x8A8F94][i % 5],
+          vel: v, grav: 30, spin: rand(-16, 16),
+          from: rand(0.5, 2.2), to: rand(0.4, 1.5),
+          life: rand(1.4, 2.8),
+        });
+      }
+      for (let i = 0; i < 18; i++) {
         spawn('sphere', {
           pos: at, color: i % 2 ? 0x6E6E6E : 0xCFEAF7,
-          vel: dir(rand(4, 14)).add(_v.set(0, rand(4, 12), 0)),
+          vel: dir(rand(6, 22)).add(_v.set(0, rand(6, 18), 0)),
           grav: -1.5, drag: 1.0,
-          from: rand(1.5, 3.5), to: rand(6, 12),
-          life: rand(1.2, 2.2), opacity: 0.55,
+          from: rand(2, 5), to: rand(10, 20),
+          life: rand(1.6, 3.0), opacity: 0.55,
+        });
+      }
+      // embers thrown clear, still burning on the way down
+      for (let i = 0; i < 12; i++) {
+        spawn('sphere', {
+          pos: at, color: 0xFFC24A,
+          vel: dir(rand(14, 40)).add(_v.set(0, rand(8, 20), 0)),
+          grav: 18, drag: 0.5,
+          from: rand(0.6, 1.4), to: 0.2,
+          life: rand(0.9, 1.8),
         });
       }
     },
@@ -263,16 +298,16 @@ export function createEffects(scene) {
        outliving the flash by two seconds is most of what sells it, so the
        sky behind you fills up with the ones that already went off. */
     flak(pos) {
-      spawn('sphere', { pos, color: 0xFFF6D8, from: 0.4, to: 3.6, life: 0.08, opacity: 1 });
-      spawn('sphere', { pos, color: 0xFFB03C, from: 0.8, to: 6.0, life: 0.15, opacity: 0.95, fadePow: 1.5 });
+      spawn('sphere', { pos, color: 0xFFF6D8, from: 0.35, to: 2.7, life: 0.08, opacity: 1 });
+      spawn('sphere', { pos, color: 0xFFB03C, from: 0.7, to: 4.5, life: 0.15, opacity: 0.95, fadePow: 1.5 });
 
       // the black cloud, several overlapping puffs so the edge is ragged
       for (let i = 0; i < 7; i++) {
         spawn('sphere', {
           pos, color: i < 2 ? 0x4A4A50 : 0x24242A,
-          vel: dir(rand(1.5, 6)).add(_v.set(0, rand(0.5, 2.5), 0)),
-          grav: -0.6, drag: 1.5,
-          from: rand(0.8, 1.8), to: rand(3.0, 5.4),
+          vel: dir(rand(1.2, 4.4)).add(_v.set(0, rand(0.4, 1.8), 0)),
+          grav: -0.6, drag: 1.7,
+          from: rand(0.6, 1.4), to: rand(2.2, 4.0),
           life: rand(1.6, 2.8), opacity: 0.85, fadePow: 2.2,
         });
       }
@@ -350,6 +385,11 @@ export function createEffects(scene) {
     update(dt) {
       for (let i = live.length - 1; i >= 0; i--) {
         const p = live[i];
+        if (p.delay > 0) {
+          p.delay -= dt;
+          if (p.delay > 0) continue;
+          p.mesh.visible = true;
+        }
         p.life -= dt;
         if (p.life <= 0) {
           p.mesh.visible = false;
@@ -368,6 +408,11 @@ export function createEffects(scene) {
         p.mat.opacity = Math.max(0, (1 - Math.pow(t, p.fadePow)));
       }
     },
+
+    // How much of the pool is in the air. Only the debug hook reads this,
+    // but a wreck is the biggest thing spawned in one go and it is worth
+    // being able to check it against the budget.
+    count() { return live.length; },
 
     // Called on respawn so nothing from the last life is still in the air.
     clear() {

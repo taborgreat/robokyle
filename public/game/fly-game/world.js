@@ -57,9 +57,8 @@ export const ENEMY_GUNS = [
   { x: -16.0, z: 0 },
 ];
 
-// Turned up from one in ten while the flak is being worked on, so a hostile
-// ship turns up often enough to watch. Drop it back to 0.1 when done.
-const ENEMY_SHARE = 0.35;
+// Roughly one ship in ten is hostile.
+const ENEMY_SHARE = 0.1;
 
 // Where the hillside actually is, at a horizontal distance d from the middle
 // of an island of radius r and height h.

@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=12';
-import { buildCraft, CRAFT } from './craft.js?v=12';
-import { createAudio } from './audio.js?v=12';
-import { createEffects } from './effects.js?v=12';
+import { createWorld, ENEMY_GUNS } from './world.js?v=13';
+import { buildCraft, CRAFT } from './craft.js?v=13';
+import { createAudio } from './audio.js?v=13';
+import { createEffects } from './effects.js?v=13';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -944,6 +944,25 @@ if (location.search.includes('debug')) {
     const v = new THREE.Vector3(x, y, z).project(camera);
     return { fx: (v.x + 1) / 2, fy: (1 - v.y) / 2, infront: v.z < 1 };
   };
+  // Sinks the nearest ship outright, so the wreck can be watched without
+  // having to fly a firing pass at it first.
+  window.flyWreckNearestShip = () => {
+    let best = null, bd = Infinity;
+    for (const t of world.targets) {
+      if (!t.alive || t.kind !== 'ship') continue;
+      const d = t.mesh.position.distanceTo(plane.pos);
+      if (d < bd) { bd = d; best = t; }
+    }
+    if (!best) return null;
+    for (let i = 0; i < 100 && best.alive; i++) world.damage(best, 1);
+    const at = best.mesh.position.clone();
+    effects.wreck(at);
+    audio.shipWreck(at.distanceTo(plane.pos));
+    return { d: Math.round(bd), x: Math.round(at.x), y: Math.round(at.y), z: Math.round(at.z) };
+  };
+
+  window.flyParticles = () => effects.count();
+
   window.flyDebug = () => ({
     x: Math.round(plane.pos.x), y: Math.round(plane.pos.y), z: Math.round(plane.pos.z),
     yaw: +Math.atan2(-forwardVector().x, -forwardVector().z).toFixed(3),
