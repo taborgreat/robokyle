@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=18';
-import { buildCraft, CRAFT } from './craft.js?v=18';
-import { createAudio } from './audio.js?v=18';
-import { createEffects } from './effects.js?v=18';
+import { createWorld, ENEMY_GUNS } from './world.js?v=19';
+import { buildCraft, CRAFT } from './craft.js?v=19';
+import { createAudio } from './audio.js?v=19';
+import { createEffects } from './effects.js?v=19';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');

@@ -449,3 +449,18 @@ body.is-flying .back-strip { opacity: .55; }
 .fly-wrap.is-intro .hud,
 .fly-wrap.is-intro .reticle { opacity: 0; }
 .fly-wrap .hud, .fly-wrap .reticle { transition: opacity .5s ease; }
+
+
+/* The credit CC BY obliges. Quiet, but on the screen the music controls
+   are on, which is where someone looking for it would look, and readable
+   rather than hidden away: the licence asks for somewhere people can find
+   it, not merely somewhere it exists. */
+.credit {
+  margin: 1.1rem 0 0;
+  padding-top: .8rem;
+  border-top: 1px solid rgba(0, 0, 0, .1);
+  font-size: .78rem;
+  line-height: 1.5;
+  opacity: .72;
+}
+.credit a { color: inherit; }

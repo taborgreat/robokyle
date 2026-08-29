@@ -26,3 +26,16 @@ git push
 
 The API is not part of this: it runs on your own machine behind
 `api.robokyle.org`, and the page reaches it at run time.
+
+## Credits
+
+Music in Fly Game:
+
+- "Morning" by Kevin MacLeod (incompetech.com)
+- "Evening" by Kevin MacLeod (incompetech.com)
+
+Both licensed under Creative Commons: By Attribution 4.0
+<https://creativecommons.org/licenses/by/4.0/>
+
+The same credit appears on the game's own settings screen, which is what
+the licence asks for: somewhere people can actually find it.

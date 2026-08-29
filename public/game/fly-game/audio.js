@@ -208,105 +208,41 @@ export function createAudio() {
 
   /* ===== Music =====
 
-     Generative rather than a fixed tune. A chord underneath, a bass note
-     on its root, and a bell picking notes out of a scale over the top at
-     places chosen fresh each bar. Nothing ever repeats exactly, which is
-     the whole point: a menu you sit on for ten minutes should not turn
-     into a nursery rhyme, and the surest way to make a loop irritating is
-     to let someone learn it.
+     Two recordings rather than the generative thing that was here before.
+     Everything else in this file is synthesised because it has to follow
+     the game continuously, and a tune does not: it plays, it loops, and
+     the only thing the game asks of it is which one.
 
-     Both tracks are slow, sparse and soft. The difference between them is
-     the mode and the register, which is more than enough to make arriving
-     on the island feel like somewhere else. */
+     They go through a MediaElementSource rather than a decoded buffer, so
+     a three megabyte file starts when it has enough of itself rather than
+     when it has all of itself, and they still land on the music bus, so
+     the music slider governs them like anything else.
+
+       Morning and Evening by Kevin MacLeod (incompetech.com)
+       Licensed under Creative Commons: By Attribution 4.0
+       https://creativecommons.org/licenses/by/4.0/ */
 
   const TRACKS = {
-    // Higher, brighter, a little quicker. Major sevenths all the way
-    // down, which is the friendliest sound there is.
-    menu: {
-      bpm: 74,
-      chords: [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 67]],
-      scale: [72, 74, 76, 79, 81, 84, 86],
-      bell: 'triangle', pad: 'sine',
-      bellLevel: 0.075, padLevel: 0.03, bassLevel: 0.05, density: 4,
-    },
-    // Lydian, which is the major scale with the fourth raised: the same
-    // warmth with one note in it that keeps wanting to float upward.
-    // Slower, lower, and thinner, to sit under an engine.
-    island: {
-      bpm: 58,
-      chords: [[53, 57, 60, 64], [55, 59, 62, 65], [57, 60, 64, 67], [50, 57, 60, 65]],
-      scale: [69, 71, 72, 76, 77, 81, 83],
-      bell: 'triangle', pad: 'sine',
-      bellLevel: 0.055, padLevel: 0.036, bassLevel: 0.045, density: 3,
-    },
+    menu:   '/public/game/fly-game/music/morning.mp3',
+    island: '/public/game/fly-game/music/evening.mp3',
   };
 
-  let tune = null;        // { name, track, bar, next, timer, voices }
+  let tune = null;        // { name, el, gain }
   let wantTune = null;    // asked for before the context was allowed to start
-
-  const midi = m => 440 * Math.pow(2, (m - 69) / 12);
-
-  function voice(note, at, dur, type, level) {
-    const o = ctx.createOscillator();
-    o.type = type;
-    o.frequency.value = midi(note);
-    const g = ctx.createGain();
-    // Soft in, long out. A hard attack on a triangle is a beep.
-    g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime(level, at + Math.min(0.3, dur * 0.3));
-    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    o.connect(g);
-    g.connect(musicBus);
-    o.start(at);
-    o.stop(at + dur + 0.05);
-    if (tune) tune.voices.push({ o, g, until: at + dur + 0.1 });
-  }
-
-  function pump() {
-    if (!tune || !ctx) return;
-    // Drop voices that have finished, or the list grows for the whole
-    // session and a track switch has to walk all of it.
-    const now = ctx.currentTime;
-    tune.voices = tune.voices.filter(v => v.until > now);
-
-    const T = tune.track;
-    const beat = 60 / T.bpm;
-    const bar = beat * 4;
-    while (tune.next < now + 0.9) {
-      const at = tune.next;
-      const chord = T.chords[tune.bar % T.chords.length];
-
-      for (const n of chord) voice(n + 12, at, bar * 1.1, T.pad, T.padLevel);
-      voice(chord[0] - 12, at, bar * 0.85, 'triangle', T.bassLevel);
-
-      const count = T.density + (Math.random() < 0.4 ? 1 : 0);
-      for (let i = 0; i < count; i++) {
-        // Eighths, but never the first one every bar: a note on every
-        // downbeat is what makes a generative loop sound like a metronome.
-        const slot = 1 + Math.floor(Math.random() * 7);
-        const note = T.scale[Math.floor(Math.random() * T.scale.length)];
-        const st = at + slot * beat * 0.5;
-        voice(note, st, beat * 1.7, T.bell, T.bellLevel * (0.55 + Math.random() * 0.5));
-      }
-
-      tune.bar++;
-      tune.next += bar;
-    }
-  }
 
   function stopTune(fade) {
     if (!tune) return;
-    clearInterval(tune.timer);
-    const now = ctx ? ctx.currentTime : 0;
-    for (const v of tune.voices) {
-      try {
-        v.g.gain.cancelScheduledValues(now);
-        v.g.gain.setValueAtTime(Math.max(0.0001, v.g.gain.value), now);
-        v.g.gain.exponentialRampToValueAtTime(0.0001, now + fade);
-        v.o.stop(now + fade + 0.02);
-      } catch (e) { /* already stopped */ }
-    }
+    const going = tune;
     tune = null;
+    const now = ctx ? ctx.currentTime : 0;
+    try {
+      going.gain.gain.cancelScheduledValues(now);
+      going.gain.gain.setValueAtTime(going.gain.gain.value, now);
+      going.gain.gain.linearRampToValueAtTime(0, now + fade);
+    } catch (e) { /* nothing scheduled */ }
+    // Paused only once it is silent, or the last second of the outgoing
+    // track is cut off rather than faded.
+    setTimeout(() => { try { going.el.pause(); } catch (e) {} }, fade * 1000 + 120);
   }
 
   return {
@@ -325,15 +261,38 @@ export function createAudio() {
     music(name) {
       if (tune && tune.name === name) return;
       ensure();
-      // Before the first gesture there is no context to schedule into, so
+      // Before the first gesture there is no context to play into, so
       // remember what was wanted and start it when there is one.
       if (!ctx || ctx.state === 'suspended') { wantTune = name; return; }
-      stopTune(0.7);
-      const track = TRACKS[name];
-      if (!track) return;
-      tune = { name, track, bar: 0, next: ctx.currentTime + 0.2, voices: [], timer: 0 };
-      pump();
-      tune.timer = setInterval(pump, 250);
+
+      stopTune(0.9);
+      const url = TRACKS[name];
+      if (!url) return;
+
+      const el = new Audio(url);
+      el.loop = true;
+      el.preload = 'auto';
+      // A file that fails to load leaves the game silent rather than
+      // broken, which is the right way round for background music.
+      el.addEventListener('error', () => { if (tune && tune.el === el) tune = null; });
+
+      let node;
+      try {
+        node = ctx.createMediaElementSource(el);
+      } catch (e) {
+        return;                       // no route to the bus, so no music
+      }
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      node.connect(gain);
+      gain.connect(musicBus);
+
+      tune = { name, el, gain };
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(1, now + 1.4);
+      const started = el.play();
+      if (started && started.catch) started.catch(() => {});
     },
 
     setVolume(v) {
