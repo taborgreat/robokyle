@@ -95,14 +95,78 @@ function buildPlane() {
   disc.position.z = -2.74;
   g.add(disc);
 
+  // Engine cowling: a ring at the front so the nose is not just a smooth cone.
+  const cowl = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.11, 8, 18), mat(PAINT.cream));
+  cowl.position.z = -2.4;
+  g.add(cowl);
+
+  const exhaustGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.6, 6);
+  const exhaustMat = mat(PAINT.dark);
+  for (const sx of [-0.42, 0.42]) {
+    const ex = new THREE.Mesh(exhaustGeo, exhaustMat);
+    ex.rotation.x = Math.PI / 2;
+    ex.position.set(sx, -0.22, -1.7);
+    g.add(ex);
+  }
+
+  // A pilot, visible through the canopy. One of those details you only
+  // notice when it is missing.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), mat(0xE8C49A));
+  head.position.set(0, 0.42, -0.05);
+  g.add(head);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(PAINT.brown));
+  cap.position.set(0, 0.46, -0.05);
+  g.add(cap);
+
+  // Navigation lights: red on the left wing, green on the right, which is
+  // the way round they actually go.
+  const lampGeo = new THREE.SphereGeometry(0.11, 8, 6);
+  const lampL = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0xFF4438 }));
+  lampL.position.set(-3.66, 0.5, -0.1); g.add(lampL);
+  const lampR = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0x46E06A }));
+  lampR.position.set(3.66, 0.5, -0.1); g.add(lampR);
+
+  // Panel seams down the fuselage.
+  const seamMat = mat(0xC9553F);
+  for (const z of [-1.2, 0.1, 1.2]) {
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.63, 0.025, 5, 16), seamMat);
+    seam.position.z = z;
+    g.add(seam);
+  }
+
   const wheelGeo = new THREE.TorusGeometry(0.24, 0.1, 6, 12);
   const wheelMat = mat(PAINT.dark);
   const wL = new THREE.Mesh(wheelGeo, wheelMat); wL.position.set(-0.8, -0.72, -0.5); g.add(wL);
   const wR = new THREE.Mesh(wheelGeo, wheelMat); wR.position.set(0.8, -0.72, -0.5); g.add(wR);
 
+  // Gear legs, so the wheels are attached to something.
+  const legGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 5);
+  for (const sx of [-0.8, 0.8]) {
+    const leg = new THREE.Mesh(legGeo, mat(PAINT.steel));
+    leg.position.set(sx, -0.42, -0.5);
+    leg.rotation.z = sx < 0 ? 0.25 : -0.25;
+    g.add(leg);
+  }
+
+  // Tail wheel.
+  const tailWheel = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.055, 5, 10), wheelMat);
+  tailWheel.position.set(0, -0.42, 2.0);
+  g.add(tailWheel);
+
+  // The guns the muzzle flash comes out of.
+  const gunGeo = new THREE.CylinderGeometry(0.055, 0.055, 1.1, 6);
+  for (const sx of [-1.1, 1.1]) {
+    const gun = new THREE.Mesh(gunGeo, mat(PAINT.dark));
+    gun.rotation.x = Math.PI / 2;
+    gun.position.set(sx, 0.42, -1.0);
+    g.add(gun);
+  }
+
   return {
     group: g,
-    muzzle: new THREE.Vector3(0, -0.1, -3.0),
+    muzzle: new THREE.Vector3(0, 0.42, -1.6),
+    guns: [new THREE.Vector3(-1.1, 0.42, -1.6), new THREE.Vector3(1.1, 0.42, -1.6)],
+    eject: new THREE.Vector3(0.5, 0.1, -0.6),
     update(dt, s) {
       prop.rotation.z += (16 + s.throttle * 40) * dt;
       disc.material.opacity = 0.1 + s.throttle * 0.22;

@@ -184,6 +184,89 @@ export function createAudio() {
       osc.start(t); osc.stop(t + 0.11);
     },
 
+    // A crash into land. Body first, then the crack, then a long tail, which
+    // is roughly the order a real one arrives in.
+    explosion() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+
+      const boom = ctx.createOscillator();
+      boom.type = 'sine';
+      boom.frequency.setValueAtTime(140, t);
+      boom.frequency.exponentialRampToValueAtTime(26, t + 0.9);
+      const bg = ctx.createGain();
+      bg.gain.setValueAtTime(0.85, t);
+      bg.gain.exponentialRampToValueAtTime(0.0008, t + 1.1);
+      boom.connect(bg); bg.connect(master);
+      boom.start(t); boom.stop(t + 1.15);
+
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(1.6);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(3200, t);
+      lp.frequency.exponentialRampToValueAtTime(160, t + 1.4);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.75, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 1.5);
+      src.connect(lp); lp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + 1.6);
+
+      // A short bright crack on top, or it is all rumble and no impact.
+      const crack = ctx.createBufferSource();
+      crack.buffer = noiseBuffer(0.2);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1200;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.5, t);
+      cg.gain.exponentialRampToValueAtTime(0.0008, t + 0.2);
+      crack.connect(hp); hp.connect(cg); cg.connect(master);
+      crack.start(t); crack.stop(t + 0.2);
+    },
+
+    // Hitting the water at speed. Heavier and wetter than the skim below.
+    bigSplash() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(1.4);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(900, t);
+      bp.frequency.exponentialRampToValueAtTime(180, t + 1.1);
+      bp.Q.value = 0.7;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.8, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 1.2);
+      src.connect(bp); bp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + 1.4);
+
+      // The thump of displaced water under the spray.
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(190, t);
+      osc.frequency.exponentialRampToValueAtTime(48, t + 0.5);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.55, t);
+      og.gain.exponentialRampToValueAtTime(0.0008, t + 0.6);
+      osc.connect(og); og.connect(master);
+      osc.start(t); osc.stop(t + 0.65);
+
+      // Fine spray falling back, a beat later.
+      const spray = ctx.createBufferSource();
+      spray.buffer = noiseBuffer(0.9);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 2200;
+      const sg = ctx.createGain();
+      sg.gain.setValueAtTime(0.0001, t);
+      sg.gain.linearRampToValueAtTime(0.3, t + 0.14);
+      sg.gain.exponentialRampToValueAtTime(0.0008, t + 1.0);
+      spray.connect(hp); hp.connect(sg); sg.connect(master);
+      spray.start(t); spray.stop(t + 1.0);
+    },
+
     // Water is a duller, longer version of a pop.
     splash() {
       if (!ctx) return;

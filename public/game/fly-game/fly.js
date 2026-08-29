@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { createWorld } from './world.js';
 import { buildCraft, CRAFT } from './craft.js';
 import { createAudio } from './audio.js';
+import { createEffects } from './effects.js';
 
 const canvas = document.getElementById('fly-canvas');
 const wrap   = canvas.parentElement;
@@ -46,6 +47,7 @@ scene.add(sun);
 
 const world = createWorld(scene);
 world.setFog(scene);
+const effects = createEffects(scene);
 
 /* ===== The aircraft ===== */
 
@@ -68,36 +70,82 @@ fitCraft();
 
 /* ===== Guns ===== */
 
-const BULLET_LIFE = 1.5;
+const BULLET_LIFE = 3.4;
+const BULLET_GRAVITY = 24;     // what makes the stream sag at range
+const TRACER_EVERY = 0.035;    // seconds between dots left behind
 const bullets = [];
-const bulletGeo = new THREE.CapsuleGeometry(0.35, 3.2, 4, 6);
-const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFE49A });
+// Long and thin, so a round in flight reads as a streak rather than a pea.
+const bulletGeo = new THREE.CapsuleGeometry(0.28, 5.6, 4, 6);
+const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFE9A0 });
 let fireCooldown = 0;
+let gunToggle = 0;
+
+const _bulletAxis = new THREE.Vector3(0, 1, 0);   // capsules are built along Y
+const _shotDir = new THREE.Vector3();
+const _muzzleAt = new THREE.Vector3();
+const _ejectAt = new THREE.Vector3();
+const _ejectVel = new THREE.Vector3();
 
 function fire() {
+  const q = craft.group.quaternion;
   const dir = forwardVector();
-  const muzzle = craft.muzzle.clone().applyQuaternion(craft.group.quaternion).add(plane.pos);
+
+  // Alternate between the two guns where a craft has two, which is both how
+  // it is done and half the fire rate through each barrel.
+  const mounts = craft.guns || [craft.muzzle];
+  const mount = mounts[gunToggle % mounts.length];
+  gunToggle++;
+
+  _muzzleAt.copy(mount).applyQuaternion(q).add(plane.pos);
 
   const m = new THREE.Mesh(bulletGeo, bulletMat);
-  m.position.copy(muzzle);
-  m.quaternion.copy(craft.group.quaternion);
-  m.rotateX(Math.PI / 2);
+  m.position.copy(_muzzleAt);
   scene.add(m);
 
-  bullets.push({ mesh: m, dir, life: BULLET_LIFE, speed: plane.speed + 420 });
+  bullets.push({
+    mesh: m,
+    vel: _shotDir.copy(dir).multiplyScalar(plane.speed + 520).clone(),
+    life: BULLET_LIFE,
+    trail: 0,
+  });
+
+  effects.muzzle(_muzzleAt);
+
+  // Brass out to the right and back, carried along by the aircraft.
+  _ejectAt.copy(craft.eject || craft.muzzle).applyQuaternion(q).add(plane.pos);
+  _ejectVel.set(rand(6, 12), rand(1, 4), rand(4, 9)).applyQuaternion(q)
+           .addScaledVector(dir, plane.speed * 0.55);
+  effects.casing(_ejectAt, _ejectVel.clone());
+
   audio.gun();
 }
+
+const _bq = new THREE.Quaternion();
 
 function stepBullets(dt) {
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.life -= dt;
-    b.mesh.position.addScaledVector(b.dir, b.speed * dt);
+
+    // Drop. Gravity on the round is what turns a laser into a ballistic
+    // stream you have to lead and lift for at distance.
+    b.vel.y -= BULLET_GRAVITY * dt;
+    b.mesh.position.addScaledVector(b.vel, dt);
+
+    // Point the round along where it is actually going, so the sag is
+    // visible in the round itself and not just in its path.
+    _shotDir.copy(b.vel).normalize();
+    _bq.setFromUnitVectors(_bulletAxis, _shotDir);
+    b.mesh.quaternion.copy(_bq);
+
+    b.trail -= dt;
+    if (b.trail <= 0) { b.trail = TRACER_EVERY; effects.tracer(b.mesh.position); }
 
     let hit = false;
     for (const balloon of world.balloons) {
       if (!balloon.alive) continue;
       if (b.mesh.position.distanceTo(balloon.mesh.position) < balloon.r + 3) {
+        effects.balloonBurst(balloon.mesh.position.clone(), balloon.colour);
         world.popBalloon(balloon);
         audio.pop();
         state.popped++;
@@ -106,12 +154,26 @@ function stepBullets(dt) {
       }
     }
 
-    if (hit || b.life <= 0 || b.mesh.position.y < -20) {
+    // Rounds that reach the ground kick up a little where they land.
+    const ground = world.heightAt(b.mesh.position.x, b.mesh.position.z);
+    if (!hit && b.mesh.position.y <= ground + 0.5) {
+      effects.tracer(b.mesh.position);
+      hit = true;
+    }
+
+    if (hit || b.life <= 0) {
       scene.remove(b.mesh);
       bullets.splice(i, 1);
     }
   }
 }
+
+function clearBullets() {
+  for (const b of bullets) scene.remove(b.mesh);
+  bullets.length = 0;
+}
+
+function rand(a, b) { return a + Math.random() * (b - a); }
 
 /* ===== Cursor ===== */
 
@@ -170,7 +232,10 @@ function flight(dt) {
   plane.roll  += (wantRoll  - plane.roll)  * Math.min(1, answer * dt);
   plane.pitch += (wantPitch - plane.pitch) * Math.min(1, answer * 0.8 * dt);
 
-  plane.yaw += -plane.roll * 0.9 * h.turn * dt;
+  // Bank drives the turn, and the sign has to agree with the bank or the
+  // aircraft leans one way and goes the other. Cursor left banks left and
+  // turns left.
+  plane.yaw += plane.roll * 0.9 * h.turn * dt;
 
   // Diving trades height for speed and climbing gives it back.
   const target = h.cruise + Math.sin(-plane.pitch) * (h.top - h.cruise) * 1.6;
@@ -182,18 +247,16 @@ function flight(dt) {
   const fwd = forwardVector();
   plane.pos.addScaledVector(fwd, plane.speed * dt);
 
-  // Ground and ceiling. Neither ends the flight: you get nudged back, and
-  // over water there is a splash. Losing a run to a mistimed climb would
-  // make this a worse place to spend time.
+  // Ground. Land and water end the flight, and differently: one is a
+  // fireball, the other is a splash.
   const ground = world.heightAt(plane.pos.x, plane.pos.z);
-  const floor = ground + 12;
-  if (plane.pos.y < floor) {
-    if (ground <= 0.5 && !state.wet) { audio.splash(); state.wet = true; }
-    plane.pos.y += (floor - plane.pos.y) * Math.min(1, 6 * dt);
-    plane.pitch += (0.35 - plane.pitch) * Math.min(1, 3 * dt);
-  } else if (plane.pos.y > floor + 8) {
-    state.wet = false;
+  if (ground > 1.5) {
+    if (plane.pos.y <= ground + 4.5) { crash('land'); return; }
+  } else if (plane.pos.y <= 3.5) {
+    crash('water'); return;
   }
+
+  // The ceiling still just pushes back. Nothing up there to hit.
   if (plane.pos.y > 1400) {
     plane.pos.y += (1400 - plane.pos.y) * Math.min(1, 2 * dt);
     plane.pitch += (-0.2 - plane.pitch) * Math.min(1, 2 * dt);
@@ -214,6 +277,19 @@ const _up = new THREE.Vector3();
 const _worldUp = new THREE.Vector3(0, 1, 0);
 
 function chase(dt) {
+  // On a crash the camera stops following the aircraft, which no longer
+  // exists, and pulls back to a vantage that can actually see the wreck.
+  // Left where it was it ends up inside the fireball looking at grey.
+  if (state.dead && state.crashAt) {
+    _camWant.copy(state.crashAt)
+      .addScaledVector(state.crashDir, -62)
+      .add(_worldUp.clone().multiplyScalar(26));
+    camera.position.lerp(_camWant, Math.min(1, 2.6 * dt));
+    camera.up.copy(_worldUp);
+    camera.lookAt(state.crashAt);
+    return;
+  }
+
   // Behind and above, in the aircraft's own frame, so the view rolls a little
   // with it. Only a little: fully welded to the roll makes the horizon spin
   // and is the quickest way to make someone put it down.
@@ -229,12 +305,15 @@ function chase(dt) {
 
 /* ===== State and screens ===== */
 
-const state = { screen: 'title', flying: false, paused: false, popped: 0, wet: false };
+const state = { screen: 'title', flying: false, paused: false, popped: 0,
+                dead: false, deadKind: null, deadTimer: 0,
+                crashAt: null, crashDir: null };
 
 const hudSpeed = document.getElementById('hud-speed');
 const hudAlt   = document.getElementById('hud-alt');
 const reticle  = document.getElementById('reticle');
 const pauseEl  = document.getElementById('fly-pause');
+const flashEl  = document.getElementById('fly-flash');
 
 function show(name) {
   state.screen = name;
@@ -253,8 +332,61 @@ function startFlight() {
   state.flying = true;
   state.paused = false;
   state.popped = 0;
+  state.dead = false;
+  effects.clear();
+  clearBullets();
+  craft.group.visible = true;
+  flashEl.className = 'fly-flash';
   pauseEl.hidden = true;
   show('fly');
+}
+
+function crash(kind) {
+  if (state.dead) return;
+  state.dead = true;
+  state.deadKind = kind;
+  state.deadTimer = kind === 'land' ? 2.6 : 2.3;
+  state.crashAt = plane.pos.clone();
+  state.crashDir = forwardVector();
+
+  craft.group.visible = false;
+  clearBullets();
+
+  if (kind === 'land') {
+    effects.explosion(plane.pos.clone());
+    audio.explosion();
+  } else {
+    effects.splash(plane.pos.clone());
+    audio.bigSplash();
+  }
+
+  // One soft tint, not a strobe.
+  flashEl.className = 'fly-flash is-' + kind;
+  void flashEl.offsetWidth;          // restart the animation if it is mid run
+  flashEl.classList.add('is-on');
+}
+
+// Endless world, so there is no level to reload: put the aircraft back at a
+// clear patch of sky and carry on.
+function respawn() {
+  state.dead = false;
+  state.deadKind = null;
+  effects.clear();
+  clearBullets();
+
+  const ground = world.heightAt(0, 0);
+  plane.pos.set(0, Math.max(260, ground + 180), 0);
+  plane.yaw = 0; plane.pitch = 0; plane.roll = 0;
+  plane.speed = craft.handling.cruise;
+
+  craft.group.position.copy(plane.pos);
+  craft.group.quaternion.identity();
+  craft.group.visible = true;
+
+  // Put the camera behind it rather than letting it fly in from the wreck.
+  camera.position.set(0, plane.pos.y + 4, plane.pos.z + 14);
+
+  flashEl.className = 'fly-flash';
 }
 
 function togglePause() {
@@ -291,21 +423,33 @@ function loop() {
   last = now;
 
   if (state.screen === 'fly' && state.flying && !state.paused) {
-    flight(dt);
-    world.update(plane.pos, dt);
+    if (!state.dead) {
+      flight(dt);
 
-    fireCooldown -= dt;
-    if (cursor.down && fireCooldown <= 0) { fire(); fireCooldown = 0.11; }
-    stepBullets(dt);
-    chase(dt);
-    audio.flight(plane.throttle, Math.min(1, plane.speed / craft.handling.top));
+      fireCooldown -= dt;
+      if (cursor.down && fireCooldown <= 0) { fire(); fireCooldown = 0.09; }
 
-    hudTick -= dt;
-    if (hudTick <= 0) {
-      hudTick = 0.1;
-      hudSpeed.textContent = Math.round(plane.speed * 1.6);
-      hudAlt.textContent = Math.round(plane.pos.y * 3.28);
+      audio.flight(plane.throttle, Math.min(1, plane.speed / craft.handling.top));
+
+      hudTick -= dt;
+      if (hudTick <= 0) {
+        hudTick = 0.1;
+        hudSpeed.textContent = Math.round(plane.speed * 1.6);
+        hudAlt.textContent = Math.round(plane.pos.y * 3.28);
+      }
+    } else {
+      // Let the wreck play out, then put the aircraft back.
+      audio.flight(0, 0);
+      state.deadTimer -= dt;
+      if (state.deadTimer <= 0) respawn();
     }
+
+    // These keep running through a crash: the debris has to fall somewhere
+    // and the camera has to stay pointed at it.
+    world.update(plane.pos, dt);
+    stepBullets(dt);
+    effects.update(dt);
+    chase(dt);
   }
 
   renderer.render(scene, camera);
@@ -375,3 +519,37 @@ bindCheck('opt-invert', 'invertY');
 audio.setVolume(settings.volume / 10);
 resize();
 requestAnimationFrame(loop);
+
+// A read only window into the running game, behind ?debug so it is not part
+// of the normal page. Handy for checking that the world really is streaming
+// and that nothing is growing without bound over a long flight.
+if (location.search.includes('debug')) {
+  window.flyDebug = () => ({
+    x: Math.round(plane.pos.x), y: Math.round(plane.pos.y), z: Math.round(plane.pos.z),
+    yaw: +plane.yaw.toFixed(3), roll: +plane.roll.toFixed(3), speed: Math.round(plane.speed),
+    dead: state.dead, deadKind: state.deadKind,
+    bullets: bullets.length,
+    balloons: world.balloons.length,
+    islands: world.islands.length,
+    nearestBalloon: (() => {
+      let best = null, bd = Infinity;
+      for (const b of world.balloons) {
+        const d = b.mesh.position.distanceTo(plane.pos);
+        if (d < bd) { bd = d; best = b; }
+      }
+      return best ? { x: Math.round(best.mesh.position.x), y: Math.round(best.mesh.position.y),
+                      z: Math.round(best.mesh.position.z), d: Math.round(bd) } : null;
+    })(),
+    ground: Math.round(world.heightAt(plane.pos.x, plane.pos.z)),
+    nearestIsland: (() => {
+      let best = null, bd = Infinity;
+      for (const i of world.islands) {
+        const d = Math.hypot(i.x - plane.pos.x, i.z - plane.pos.z);
+        if (d < bd) { bd = d; best = i; }
+      }
+      return best ? { x: Math.round(best.x), z: Math.round(best.z),
+                      r: Math.round(best.r), h: Math.round(best.h), d: Math.round(bd) } : null;
+    })(),
+    sceneChildren: scene.children.length,
+  });
+}

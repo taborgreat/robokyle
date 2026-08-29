@@ -33,7 +33,11 @@ const C = {
   leaf2:  0x63B356,
   sea:    0x2E86C8,
   sky:    0x7FC7EE,
-  haze:   0xCFEAF7,
+  // The horizon colour. The fog, the scene background and the bottom of the
+  // sky gradient are all exactly this, which is what removes the seam where
+  // fogged water used to meet the sky. Deeper and bluer than it was: at
+  // near white the fog glared and swallowed the islands early.
+  haze:   0xA8CCE4,
 };
 
 const BALLOON_COLOURS = [0xE2402F, 0xE8B444, 0x5FBF87, 0xE06FA8, 0x6FA8E0];
@@ -41,10 +45,23 @@ const BALLOON_COLOURS = [0xE2402F, 0xE8B444, 0x5FBF87, 0xE06FA8, 0x6FA8E0];
 /* ===== deterministic noise ===== */
 
 // Same chunk coordinates always produce the same stream of numbers.
+//
+// Mixed sequentially, FNV style, rather than by XORing two products
+// together. The previous version did the latter and collided on about one
+// chunk in six across a modest span, and two chunks sharing a seed are not
+// merely similar, they are the same island in the same place with the same
+// trees. Sequential mixing also makes order matter, so (3, -11) and
+// (-11, 3) are different places.
 function seedFor(cx, cz) {
-  let h = 2166136261 ^ (cx * 374761393) ^ (cz * 668265263);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return (h ^ (h >>> 16)) >>> 0;
+  let h = 2166136261;
+  h = Math.imul(h ^ (cx & 0xffff), 16777619);
+  h = Math.imul(h ^ ((cx >>> 16) & 0xffff), 16777619);
+  h = Math.imul(h ^ (cz & 0xffff), 16777619);
+  h = Math.imul(h ^ ((cz >>> 16) & 0xffff), 16777619);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0x5bd1e995);
+  h ^= h >>> 15;
+  return h >>> 0;
 }
 function rngFrom(seed) {
   let a = seed >>> 0;
@@ -115,7 +132,7 @@ export function createWorld(scene) {
       side: THREE.BackSide,
       depthWrite: false,
       uniforms: {
-        top:    { value: new THREE.Color(0x3E9BDD) },
+        top:    { value: new THREE.Color(0x2F86CE) },
         bottom: { value: new THREE.Color(C.haze) },
       },
       vertexShader: `
@@ -128,7 +145,11 @@ export function createWorld(scene) {
       fragmentShader: `
         uniform vec3 top; uniform vec3 bottom; varying float vH;
         void main() {
-          float t = clamp(vH * 1.6 + 0.18, 0.0, 1.0);
+          // Exactly the fog colour at and below the horizon, then a smooth
+          // ramp upward. The old version mixed 18 per cent toward the top
+          // colour at vH = 0, so the sky never quite matched the fogged sea
+          // and the join read as a hard flat line right across the view.
+          float t = smoothstep(0.0, 0.46, vH);
           gl_FragColor = vec4(mix(bottom, top, t), 1.0);
         }`,
     })
@@ -235,7 +256,7 @@ export function createWorld(scene) {
       m.scale.set(9, 11, 9);
       m.position.set(bx, by, bz);
       scene.add(m);
-      const b = { mesh: m, x: bx, y: by, z: bz, r: 12, bob: rnd() * 6.28, alive: true };
+      const b = { mesh: m, x: bx, y: by, z: bz, r: 12, bob: rnd() * 6.28, alive: true, colour };
       localBalloons.push(b);
       balloons.push(b);
     }
@@ -331,7 +352,11 @@ export function createWorld(scene) {
     },
 
     setFog(scene2) {
-      scene2.fog = new THREE.Fog(C.haze, CHUNK * 1.3, CHUNK * 4.6);
+      // Exponential rather than linear. Linear fog starts at a fixed
+      // distance, and that start is visible as a band; exp2 has no edge to
+      // see. Tuned so an island is still readable at about two chunks and
+      // gone by four, which keeps some depth without hiding the world.
+      scene2.fog = new THREE.FogExp2(C.haze, 0.00052);
       scene2.background = new THREE.Color(C.haze);
     },
   };
