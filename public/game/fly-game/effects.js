@@ -392,13 +392,14 @@ export function createEffects(scene) {
        metres rather than every frame, so the trail is a dashed streak with
        a readable length instead of a solid tube. */
     tracer(pos, color, long) {
-      // A tracer round is drawn with a fatter dot that hangs about two and
-      // a half times as long, so the streak behind it is that much longer.
-      // There is one every tenth round, so it can afford to be.
+      // A tracer round leaves the same dot as any other, barely wider, and
+      // hangs about half as long again. That is the whole difference, and
+      // it is enough: a round that draws a fat streak reads as a slower,
+      // heavier thing than the rounds around it, which it is not.
       spawn('sphere', {
         pos, color: color || 0xFFDE8A,
-        from: long ? 0.66 : 0.4, to: long ? 0.12 : 0.05,
-        life: long ? 0.55 : 0.22, opacity: long ? 0.95 : 0.9, fadePow: 1.5,
+        from: long ? 0.46 : 0.4, to: long ? 0.06 : 0.05,
+        life: long ? 0.34 : 0.22, opacity: long ? 0.95 : 0.9, fadePow: 1.5,
       });
     },
 

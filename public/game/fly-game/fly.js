@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=19';
-import { buildCraft, CRAFT } from './craft.js?v=19';
-import { createAudio } from './audio.js?v=19';
-import { createEffects } from './effects.js?v=19';
+import { createWorld, ENEMY_GUNS } from './world.js?v=20';
+import { buildCraft, CRAFT } from './craft.js?v=20';
+import { createAudio } from './audio.js?v=20';
+import { createEffects } from './effects.js?v=20';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -305,9 +305,11 @@ function stepBullets(dt) {
 
     b.trail -= dt;
     if (b.trail <= 0) {
-      // Tracers leave their dots closer together as well as bigger, so the
-      // streak is denser and longer rather than merely longer.
-      b.trail = b.hot ? TRACER_EVERY * 0.5 : TRACER_EVERY;
+      // The same interval for every round. Laying a tracer's dots twice as
+      // close together made it look like a different, slower projectile,
+      // which it is not: it leaves the muzzle on the same line at the same
+      // speed and falls at the same rate. Only the colour differs.
+      b.trail = TRACER_EVERY;
       effects.tracer(b.mesh.position, b.hot ? 0xFF6A44 : 0, b.hot);
     }
 
@@ -714,7 +716,13 @@ function flight(dt) {
 let wakeClock = 0;
 const _wakeAt = new THREE.Vector3();
 
+// Off for now. The wake is written and works, but it reads as too much at
+// this size and it is a look problem rather than a code one, so it is
+// parked behind a switch rather than deleted: turn this on to get it back.
+const WING_WAKE = false;
+
 function wingWake(dt) {
+  if (!WING_WAKE) return;
   const wake = craft.wake;
   if (!wake || state.dead) return;
   const load = wake.load;
