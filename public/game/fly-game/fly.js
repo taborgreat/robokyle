@@ -17,11 +17,12 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld } from './world.js?v=7';
-import { buildCraft, CRAFT } from './craft.js?v=7';
-import { createAudio } from './audio.js?v=7';
-import { createEffects } from './effects.js?v=7';
+import { createWorld } from './world.js?v=8';
+import { buildCraft, CRAFT } from './craft.js?v=8';
+import { createAudio } from './audio.js?v=8';
+import { createEffects } from './effects.js?v=8';
 
+const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
 const wrap   = canvas.parentElement;
 const audio  = createAudio();
@@ -111,14 +112,26 @@ const effects = createEffects(scene);
 /* ===== The aircraft ===== */
 
 let craft = null;
+// Orientation is a quaternion, not yaw/pitch/roll angles. Euler angles
+// cannot go over the top: past vertical the pitch term folds back and the
+// aircraft flips instead of continuing round, so a loop is impossible to
+// express. A quaternion turned by body relative rotations each frame has no
+// such limit and no gimbal lock.
+//
+// roll here is cosmetic only. It leans the model into a turn but is kept out
+// of the flight orientation, so where the nose points depends purely on
+// where the cursor is and nothing else.
 const plane = {
-  pos:   new THREE.Vector3(0, 260, 0),
-  yaw:   0,
-  pitch: 0,
-  roll:  0,
-  speed: 60,
+  pos:    new THREE.Vector3(0, 260, 0),
+  orient: new THREE.Quaternion(),
+  roll:   0,
+  speed:  60,
   throttle: 0.6,
 };
+
+const AXIS_X = new THREE.Vector3(1, 0, 0);
+const AXIS_Y = new THREE.Vector3(0, 1, 0);
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
 
 function fitCraft() {
   if (craft) scene.remove(craft.group);
@@ -145,9 +158,24 @@ const _muzzleAt = new THREE.Vector3();
 const _ejectAt = new THREE.Vector3();
 const _ejectVel = new THREE.Vector3();
 
+const _ndc = new THREE.Vector3();
+const _aim = new THREE.Vector3();
+
+// Where the crosshair is actually pointing, in the world.
+//
+// Firing along the nose made the crosshair a decoration: the nose projects
+// to the middle of the frame in a chase view, so rounds always went to the
+// centre no matter where the cursor sat. Unprojecting the cursor gives the
+// ray the player is actually aiming down.
+function aimDirection(from) {
+  _ndc.set(cursor.seen ? cursor.x : 0, cursor.seen ? cursor.y : 0, 0.5);
+  _ndc.unproject(camera);
+  _aim.copy(_ndc).sub(camera.position).normalize().multiplyScalar(1400).add(camera.position);
+  return _aim.sub(from).normalize();
+}
+
 function fire() {
   const q = craft.group.quaternion;
-  const dir = forwardVector();
 
   // Alternate between the two guns where a craft has two, which is both how
   // it is done and half the fire rate through each barrel.
@@ -162,9 +190,10 @@ function fire() {
   m.position.copy(_muzzleAt);
   scene.add(m);
 
+  const dir = aimDirection(_muzzleAt).clone();
   bullets.push({
     mesh: m,
-    vel: _shotDir.copy(dir).multiplyScalar(plane.speed + 520).clone(),
+    vel: dir.multiplyScalar(plane.speed + 520).clone(),
     life: BULLET_LIFE,
     trail: 0.055,   // let the round clear the nose before it starts leaving dots
   });
@@ -174,7 +203,7 @@ function fire() {
   // Brass out to the right and back, carried along by the aircraft.
   _ejectAt.copy(craft.eject || craft.muzzle).multiplyScalar(cs).applyQuaternion(q).add(plane.pos);
   _ejectVel.set(rand(6, 12), rand(1, 4), rand(4, 9)).applyQuaternion(q)
-           .addScaledVector(dir, plane.speed * 0.55);
+           .addScaledVector(forwardVector(), plane.speed * 0.55);
   effects.casing(_ejectAt, _ejectVel.clone());
 
   audio.gun();
@@ -242,8 +271,8 @@ function stepBullets(dt) {
         if (result === 'destroyed') {
           const at = t.mesh.position.clone();
           const away = at.distanceTo(plane.pos);
-          if (t.kind === 'ship') { effects.wreck(at); audio.explosion(away, 0.8); }
-          else { effects.rubble(at); audio.explosion(away, 0.5); }
+          if (t.kind === 'ship') { effects.wreck(at); audio.shipWreck(away); }
+          else { effects.rubble(at); audio.collapse(away); }
         } else if (result === 'hit') {
           effects.impact(b.mesh.position.clone());
           audio.thud();
@@ -305,19 +334,21 @@ function readCursor(e) {
 /* ===== Flight ===== */
 
 const _fwd = new THREE.Vector3();
-const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
-const _quat = new THREE.Quaternion();
+const _spin = new THREE.Quaternion();
+const _bodyUp = new THREE.Vector3();
+const _bodyRight = new THREE.Vector3();
+const _rollQ = new THREE.Quaternion();
+const _bodyQ = new THREE.Quaternion();
 
 function forwardVector() {
-  _euler.set(plane.pitch, plane.yaw, 0);
-  return _fwd.set(0, 0, -1).applyEuler(_euler).clone();
+  return _fwd.set(0, 0, -1).applyQuaternion(plane.orient).clone();
 }
 
-const MAX_PITCH = 0.72;    // how far up or down the nose will point
-const MAX_ROLL  = 1.05;    // how far it leans, cosmetic
-const PITCH_GAIN = 11;     // how hard the nose chases the cursor
-const YAW_RATE = 1.55;     // radians a second at full deflection
-const ROLL_PER_RATE = 0.9; // bank shown per unit of turn rate
+const MAX_ROLL = 1.15;      // how far it leans, cosmetic only
+const PITCH_RATE = 2.35;    // radians a second at full deflection
+const YAW_RATE = 1.95;
+const ROLL_PER_RATE = 0.95;
+const LEVEL_GAIN = 3.4;     // how hard the wings find level again
 
 function flight(dt) {
   const h = craft.handling;
@@ -325,35 +356,48 @@ function flight(dt) {
 
   // A small dead zone so resting near the centre is genuinely level, and a
   // mild curve rather than a squared one. Squaring made the middle two
-  // thirds of the frame do almost nothing, which is what made the aircraft
-  // feel like it was ignoring you.
+  // thirds of the frame do almost nothing.
   const dead = 0.03;
   const shaped = v => {
     const sg = Math.sign(v);
     const a = Math.max(0, Math.abs(v) - dead) / (1 - dead);
-    return sg * Math.pow(a, 1.25);
+    return sg * Math.pow(a, 1.2);
   };
 
   const cx = cursor.seen ? shaped(cursor.x) : 0;
   const cy = cursor.seen ? shaped(cursor.y) * (settings.invertY ? -1 : 1) : 0;
 
-  // The nose follows the cursor.
-  //
-  // Vertically that is literal: where the cursor sits in the frame is the
-  // attitude the nose holds, chased hard rather than eased into. Horizontally
-  // it has to be a rate, because an absolute heading could never turn past
-  // the edge of the screen and you would not be able to come about.
-  //
-  // The bank is now a consequence of the turn rather than the cause of it.
-  // Driving the turn through the bank meant every input went through two
-  // lots of easing before the aircraft moved, which is where the sponginess
-  // came from.
-  const wantPitch = cy * MAX_PITCH;
-  plane.pitch += (wantPitch - plane.pitch) * Math.min(1, PITCH_GAIN * sens * dt);
-  plane.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, plane.pitch));
-
+  // The cursor is a rate on both axes, applied about the aircraft's own axes
+  // rather than the world's. Holding the cursor at the top of the frame keeps
+  // pitching the nose up and it goes right over the top into a loop, which an
+  // attitude limit could never do. There is no clamp anywhere here on purpose:
+  // this answers the cursor before it answers physics.
+  const pitchRate = cy * PITCH_RATE * h.turn * sens;
   const yawRate = -cx * YAW_RATE * h.turn * sens;
-  plane.yaw += yawRate * dt;
+
+  _spin.setFromAxisAngle(AXIS_X, pitchRate * dt);
+  plane.orient.multiply(_spin);
+  _spin.setFromAxisAngle(AXIS_Y, yawRate * dt);
+  plane.orient.multiply(_spin);
+
+  // Pitching and yawing at the same time accumulates roll, because rotations
+  // do not commute: hold a climbing turn for a few seconds and the horizon
+  // ends up tilted, and centring the cursor does not undo it because nothing
+  // was ever asked for. Measured at about fifty degrees of drift in a ten
+  // second turn.
+  //
+  // So the wings look for level on their own, about the body's forward axis,
+  // which cannot change where the nose points. It is switched off once past
+  // the vertical, or it would fight its way out of a loop instead of going
+  // over the top.
+  _bodyUp.set(0, 1, 0).applyQuaternion(plane.orient);
+  if (_bodyUp.y > 0.05) {
+    _bodyRight.set(1, 0, 0).applyQuaternion(plane.orient);
+    _spin.setFromAxisAngle(AXIS_Z, -_bodyRight.y * LEVEL_GAIN * _bodyUp.y * dt);
+    plane.orient.multiply(_spin);
+  }
+
+  plane.orient.normalize();
 
   const wantRoll = Math.max(-MAX_ROLL, Math.min(MAX_ROLL, yawRate * ROLL_PER_RATE));
   plane.roll += (wantRoll - plane.roll) * Math.min(1, 7 * dt);
@@ -361,9 +405,11 @@ function flight(dt) {
   // Diving trades height for speed and climbing gives it back, but not
   // symmetrically. Charging the climb at the same rate as the dive rewards
   // meant a sustained climb bled speed down to a crawl, which is realistic
-  // and no fun. Climbing now costs about a third of what diving pays, and
-  // there is a floor under it so it never feels like stalling.
-  const lean = Math.sin(-plane.pitch);
+  // and no fun. Climbing costs about a third of what diving pays, and there
+  // is a floor under it so it never feels like stalling. Read off the
+  // forward vector now rather than a pitch angle, because there no longer is
+  // one and because it stays correct upside down.
+  const lean = -forwardVector().y;
   const swing = (h.top - h.cruise) * (lean >= 0 ? 1.6 : 0.5);
   const target = h.cruise + lean * swing;
   plane.speed += (target - plane.speed) * Math.min(1, 0.9 * dt);
@@ -383,15 +429,17 @@ function flight(dt) {
     crash('water'); return;
   }
 
-  // The ceiling still just pushes back. Nothing up there to hit.
+  // The ceiling just pushes back down. It does not touch the orientation:
+  // nudging the nose there would fight the cursor, and fighting the cursor is
+  // exactly what this control scheme must never do. Going up through it in a
+  // loop is fine, you simply come back down.
   if (plane.pos.y > 1400) {
     plane.pos.y += (1400 - plane.pos.y) * Math.min(1, 2 * dt);
-    plane.pitch += (-0.2 - plane.pitch) * Math.min(1, 2 * dt);
   }
 
-  _euler.set(plane.pitch, plane.yaw, plane.roll);
-  _quat.setFromEuler(_euler);
-  craft.group.quaternion.copy(_quat);
+  // The lean is applied to the model only, on top of the flight orientation.
+  _rollQ.setFromAxisAngle(AXIS_Z, plane.roll);
+  craft.group.quaternion.copy(plane.orient).multiply(_rollQ);
   craft.group.position.copy(plane.pos);
   craft.update(dt, { throttle: plane.throttle, speed: plane.speed });
 }
@@ -402,6 +450,8 @@ const _camWant = new THREE.Vector3();
 const _look = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _worldUp = new THREE.Vector3(0, 1, 0);
+
+const _camUpQ = new THREE.Quaternion();
 
 function chase(dt) {
   // On a crash the camera stops following the aircraft, which no longer
@@ -420,14 +470,19 @@ function chase(dt) {
   // Behind and above, in the aircraft's own frame, so the view rolls a little
   // with it. Only a little: fully welded to the roll makes the horizon spin
   // and is the quickest way to make someone put it down.
-  _camWant.set(0, 3.9, 13.5).applyQuaternion(craft.group.quaternion).add(plane.pos);
-  camera.position.lerp(_camWant, Math.min(1, 4.2 * dt));
+  _camWant.set(0, 3.9, 13.5).applyQuaternion(plane.orient).add(plane.pos);
+  camera.position.lerp(_camWant, Math.min(1, 7 * dt));
 
   _look.copy(forwardVector()).multiplyScalar(34).add(plane.pos);
   camera.lookAt(_look);
 
-  _up.set(0, 1, 0).applyQuaternion(craft.group.quaternion);
-  camera.up.copy(_worldUp).lerp(_up, 0.45).normalize();
+  // Up comes from the flight orientation, which carries pitch and heading but
+  // not the cosmetic lean. That keeps the horizon steady through a turn while
+  // still following the aircraft over the top of a loop, where blending
+  // toward world up would flip the view inside out.
+  _camUpQ.setFromAxisAngle(AXIS_Z, plane.roll * 0.32);
+  _up.set(0, 1, 0).applyQuaternion(_bodyQ.copy(plane.orient).multiply(_camUpQ));
+  camera.up.copy(_up).normalize();
 }
 
 /* ===== State and screens ===== */
@@ -455,7 +510,8 @@ function startFlight() {
   settings.craft = currentMap.craft;
   fitCraft();
   plane.pos.set(0, 260, 0);
-  plane.yaw = 0; plane.pitch = 0; plane.roll = 0;
+  plane.orient.identity();
+  plane.roll = 0;
   plane.speed = craft.handling.cruise;
   state.flying = true;
   state.paused = false;
@@ -504,7 +560,8 @@ function respawn() {
 
   const ground = world.heightAt(0, 0);
   plane.pos.set(0, Math.max(260, ground + 180), 0);
-  plane.yaw = 0; plane.pitch = 0; plane.roll = 0;
+  plane.orient.identity();
+  plane.roll = 0;
   plane.speed = craft.handling.cruise;
 
   craft.group.position.copy(plane.pos);
@@ -601,6 +658,21 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { if (e.key === ' ') cursor.down = false; });
 
+// A first gesture anywhere is enough to start the audio context, so the menu
+// sounds work before you have ever clicked into the game itself.
+addEventListener('pointerdown', () => audio.resume(), { once: true });
+
+// Every button in the frame, including the ones built at runtime, so the map
+// and aircraft cards are covered without wiring each by hand.
+frame.addEventListener('pointerover', e => {
+  const b = e.target.closest('button');
+  if (b && !b.disabled && frame.contains(b)) audio.uiHover();
+});
+frame.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button');
+  if (b && !b.disabled) audio.uiClick();
+});
+
 document.getElementById('btn-play').addEventListener('click', () => show('maps'));
 document.getElementById('btn-settings').addEventListener('click', () => show('settings'));
 document.getElementById('btn-resume').addEventListener('click', togglePause);
@@ -682,9 +754,20 @@ requestAnimationFrame(loop);
 // of the normal page. Handy for checking that the world really is streaming
 // and that nothing is growing without bound over a long flight.
 if (location.search.includes('debug')) {
+  // Where a world point lands on screen, as a fraction of the canvas. Lets a
+  // test put the cursor exactly on something and check the shot goes there.
+  window.flyProject = (x, y, z) => {
+    const v = new THREE.Vector3(x, y, z).project(camera);
+    return { fx: (v.x + 1) / 2, fy: (1 - v.y) / 2, infront: v.z < 1 };
+  };
   window.flyDebug = () => ({
     x: Math.round(plane.pos.x), y: Math.round(plane.pos.y), z: Math.round(plane.pos.z),
-    yaw: +plane.yaw.toFixed(3), roll: +plane.roll.toFixed(3), speed: Math.round(plane.speed),
+    yaw: +Math.atan2(-forwardVector().x, -forwardVector().z).toFixed(3),
+    climb: +forwardVector().y.toFixed(3),
+    upY: +(new THREE.Vector3(0,1,0).applyQuaternion(plane.orient).y).toFixed(3),
+    // wings level when this is zero; upY alone cannot tell roll from pitch
+    rightY: +(new THREE.Vector3(1,0,0).applyQuaternion(plane.orient).y).toFixed(3),
+    roll: +plane.roll.toFixed(3), speed: Math.round(plane.speed),
     dead: state.dead, deadKind: state.deadKind,
     bullets: bullets.length,
     balloons: world.balloons.length,

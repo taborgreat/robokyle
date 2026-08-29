@@ -165,72 +165,187 @@ function piece(geo, color, x, y, z, sx, sy, sz, rotY, rotX, rotZ) {
 
 function houseGeo(rnd) {
   const wall = rnd() < 0.5 ? 0xF2E7D2 : 0xE6D6B8;
-  const roof = rnd() < 0.5 ? 0xC1462F : 0x40708C;
+  const roof = [0xC1462F, 0x40708C, 0x7A4A3A][Math.floor(rnd() * 3)];
   const parts = [
     piece(GEO.box,  wall,     0, 2.6, 0, 6.4, 5.2, 5.4, 0),
-    piece(GEO.roof, roof,     0, 6.7, 0, 5.6, 3.6, 5.6, Math.PI / 4),
-    piece(GEO.box,  0x6B4A2F, 0, 1.4, 2.8, 1.5, 2.8, 0.35, 0),
-    piece(GEO.box,  0x8FB8D8, -2.0, 3.3, 2.8, 1.3, 1.3, 0.3, 0),
-    piece(GEO.box,  0x9C9384, 1.9, 8.2, -1.0, 1.0, 2.6, 1.0, 0),
+    piece(GEO.roof, roof,     0, 6.8, 0, 5.8, 3.8, 5.8, Math.PI / 4),
+    // eaves, so the roof overhangs instead of sitting flush on the walls
+    piece(GEO.box,  0xD9CDB4, 0, 5.1, 0, 7.4, 0.35, 6.4, 0),
+    // door, with a step and a lintel
+    piece(GEO.box,  0x6B4A2F, 0, 1.5, 2.8, 1.6, 3.0, 0.35, 0),
+    piece(GEO.box,  0xD9CDB4, 0, 3.1, 2.9, 2.0, 0.3, 0.25, 0),
+    piece(GEO.box,  0xB9AE96, 0, 0.15, 3.2, 2.2, 0.3, 1.0, 0),
+    // framed windows on three sides
+    piece(GEO.box,  0xD9CDB4, -2.1, 3.3, 2.8, 1.7, 1.7, 0.2, 0),
+    piece(GEO.box,  0x8FB8D8, -2.1, 3.3, 2.9, 1.25, 1.25, 0.2, 0),
+    piece(GEO.box,  0xD9CDB4, 2.1, 3.3, 2.8, 1.7, 1.7, 0.2, 0),
+    piece(GEO.box,  0x8FB8D8, 2.1, 3.3, 2.9, 1.25, 1.25, 0.2, 0),
+    piece(GEO.box,  0xD9CDB4, 3.25, 3.2, 0, 0.2, 1.6, 1.6, 0),
+    piece(GEO.box,  0x8FB8D8, 3.32, 3.2, 0, 0.2, 1.15, 1.15, 0),
+    // chimney with a cap
+    piece(GEO.box,  0x9C9384, 1.9, 8.2, -1.0, 1.0, 2.8, 1.0, 0),
+    piece(GEO.box,  0x7E7568, 1.9, 9.7, -1.0, 1.4, 0.3, 1.4, 0),
   ];
-  return { geo: mergeGeometries(parts), r: 5.2, hp: 1 };
+  for (let i = -2; i <= 2; i++) {
+    parts.push(piece(GEO.box, 0xC6B79A, i * 1.5, 0.75, 4.6, 0.22, 1.5, 0.22, 0));
+  }
+  parts.push(piece(GEO.box, 0xC6B79A, 0, 1.15, 4.6, 6.6, 0.18, 0.16, 0));
+  return { geo: mergeGeometries(parts), r: 5.4, hp: 1 };
 }
 
 function hutGeo(rnd) {
   const parts = [
     piece(GEO.cyl,  0xD8C39A, 0, 1.7, 0, 2.7, 3.4, 2.7, 0),
-    piece(GEO.leaf, 0x8A6236, 0, 4.9, 0, 3.6, 3.4, 3.6, rnd() * 6.28),
-    piece(GEO.box,  0x6B4A2F, 0, 1.1, 2.6, 1.1, 2.2, 0.3, 0),
+    piece(GEO.leaf, 0x8A6236, 0, 5.0, 0, 3.7, 3.6, 3.7, rnd() * 6.28),
+    piece(GEO.cyl,  0xB8A47E, 0, 3.5, 0, 2.85, 0.3, 2.85, 0),
+    piece(GEO.box,  0x6B4A2F, 0, 1.1, 2.6, 1.2, 2.2, 0.3, 0),
   ];
-  return { geo: mergeGeometries(parts), r: 3.6, hp: 1 };
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    parts.push(piece(GEO.cyl, 0x7A5230, Math.cos(a) * 2.1, 0.4, Math.sin(a) * 2.1, 0.24, 0.9, 0.24, 0));
+  }
+  parts.push(piece(GEO.cyl, 0xA9714B, 2.2, 0.5, 1.6, 0.5, 1.0, 0.5, 0));
+  return { geo: mergeGeometries(parts), r: 3.7, hp: 1 };
 }
 
 function windmillGeo(rnd) {
   const parts = [
     piece(GEO.taper, 0xEFE6D2, 0, 4.6, 0, 2.4, 9.2, 2.4, 0),
+    piece(GEO.box,   0xC9BDA2, 0, 3.0, 0, 2.55, 0.4, 2.55, 0),
     piece(GEO.roof,  0xC1462F, 0, 10.0, 0, 3.0, 2.0, 3.0, Math.PI / 4),
-    piece(GEO.box,   0x6B4A2F, 0, 9.0, 2.6, 0.6, 0.6, 1.2, 0),
+    piece(GEO.box,   0x6B4A2F, 0, 8.9, 2.5, 0.7, 0.7, 1.3, 0),
+    piece(GEO.box,   0x6B4A2F, 0, 2.0, 2.2, 1.3, 2.6, 0.3, 0),
   ];
-  // Sails, as a cross of four boards.
   for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2;
-    parts.push(piece(GEO.box, 0xE8DCC0,
-      Math.cos(a) * 3.4, 9.0 + Math.sin(a) * 3.4, 3.1,
-      Math.abs(Math.cos(a)) * 6.4 + 0.5, Math.abs(Math.sin(a)) * 6.4 + 0.5, 0.35, 0));
+    const a = i * Math.PI / 2 + 0.35;
+    const cx = Math.cos(a) * 3.6, cy = 8.9 + Math.sin(a) * 3.6;
+    parts.push(piece(GEO.box, 0x6B4A2F, cx, cy, 3.05,
+      Math.abs(Math.cos(a)) * 7 + 0.4, Math.abs(Math.sin(a)) * 7 + 0.4, 0.28, 0));
+    parts.push(piece(GEO.box, 0xE8DCC0, cx * 1.25, 8.9 + (cy - 8.9) * 1.25, 3.2,
+      Math.abs(Math.cos(a)) * 3.4 + 0.9, Math.abs(Math.sin(a)) * 3.4 + 0.9, 0.16, 0));
   }
-  return { geo: mergeGeometries(parts), r: 4.6, hp: 1 };
+  return { geo: mergeGeometries(parts), r: 4.8, hp: 1 };
 }
 
 function lighthouseGeo() {
   const parts = [
-    piece(GEO.taper, 0xF6F1E6, 0, 6.5, 0, 2.4, 13, 2.4, 0),
-    piece(GEO.cyl,   0xC1462F, 0, 3.4, 0, 2.32, 2.0, 2.32, 0),
-    piece(GEO.cyl,   0xC1462F, 0, 8.4, 0, 1.95, 2.0, 1.95, 0),
-    piece(GEO.cyl,   0x37414A, 0, 13.4, 0, 2.2, 0.6, 2.2, 0),
-    piece(GEO.cyl,   0xFFE9A0, 0, 14.4, 0, 1.5, 2.0, 1.5, 0),
-    piece(GEO.roof,  0x37414A, 0, 16.2, 0, 2.2, 1.6, 2.2, 0),
+    piece(GEO.cyl,   0xBDB4A2, 0, 0.6, 0, 3.4, 1.2, 3.4, 0),
+    piece(GEO.taper, 0xF6F1E6, 0, 6.8, 0, 2.5, 13, 2.5, 0),
+    piece(GEO.cyl,   0xC1462F, 0, 3.6, 0, 2.42, 2.2, 2.42, 0),
+    piece(GEO.cyl,   0xC1462F, 0, 8.8, 0, 2.02, 2.2, 2.02, 0),
+    piece(GEO.cyl,   0x37414A, 0, 13.6, 0, 2.4, 0.7, 2.4, 0),
+    piece(GEO.cyl,   0xFFE9A0, 0, 14.7, 0, 1.5, 2.1, 1.5, 0),
+    piece(GEO.cyl,   0x37414A, 0, 15.9, 0, 2.2, 0.4, 2.2, 0),
+    piece(GEO.roof,  0x37414A, 0, 16.8, 0, 2.2, 1.6, 2.2, 0),
+    piece(GEO.box,   0x6B4A2F, 0, 1.9, 2.3, 1.2, 2.6, 0.3, 0),
   ];
-  return { geo: mergeGeometries(parts), r: 3.4, hp: 1 };
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    parts.push(piece(GEO.box, 0x37414A, Math.cos(a) * 2.3, 14.4, Math.sin(a) * 2.3, 0.16, 1.5, 0.16, 0));
+  }
+  return { geo: mergeGeometries(parts), r: 3.6, hp: 1 };
 }
 
+function churchGeo() {
+  const parts = [
+    piece(GEO.box,  0xF2EDE0, 0, 3.0, 0, 6.0, 6.0, 10.0, 0),
+    piece(GEO.roof, 0x8A5A3A, 0, 7.6, 0, 5.6, 3.2, 8.4, Math.PI / 4),
+    piece(GEO.box,  0xF2EDE0, 0, 5.0, -6.0, 4.2, 10.0, 4.2, 0),
+    piece(GEO.roof, 0x8A5A3A, 0, 12.4, -6.0, 3.4, 4.6, 3.4, Math.PI / 4),
+    piece(GEO.box,  0xE8B444, 0, 15.6, -6.0, 0.3, 2.2, 0.3, 0),
+    piece(GEO.box,  0xE8B444, 0, 15.4, -6.0, 1.3, 0.3, 0.3, 0),
+    piece(GEO.box,  0x6B4A2F, 0, 1.9, -8.15, 1.8, 3.6, 0.3, 0),
+    piece(GEO.box,  0x8FB8D8, 3.05, 3.6, 2.0, 0.3, 2.4, 1.2, 0),
+    piece(GEO.box,  0x8FB8D8, 3.05, 3.6, -1.0, 0.3, 2.4, 1.2, 0),
+    piece(GEO.box,  0x8FB8D8, -3.05, 3.6, 2.0, 0.3, 2.4, 1.2, 0),
+    piece(GEO.box,  0x8FB8D8, -3.05, 3.6, -1.0, 0.3, 2.4, 1.2, 0),
+  ];
+  return { geo: mergeGeometries(parts), r: 6.4, hp: 1 };
+}
+
+function barnGeo(rnd) {
+  const red = rnd() < 0.5 ? 0xA63A2A : 0x8C4030;
+  const parts = [
+    piece(GEO.box,  red,      0, 3.0, 0, 8.0, 6.0, 11.0, 0),
+    piece(GEO.roof, 0x5C5148, 0, 7.6, 0, 7.4, 3.4, 9.4, Math.PI / 4),
+    piece(GEO.box,  0xEFE6D2, 0, 6.4, 5.55, 3.0, 2.0, 0.2, 0),
+    piece(GEO.box,  0xD9CDB4, 0, 2.4, 5.55, 4.6, 4.8, 0.25, 0),
+    piece(GEO.box,  red,      0, 2.4, 5.7, 0.4, 4.8, 0.2, 0),
+    piece(GEO.box,  0xEFE6D2, -4.05, 3.4, 2.4, 0.25, 1.8, 1.8, 0),
+    piece(GEO.box,  0xEFE6D2, 4.05, 3.4, 2.4, 0.25, 1.8, 1.8, 0),
+  ];
+  return { geo: mergeGeometries(parts), r: 6.2, hp: 1 };
+}
+
+function waterTowerGeo() {
+  const parts = [
+    piece(GEO.taper, 0x9FB0BC, 0, 9.4, 0, 3.2, 5.4, 3.2, 0),
+    piece(GEO.roof,  0x5C5148, 0, 13.0, 0, 3.4, 2.4, 3.4, 0),
+    piece(GEO.cyl,   0x7E8B96, 0, 6.6, 0, 3.3, 0.5, 3.3, 0),
+  ];
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const lx = Math.cos(a) * 2.4, lz = Math.sin(a) * 2.4;
+    parts.push(piece(GEO.box, 0x6B4A2F, lx, 3.3, lz, 0.45, 6.8, 0.45, 0));
+    parts.push(piece(GEO.box, 0x6B4A2F, lx * 0.7, 3.4, lz * 0.7, 2.6, 0.28, 2.6, a));
+  }
+  return { geo: mergeGeometries(parts), r: 4.0, hp: 1 };
+}
+
+// A pirate ship, running bow first along +X.
+//
+// The bow used to be a four sided cone left pointing straight up, which is
+// what looked wrong: it read as a tent pitched on the foredeck. Turned a
+// quarter about Z it points along the hull, and turned again about its own
+// axis it sits flat side down and reads as a prow.
 function shipGeo(rnd) {
   const wood = rnd() < 0.5 ? 0x5A3A22 : 0x6B4A2F;
+  const trim = 0x8A6236;
+  const dark = 0x33251A;
+  const sail = rnd() < 0.35 ? 0xE7DFCE : 0xF4EFE2;
+
   const parts = [
-    piece(GEO.box,  wood,     0, 1.9, 0, 17, 3.8, 5.6, 0),
-    piece(GEO.box,  0x7C5735, 0, 3.6, 0, 15.5, 0.6, 5.0, 0),
-    piece(GEO.roof, wood,     10.2, 1.9, 0, 4.6, 3.8, 5.6, 0),
-    piece(GEO.box,  wood,     -6.0, 5.2, 0, 5.2, 3.4, 5.2, 0),
-    piece(GEO.box,  0x3A2A1A, 0, 2.4, 2.9, 17, 1.0, 0.5, 0),
-    piece(GEO.box,  0x3A2A1A, 0, 2.4, -2.9, 17, 1.0, 0.5, 0),
-    piece(GEO.cyl,  0x4A3520, 1.0, 10.0, 0, 0.5, 15, 0.5, 0),
-    piece(GEO.box,  0xF4EFE2, 1.0, 11.5, 0, 0.4, 8.5, 7.0, 0),
-    piece(GEO.box,  0xF4EFE2, 1.0, 5.6, 0, 0.4, 4.0, 5.0, 0),
-    piece(GEO.box,  0x22222A, 1.0, 17.4, 1.6, 0.3, 1.6, 2.6, 0),
+    piece(GEO.box, dark, -0.5, 1.0, 0, 15.5, 2.2, 5.2, 0),
+    piece(GEO.box, wood, -0.5, 3.0, 0, 15.5, 2.6, 5.6, 0),
+    piece(GEO.box, trim, -0.5, 4.15, 0, 15.6, 0.5, 5.8, 0),
+
+    piece(GEO.roof, wood, 8.9, 2.2, 0, 2.9, 5.0, 2.9, 0, Math.PI / 4, -Math.PI / 2),
+    piece(GEO.box,  trim, 7.6, 4.3, 0, 3.4, 0.5, 3.6, 0),
+
+    piece(GEO.box, wood, -6.2, 5.4, 0, 4.6, 3.0, 5.2, 0),
+    piece(GEO.box, wood, -7.4, 7.4, 0, 3.0, 1.6, 4.6, 0),
+    piece(GEO.box, trim, -6.2, 7.0, 0, 4.8, 0.4, 5.4, 0),
+    piece(GEO.box, 0xE8B444, -8.35, 6.0, 0, 0.3, 1.2, 2.4, 0),
+
+    piece(GEO.box, 0x7C5735, 0.5, 4.4, 0, 13.5, 0.35, 4.6, 0),
+
+    piece(GEO.cyl, trim, 11.2, 4.4, 0, 0.34, 5.6, 0.34, 0, 0, -Math.PI / 2.6),
   ];
+
+  for (const sz of [-2.9, 2.9]) {
+    parts.push(piece(GEO.box, wood, -0.5, 5.0, sz, 15.2, 1.2, 0.35, 0));
+    for (let i = -3; i <= 3; i++) {
+      parts.push(piece(GEO.box, dark, i * 2.0 - 0.5, 3.0, sz + (sz > 0 ? 0.12 : -0.12), 1.1, 1.1, 0.2, 0));
+    }
+  }
+
+  const masts = [{ x: 2.6, h: 16, s: 7.6 }, { x: -3.6, h: 13, s: 6.0 }];
+  for (const m of masts) {
+    parts.push(piece(GEO.cyl, trim, m.x, 4.4 + m.h / 2, 0, 0.5, m.h, 0.5, 0));
+    parts.push(piece(GEO.box, 0x4A3520, m.x, 4.4 + m.h * 0.78, 0, 0.5, 0.4, m.s + 1.6, 0));
+    parts.push(piece(GEO.box, sail, m.x, 4.4 + m.h * 0.55, 0, 0.35, m.h * 0.42, m.s, 0));
+    parts.push(piece(GEO.box, 0x4A3520, m.x, 4.4 + m.h * 0.34, 0, 0.45, 0.35, m.s * 0.8, 0));
+    parts.push(piece(GEO.box, sail, m.x, 4.4 + m.h * 0.2, 0, 0.3, m.h * 0.2, m.s * 0.72, 0));
+  }
+  parts.push(piece(GEO.cyl, 0x4A3520, masts[0].x, 4.4 + masts[0].h * 0.9, 0, 1.1, 1.0, 1.1, 0));
+  parts.push(piece(GEO.box, 0x1A1A1F, masts[0].x + 1.6, 4.4 + masts[0].h - 0.6, 0, 3.0, 1.8, 0.2, 0));
+  parts.push(piece(GEO.box, 0xF4EFE2, masts[0].x + 1.4, 4.4 + masts[0].h - 0.6, 0, 0.7, 0.7, 0.28, 0));
+
   return { geo: mergeGeometries(parts), r: 10, hp: 6 };
 }
 
-const PROPS = [houseGeo, houseGeo, hutGeo, hutGeo, windmillGeo, lighthouseGeo];
+const PROPS = [houseGeo, houseGeo, houseGeo, hutGeo, hutGeo,
+               windmillGeo, lighthouseGeo, churchGeo, barnGeo, waterTowerGeo];
 
 export function createWorld(scene) {
   const landMat  = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -374,7 +489,7 @@ export function createWorld(scene) {
         const tz = iz + Math.sin(a) * d;
         // Sit the tree on the cone's slope rather than at sea level.
         const ty = Math.max(0.5, islandSurface(h, r, d, a, hillRot) - 0.6);
-        const th = (11 + rnd() * 11) * 0.8;   // palms 20 per cent shorter
+        const th = (11 + rnd() * 11) * 0.64;  // palms, two twenty per cent cuts
 
         // A palm: a leaning tapered trunk, a crown of drooping fronds, and
         // a couple of coconuts under them.

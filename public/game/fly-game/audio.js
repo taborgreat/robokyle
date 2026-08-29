@@ -266,6 +266,138 @@ export function createAudio() {
       osc.start(t); osc.stop(t + 0.09);
     },
 
+    // A building coming apart. Deliberately nothing like the aircraft going
+    // in: no low boom at all, just timber cracking and masonry falling, so
+    // the two are never confused for each other.
+    collapse(dist) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist || 0) * 0.62;
+      if (v < 0.005) return;
+
+      // Three cracks, slightly apart, which is what makes it read as
+      // structure failing rather than one impact.
+      for (let i = 0; i < 3; i++) {
+        const at = t + i * (0.035 + Math.random() * 0.05);
+        const crack = ctx.createBufferSource();
+        crack.buffer = noiseBuffer(0.12);
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(1500 + Math.random() * 900, at);
+        bp.frequency.exponentialRampToValueAtTime(500, at + 0.1);
+        bp.Q.value = 3.2;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.linearRampToValueAtTime(v * (0.34 - i * 0.07), at + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0005, at + 0.12);
+        crack.connect(bp); bp.connect(g); g.connect(master);
+        crack.start(at); crack.stop(at + 0.13);
+      }
+
+      // Rubble settling underneath.
+      const rub = ctx.createBufferSource();
+      rub.buffer = noiseBuffer(0.8);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(900, t);
+      lp.frequency.exponentialRampToValueAtTime(220, t + 0.7);
+      const rg = ctx.createGain();
+      rg.gain.setValueAtTime(0.0001, t);
+      rg.gain.linearRampToValueAtTime(v * 0.3, t + 0.03);
+      rg.gain.exponentialRampToValueAtTime(0.0005, t + 0.75);
+      rub.connect(lp); lp.connect(rg); rg.connect(master);
+      rub.start(t); rub.stop(t + 0.8);
+    },
+
+    // A ship going down. Splintering timber over water rather than fire, and
+    // a long wet tail that neither of the other two has.
+    shipWreck(dist) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist || 0) * 0.7;
+      if (v < 0.005) return;
+
+      const thump = ctx.createOscillator();
+      thump.type = 'sine';
+      thump.frequency.setValueAtTime(110, t);
+      thump.frequency.exponentialRampToValueAtTime(38, t + 0.5);
+      const tg = ctx.createGain();
+      tg.gain.setValueAtTime(0.0001, t);
+      tg.gain.linearRampToValueAtTime(v * 0.2, t + 0.014);
+      tg.gain.exponentialRampToValueAtTime(0.0005, t + 0.6);
+      thump.connect(tg); tg.connect(master);
+      thump.start(t); thump.stop(t + 0.65);
+
+      const timber = ctx.createBufferSource();
+      timber.buffer = noiseBuffer(0.6);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1100, t);
+      bp.frequency.exponentialRampToValueAtTime(380, t + 0.5);
+      bp.Q.value = 1.6;
+      const tgg = ctx.createGain();
+      tgg.gain.setValueAtTime(0.0001, t);
+      tgg.gain.linearRampToValueAtTime(v * 0.34, t + 0.012);
+      tgg.gain.exponentialRampToValueAtTime(0.0005, t + 0.6);
+      timber.connect(bp); bp.connect(tgg); tgg.connect(master);
+      timber.start(t); timber.stop(t + 0.62);
+
+      // Water closing over it, arriving a beat late.
+      const wash = ctx.createBufferSource();
+      wash.buffer = noiseBuffer(1.3);
+      const wf = ctx.createBiquadFilter();
+      wf.type = 'lowpass';
+      wf.frequency.setValueAtTime(2400, t);
+      wf.frequency.exponentialRampToValueAtTime(300, t + 1.2);
+      const wg = ctx.createGain();
+      wg.gain.setValueAtTime(0.0001, t);
+      wg.gain.linearRampToValueAtTime(v * 0.26, t + 0.13);
+      wg.gain.exponentialRampToValueAtTime(0.0005, t + 1.25);
+      wash.connect(wf); wf.connect(wg); wg.connect(master);
+      wash.start(t); wash.stop(t + 1.3);
+    },
+
+    // Menus. Quiet and short, because you pass over a lot of buttons.
+    uiHover() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(760, t);
+      osc.frequency.linearRampToValueAtTime(940, t + 0.05);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.05, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0004, t + 0.07);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.08);
+    },
+
+    uiClick() {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1250, t);
+      osc.frequency.exponentialRampToValueAtTime(430, t + 0.06);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.1, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0004, t + 0.09);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.1);
+
+      const tick = ctx.createBufferSource();
+      tick.buffer = noiseBuffer(0.04);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 2600;
+      const tg = ctx.createGain();
+      tg.gain.setValueAtTime(0.05, t);
+      tg.gain.exponentialRampToValueAtTime(0.0004, t + 0.04);
+      tick.connect(hp); hp.connect(tg); tg.connect(master);
+      tick.start(t); tick.stop(t + 0.05);
+    },
+
     // A round landing on something solid that did not break.
     thud() {
       if (!ctx) return;
@@ -311,7 +443,7 @@ export function createAudio() {
       boom.frequency.exponentialRampToValueAtTime(26, t + 0.9);
       const bg = ctx.createGain();
       bg.gain.setValueAtTime(0.0001, t);
-      bg.gain.linearRampToValueAtTime(0.34 * v, t + A);
+      bg.gain.linearRampToValueAtTime(0.22 * v, t + A);
       bg.gain.exponentialRampToValueAtTime(0.0005, t + 1.1);
       boom.connect(bg); bg.connect(master);
       boom.start(t); boom.stop(t + 1.15);
@@ -324,7 +456,7 @@ export function createAudio() {
       lp.frequency.exponentialRampToValueAtTime(160, t + 1.4);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.3 * v, t + A);
+      g.gain.linearRampToValueAtTime(0.2 * v, t + A);
       g.gain.exponentialRampToValueAtTime(0.0005, t + 1.5);
       src.connect(lp); lp.connect(g); g.connect(master);
       src.start(t); src.stop(t + 1.6);
@@ -338,7 +470,7 @@ export function createAudio() {
       hp.frequency.value = 900;
       const cg = ctx.createGain();
       cg.gain.setValueAtTime(0.0001, t);
-      cg.gain.linearRampToValueAtTime(0.13 * v, t + A);
+      cg.gain.linearRampToValueAtTime(0.085 * v, t + A);
       cg.gain.exponentialRampToValueAtTime(0.0005, t + 0.22);
       crack.connect(hp); hp.connect(cg); cg.connect(master);
       crack.start(t); crack.stop(t + 0.24);
