@@ -617,6 +617,44 @@ export function createWorld(scene) {
 
   const _p = new THREE.Vector3();
 
+  // Distance along a unit ray to the near side of a sphere, or -1 if it
+  // misses or the sphere is behind.
+  function raySphere(from, dir, c, r) {
+    const px = c.x - from.x, py = c.y - from.y, pz = c.z - from.z;
+    const t = px * dir.x + py * dir.y + pz * dir.z;
+    if (t <= 0) return -1;
+    const dx = px - dir.x * t, dy = py - dir.y * t, dz = pz - dir.z * t;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 > r * r) return -1;
+    return Math.max(0, t - Math.sqrt(r * r - d2));
+  }
+
+  function groundHeight(x, z) {
+    let h = SEA_LEVEL;
+    for (const isl of islands) {
+      const dx = x - isl.x, dz = z - isl.z;
+      // One test throws out every island you are not over, which is
+      // nearly all of them on nearly every call, so the lobes cost
+      // nothing until you are actually above one.
+      if (dx * dx + dz * dz > isl.reach * isl.reach) continue;
+      const d = Math.hypot(dx, dz);
+      if (d < isl.r) {
+        const local = isl.h * (1 - d / isl.r);
+        if (local > h) h = local;
+      }
+      for (const lb of isl.lobes) {
+        const ld = Math.hypot(x - lb.x, z - lb.z);
+        if (ld < lb.r) {
+          const local = lb.h * (1 - ld / lb.r);
+          if (local > h) h = local;
+        }
+      }
+    }
+    return h;
+  }
+
+
+
   // Chunks waiting to be built, nearest first. See update() for why.
   const pending = [];
   const queued  = new Set();
@@ -1184,28 +1222,68 @@ export function createWorld(scene) {
 
     // Ground height under a point. The islands are cones, so this is just the
     // cone profile, and it is what keeps you from flying through a hill.
-    heightAt(x, z) {
-      let h = SEA_LEVEL;
-      for (const isl of islands) {
-        const dx = x - isl.x, dz = z - isl.z;
-        // One test throws out every island you are not over, which is
-        // nearly all of them on nearly every call, so the lobes cost
-        // nothing until you are actually above one.
-        if (dx * dx + dz * dz > isl.reach * isl.reach) continue;
-        const d = Math.hypot(dx, dz);
-        if (d < isl.r) {
-          const local = isl.h * (1 - d / isl.r);
-          if (local > h) h = local;
-        }
-        for (const lb of isl.lobes) {
-          const ld = Math.hypot(x - lb.x, z - lb.z);
-          if (ld < lb.r) {
-            const local = lb.h * (1 - ld / lb.r);
-            if (local > h) h = local;
-          }
-        }
+    heightAt: groundHeight,
+
+    /* How far along a ray before it meets something solid.
+
+       The gun pipper needs to know where a round would actually end up,
+       and only the world knows what is in the way. Targets and balloons
+       are spheres and have a closed form. The ground is a field of
+       overlapping cones and has no useful one, so it is marched and then
+       bisected: eight halvings put the answer inside a tenth of a unit,
+       which is far finer than a pixel at any range this matters at.
+
+       Returns max when it meets nothing, so the caller gets a usable
+       point either way rather than having to handle a miss. */
+    rayHit(from, dir, max) {
+      let range = max;
+
+      for (const t of targets) {
+        if (!t.alive) continue;
+        const d = raySphere(from, dir, t.mesh.position, t.r);
+        if (d >= 0 && d < range) range = d;
       }
-      return h;
+      for (const b of balloons) {
+        if (!b.alive) continue;
+        const d = raySphere(from, dir, b.mesh.position, b.r + 3);
+        if (d >= 0 && d < range) range = d;
+      }
+
+      /* The ground, stepped by how much room there is.
+
+         A fixed step cannot be trusted here. At twenty six units it
+         walked straight over the top of a narrow ridge and reported the
+         sea two hundred and fifty units beyond it, which for a gunsight
+         is worse than useless: it says the rounds clear a hill they are
+         about to hit.
+
+         So step by the clearance instead, divided by the fastest that
+         clearance can possibly close. The ray falls at most 1 unit per
+         unit travelled, and the steepest ground this world can build is a
+         lobe at 1.35 (a main cone reaches 0.47, and a lobe is up to 0.86
+         of that height across 0.3 of the radius), so clearance closes at
+         no more than 2.35 per unit. Stepping by clearance over 2.4 can
+         therefore never pass through anything. It is also faster than the
+         fixed step was: long strides up high, short ones down among the
+         hills, which is where they are needed. */
+      const CLOSING = 2.4;
+      let prev = 0, d = 0, guard = 0;
+      while (d < range && guard++ < 300) {
+        const y = from.y + dir.y * d;
+        const g = groundHeight(from.x + dir.x * d, from.z + dir.z * d);
+        if (d > 0 && y <= g) {
+          let lo = prev, hi = d;
+          for (let k = 0; k < 9; k++) {
+            const mid = (lo + hi) * 0.5;
+            if (from.y + dir.y * mid <= groundHeight(from.x + dir.x * mid, from.z + dir.z * mid)) hi = mid;
+            else lo = mid;
+          }
+          return hi;
+        }
+        prev = d;
+        d += Math.max(2.5, Math.min(90, (y - g) / CLOSING));
+      }
+      return range;
     },
 
     popBalloon(b) {

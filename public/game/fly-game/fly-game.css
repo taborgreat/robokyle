@@ -464,3 +464,21 @@ body.is-flying .back-strip { opacity: .55; }
   opacity: .72;
 }
 .credit a { color: inherit; }
+
+
+/* ===== The gun pipper =====
+
+   The white crosshair is where you are pointing. This one is where the
+   rounds are actually going, which is not the same place and cannot be.
+   Amber so the two never read as one thing, and anchored the same way as
+   the crosshair: top left plus a translate in canvas pixels. */
+.pipper {
+  position: absolute; top: 0; left: 0;
+  width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  color: #FFC93C;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+}
+.pipper[hidden] { display: none; }
+.pipper svg { width: 100%; height: 100%; display: block; }
+.fly-wrap.is-intro .pipper { opacity: 0; }

@@ -97,6 +97,8 @@ export function createAudio() {
     return 1 / (1 + (d / 190) * (d / 190));
   }
 
+  let lastMark = 0;
+
   // At ten rounds a second every impact would be its own voice. Cap it.
   let impactTokens = 6;
   let impactClock = 0;
@@ -728,6 +730,52 @@ export function createAudio() {
 
       o.connect(bp); bp.connect(g); g.connect(master);
       o.start(t); o.stop(t + 0.36);
+    },
+
+    /* The hitmarker.
+
+       Deliberately not a world sound. No distance falloff, no position,
+       the same tick whether what you hit was under the nose or eight
+       hundred units out, and it does not go through the impact budget
+       that thins out the thuds. It is not the sound of a round striking
+       metal; it is the game telling you the round struck, and it wants to
+       be as immediate and as certain as the flash on the screen.
+
+       Two layers, both very short. A bandpassed noise burst for the snap
+       of it, and a high sine dropping a fifth for the pitch that makes it
+       read as a confirmation rather than as debris. Both are done inside
+       forty five milliseconds, because past that it stops being a click
+       and starts being a sound. */
+    hitMark() {
+      if (!ensure()) return;
+      const t = ctx.currentTime;
+      // Sustained fire should tick rapidly, not smear into a buzz.
+      if (t - lastMark < 0.045) return;
+      lastMark = t;
+
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(0.06);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2700;
+      bp.Q.value = 1.3;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, t);
+      ng.gain.exponentialRampToValueAtTime(0.32, t + 0.002);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+      src.connect(bp); bp.connect(ng); ng.connect(master);
+      src.start(t); src.stop(t + 0.07);
+
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(2150, t);
+      o.frequency.exponentialRampToValueAtTime(1280, t + 0.03);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, t);
+      og.gain.exponentialRampToValueAtTime(0.24, t + 0.003);
+      og.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+      o.connect(og); og.connect(master);
+      o.start(t); o.stop(t + 0.07);
     },
 
     thud() {

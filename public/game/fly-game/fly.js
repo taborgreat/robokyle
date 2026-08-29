@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=22';
-import { buildCraft, CRAFT } from './craft.js?v=22';
-import { createAudio } from './audio.js?v=22';
-import { createEffects } from './effects.js?v=22';
+import { createWorld, ENEMY_GUNS } from './world.js?v=23';
+import { buildCraft, CRAFT } from './craft.js?v=23';
+import { createAudio } from './audio.js?v=23';
+import { createEffects } from './effects.js?v=23';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -333,6 +333,7 @@ function stepBullets(dt) {
         effects.balloonBurst(balloon.mesh.position.clone(), balloon.colour);
         world.popBalloon(balloon);
         audio.pop();
+        audio.hitMark();
         state.popped++;
         hit = true;
         break;
@@ -355,6 +356,10 @@ function stepBullets(dt) {
           effects.impact(b.mesh.position.clone());
           audio.thud();
         }
+        // Anything a round actually connects with, whether it came down or
+        // not. The ground and the sea do not count: those are where the
+        // rounds you missed with end up.
+        audio.hitMark();
         hit = true;
         break;
       }
@@ -905,6 +910,7 @@ const hudAlt   = document.getElementById('hud-alt');
 const reticle  = document.getElementById('reticle');
 const pauseEl  = document.getElementById('fly-pause');
 const flashEl  = document.getElementById('fly-flash');
+const pipEl    = document.getElementById('pipper');
 const threatEl = document.getElementById('threat');
 const introEl  = document.getElementById('intro-card');
 const introName = document.getElementById('intro-name');
@@ -921,6 +927,77 @@ function show(name) {
   // One track for the menus, another over the islands. Asking for the one
   // already playing is a no-op, so this can fire on every screen change.
   audio.music(name === 'fly' ? 'island' : 'menu');
+}
+
+/* The gun pipper.
+
+   Where the rounds are actually going, which is not where the crosshair
+   is and never can be.
+
+   The crosshair belongs to the camera and the guns belong to the
+   aeroplane, and the camera sits a dozen units behind and above them.
+   Rounds are laid along the line from the muzzle to the point the cursor
+   picks out at fourteen hundred, so at fourteen hundred the two lines
+   meet exactly and the crosshair is honest. Nearer than that they have
+   not converged yet, and the round passes to one side of whatever the
+   crosshair is sitting on. At three hundred units that gap is most of a
+   ship's length, which is what "the bullets never go where the crosshair
+   is" actually was: not an error, but two lines that only meet at one
+   range, which is the same reason real guns are harmonised to a distance
+   and only truly correct there.
+
+   So this marks the gun line instead of the sight line. It fires an
+   imaginary round, asks the world what it would meet first, and draws a
+   ring on that spot. Put the ring on the target rather than the
+   crosshair and the rounds arrive.
+
+   Drop is deliberately left out of it, as asked. At long range the real
+   stream sags below this ring, and the ring is where the rounds would go
+   if it did not, which is the number worth having: it is the aiming line
+   itself, uncontaminated by how far the round has fallen by the time it
+   gets there.
+
+   With nothing at all in front of you the ring sits on the crosshair,
+   because with nothing to converge on there is nothing to disagree
+   about. That is the honest answer, not a failure to find one. */
+const PIP_RANGE = 1400;        // the same distance aimDirection converges on
+const _pipMid = new THREE.Vector3();
+const _pipFrom = new THREE.Vector3();
+const _pipDir = new THREE.Vector3();
+const _pipAt = new THREE.Vector3();
+
+function updatePipper() {
+  if (!pipEl) return;
+  if (state.dead || state.intro || !cursor.seen) {
+    if (!pipEl.hidden) pipEl.hidden = true;
+    return;
+  }
+
+  // The midpoint of the barrels rather than whichever fires next, or the
+  // ring would flick from one to the other every round.
+  const mounts = craft.guns || [craft.muzzle];
+  _pipMid.set(0, 0, 0);
+  for (const m of mounts) _pipMid.add(m);
+  _pipMid.multiplyScalar(1 / mounts.length);
+
+  _pipFrom.copy(_pipMid).multiplyScalar(craft.group.scale.x)
+    .applyQuaternion(craft.group.quaternion).add(plane.pos);
+  // The same call fire() makes, so the ring is on the line the next round
+  // will genuinely leave along rather than on a second guess at it.
+  _pipDir.copy(aimDirection(_pipFrom));
+
+  const range = Math.max(20, world.rayHit(_pipFrom, _pipDir, PIP_RANGE));
+  _pipAt.copy(_pipFrom).addScaledVector(_pipDir, range).project(camera);
+
+  if (_pipAt.z > 1) { if (!pipEl.hidden) pipEl.hidden = true; return; }
+
+  const r = canvas.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const px = (_pipAt.x * 0.5 + 0.5) * r.width;
+  const py = (1 - (_pipAt.y * 0.5 + 0.5)) * r.height;
+
+  if (pipEl.hidden) pipEl.hidden = false;
+  pipEl.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px)';
 }
 
 /* Threat markers.
@@ -1049,6 +1126,7 @@ function startFlight() {
   introSub.textContent = currentMap.flyer;
   introEl.classList.remove('is-out');
   introEl.hidden = false;
+  pipEl.hidden = true;
   for (const el of threatPool) el.hidden = true;
 
   show('fly');
@@ -1193,6 +1271,9 @@ function loop() {
     stepBullets(dt);
     effects.update(dt);
     chase(dt);
+    // Both of these project into the frame, so they run after the camera
+    // has been put where it belongs for this frame rather than before.
+    updatePipper();
     updateThreat();
   }
 
