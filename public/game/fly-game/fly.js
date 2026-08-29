@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld } from './world.js?v=5';
-import { buildCraft, CRAFT } from './craft.js?v=5';
-import { createAudio } from './audio.js?v=5';
-import { createEffects } from './effects.js?v=5';
+import { createWorld } from './world.js?v=6';
+import { buildCraft, CRAFT } from './craft.js?v=6';
+import { createAudio } from './audio.js?v=6';
+import { createEffects } from './effects.js?v=6';
 
 const canvas = document.getElementById('fly-canvas');
 const wrap   = canvas.parentElement;
@@ -155,7 +155,8 @@ function fire() {
   const mount = mounts[gunToggle % mounts.length];
   gunToggle++;
 
-  _muzzleAt.copy(mount).applyQuaternion(q).add(plane.pos);
+  const cs = craft.group.scale.x;
+  _muzzleAt.copy(mount).multiplyScalar(cs).applyQuaternion(q).add(plane.pos);
 
   const m = new THREE.Mesh(bulletGeo, bulletMat);
   m.position.copy(_muzzleAt);
@@ -171,7 +172,7 @@ function fire() {
   effects.muzzle(_muzzleAt);
 
   // Brass out to the right and back, carried along by the aircraft.
-  _ejectAt.copy(craft.eject || craft.muzzle).applyQuaternion(q).add(plane.pos);
+  _ejectAt.copy(craft.eject || craft.muzzle).multiplyScalar(cs).applyQuaternion(q).add(plane.pos);
   _ejectVel.set(rand(6, 12), rand(1, 4), rand(4, 9)).applyQuaternion(q)
            .addScaledVector(dir, plane.speed * 0.55);
   effects.casing(_ejectAt, _ejectVel.clone());

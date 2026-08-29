@@ -320,7 +320,7 @@ export const CRAFT = {
     name: 'Sport plane',
     blurb: 'Steady and forgiving. Turns wide, holds a line.',
     build: buildPlane,
-    handling: { turn: 1.0, cruise: 71, top: 110, lift: 1.0, scale: 1 },
+    handling: { turn: 1.0, cruise: 71, top: 110, lift: 1.0, scale: 1.15 },
   },
   eagle: {
     name: 'Eagle',

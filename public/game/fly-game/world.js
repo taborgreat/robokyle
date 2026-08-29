@@ -42,6 +42,11 @@ const C = {
 
 const BALLOON_COLOURS = [0xE2402F, 0xE8B444, 0x5FBF87, 0xE06FA8, 0x6FA8E0];
 
+// Built things read small from the air, so they are scaled up as a group.
+// The hit sphere is scaled with them, or shots that visibly strike a roof
+// would pass through it.
+const BUILT_SCALE = 1.15;
+
 /* ===== deterministic noise ===== */
 
 // Same chunk coordinates always produce the same stream of numbers.
@@ -333,7 +338,7 @@ export function createWorld(scene) {
         const tz = iz + Math.sin(a) * d;
         // Sit the tree on the cone's slope rather than at sea level.
         const ty = Math.max(2, h * (1 - d / r) * 0.82);
-        const th = 11 + rnd() * 11;
+        const th = (11 + rnd() * 11) * 0.8;   // palms 20 per cent shorter
 
         // A palm: a leaning tapered trunk, a crown of drooping fronds, and
         // a couple of coconuts under them.
@@ -395,11 +400,12 @@ export function createWorld(scene) {
         const m = new THREE.Mesh(def.geo, landMat);
         m.position.set(px, py, pz);
         m.rotation.y = rnd() * 6.28;
+        m.scale.setScalar(BUILT_SCALE);
         scene.add(m);
         // Generous on purpose. The sphere stands in for a building you are
         // strafing past at speed, and a tight one means shots that clearly
         // went through the roof do nothing.
-        const t = { mesh: m, kind: 'prop', r: def.r + 5, hp: def.hp, alive: true };
+        const t = { mesh: m, kind: 'prop', r: def.r * BUILT_SCALE + 5, hp: def.hp, alive: true };
         localTargets.push(t); targets.push(t);
       }
     }
@@ -438,9 +444,10 @@ export function createWorld(scene) {
       const m = new THREE.Mesh(def.geo, landMat);
       m.position.set(sx, 1.2, sz);
       m.rotation.y = rnd() * 6.28;
+      m.scale.setScalar(BUILT_SCALE);
       scene.add(m);
       // A hull seventeen long does not fit a ten unit sphere.
-      const t = { mesh: m, kind: 'ship', r: def.r + 4, hp: def.hp, maxHp: def.hp,
+      const t = { mesh: m, kind: 'ship', r: def.r * BUILT_SCALE + 4, hp: def.hp, maxHp: def.hp,
                   alive: true, bob: rnd() * 6.28, baseY: 1.2 };
       localTargets.push(t); targets.push(t);
     }
