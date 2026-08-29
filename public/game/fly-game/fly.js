@@ -1,468 +1,377 @@
 /* ==================================================================
-   RoboKyle: Fly Game
+   Fly Game
 
-   Scaffolding for the third title, built around one decision: the
-   thing that varies is how you steer, so input is a layer with
-   swappable schemes and everything downstream reads one normalised
-   pair of axes. Adding head tracking, a sip and puff switch, a
-   gamepad or an eye tracker later means writing a scheme, not
-   touching the game.
+   You steer with the cursor and the aircraft always flies forward.
+   Where the cursor sits in the frame is where the nose wants to go:
+   push it left and the aircraft banks left and comes round, hold it
+   near the middle and it flies level. Clicking fires.
 
-   Every scheme drives the same craft against the same course. None
-   of them is an easier mode.
-
-   Canvas sizing follows what the other two games arrived at: a
-   ResizeObserver on the element rather than a window resize
-   listener, because entering fullscreen resizes the canvas without
-   the window necessarily reporting it.
+   Steering is deliberately absolute rather than relative. The nose
+   follows where the cursor is, not how far it has moved since the
+   last frame, so it behaves the same whatever is driving the cursor
+   and never needs recentring.
    ================================================================== */
 
 import * as THREE from 'three';
+import { createWorld } from './world.js';
+import { buildCraft, CRAFT } from './craft.js';
+import { createAudio } from './audio.js';
 
-const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
 const wrap   = canvas.parentElement;
+const audio  = createAudio();
 
 /* ===== Settings ===== */
 
 const KEY = 'rk_fly_settings';
-
 const settings = {
-  scheme:   'keyboard',
-  speed:    4,     // 1..10
-  assist:   5,     // 1..10, how much the craft is helped toward where you point
-  gate:     6,     // 1..10, gate radius
-  noFail:   true,
-  contrast: false,
-  calm:     false,
+  craft: 'plane',
+  sensitivity: 5,   // 1..10
+  invertY: false,
+  volume: 7,        // 0..10
+};
+try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (e) {} };
+
+/* ===== Renderer, scene, camera ===== */
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(68, 1, 0.6, 9000);
+
+scene.add(new THREE.HemisphereLight(0xDCF0FF, 0x4C7A4A, 1.15));
+const sun = new THREE.DirectionalLight(0xFFF6E0, 1.5);
+sun.position.set(-380, 700, 260);
+scene.add(sun);
+
+const world = createWorld(scene);
+world.setFog(scene);
+
+/* ===== The aircraft ===== */
+
+let craft = null;
+const plane = {
+  pos:   new THREE.Vector3(0, 260, 0),
+  yaw:   0,
+  pitch: 0,
+  roll:  0,
+  speed: 60,
+  throttle: 0.6,
 };
 
-try {
-  const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-  Object.assign(settings, saved);
-} catch (e) { /* first run, or storage is off */ }
+function fitCraft() {
+  if (craft) scene.remove(craft.group);
+  craft = buildCraft(settings.craft);
+  scene.add(craft.group);
+}
+fitCraft();
 
-function saveSettings() {
-  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (e) {}
+/* ===== Guns ===== */
+
+const BULLET_LIFE = 1.5;
+const bullets = [];
+const bulletGeo = new THREE.CapsuleGeometry(0.35, 3.2, 4, 6);
+const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFE49A });
+let fireCooldown = 0;
+
+function fire() {
+  const dir = forwardVector();
+  const muzzle = craft.muzzle.clone().applyQuaternion(craft.group.quaternion).add(plane.pos);
+
+  const m = new THREE.Mesh(bulletGeo, bulletMat);
+  m.position.copy(muzzle);
+  m.quaternion.copy(craft.group.quaternion);
+  m.rotateX(Math.PI / 2);
+  scene.add(m);
+
+  bullets.push({ mesh: m, dir, life: BULLET_LIFE, speed: plane.speed + 420 });
+  audio.gun();
 }
 
-const prefersCalm = window.matchMedia &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-if (prefersCalm) settings.calm = true;
+function stepBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.life -= dt;
+    b.mesh.position.addScaledVector(b.dir, b.speed * dt);
 
-/* ==================================================================
-   Input
+    let hit = false;
+    for (const balloon of world.balloons) {
+      if (!balloon.alive) continue;
+      if (b.mesh.position.distanceTo(balloon.mesh.position) < balloon.r + 3) {
+        world.popBalloon(balloon);
+        audio.pop();
+        state.popped++;
+        hit = true;
+        break;
+      }
+    }
 
-   Schemes report into `axis`, which is where the craft wants to be
-   in its own square: x and y both run -1 to 1, centre is 0,0. A
-   scheme never touches the world.
-   ================================================================== */
+    if (hit || b.life <= 0 || b.mesh.position.y < -20) {
+      scene.remove(b.mesh);
+      bullets.splice(i, 1);
+    }
+  }
+}
 
-const Input = {
-  axis: { x: 0, y: 0 },
-  held: false,          // single switch state
-  pointer: { x: 0, y: 0, seen: false },
-  keys: Object.create(null),
+/* ===== Cursor ===== */
 
-  label() {
-    return { keyboard: 'Keyboard', pointer: 'Pointer', dwell: 'Single switch' }[settings.scheme];
-  },
+// Where the cursor sits in the frame, as -1 to 1 on each axis. Nothing else
+// in the game reads the pointer directly.
+const cursor = { x: 0, y: 0, seen: false, down: false, sx: 0, sy: 0 };
 
-  // Called once a frame with seconds elapsed.
-  sample(dt) {
-    if (settings.scheme === 'keyboard') this.sampleKeyboard(dt);
-    else if (settings.scheme === 'pointer') this.samplePointer();
-    else this.sampleDwell(dt);
-    this.axis.x = clamp(this.axis.x, -1, 1);
-    this.axis.y = clamp(this.axis.y, -1, 1);
-  },
+function readCursor(e) {
+  const r = canvas.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  cursor.sx = e.clientX - r.left;
+  cursor.sy = e.clientY - r.top;
+  cursor.x = (cursor.sx / r.width) * 2 - 1;
+  cursor.y = -((cursor.sy / r.height) * 2 - 1);
+  cursor.seen = true;
+  if (reticle) reticle.style.transform = 'translate(' + cursor.sx + 'px,' + cursor.sy + 'px)';
+}
 
-  sampleKeyboard(dt) {
-    const k = this.keys;
-    let dx = 0, dy = 0;
-    if (k['arrowleft']  || k['a']) dx -= 1;
-    if (k['arrowright'] || k['d']) dx += 1;
-    if (k['arrowup']    || k['w']) dy += 1;
-    if (k['arrowdown']  || k['s']) dy -= 1;
+/* ===== Flight ===== */
 
-    // Ease toward the held direction and back to centre on release, so a key
-    // that is hard to hold steadily still produces a smooth line.
-    const rate = 2.6 * dt;
-    this.axis.x += (dx - this.axis.x) * rate;
-    this.axis.y += (dy - this.axis.y) * rate;
-  },
+const _fwd = new THREE.Vector3();
+const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+const _quat = new THREE.Quaternion();
 
-  samplePointer() {
-    if (!this.pointer.seen) return;
-    this.axis.x = this.pointer.x;
-    this.axis.y = this.pointer.y;
-  },
+function forwardVector() {
+  _euler.set(plane.pitch, plane.yaw, 0);
+  return _fwd.set(0, 0, -1).applyEuler(_euler).clone();
+}
 
-  // One input, two states. Held climbs, released sinks, and the craft drifts
-  // across on its own so a single switch can still reach the whole gate.
-  sampleDwell(dt) {
-    const target = this.held ? 1 : -1;
-    this.axis.y += (target - this.axis.y) * 2.2 * dt;
-    this.axis.x = Math.sin(perfNow() / 1400) * 0.72;
-  },
-};
+const MAX_PITCH = 0.62;
+const MAX_ROLL  = 0.95;
 
-function bindInput() {
-  addEventListener('keydown', e => {
-    const k = e.key.toLowerCase();
-    Input.keys[k] = true;
-    if (k === ' ' || k === 'enter') Input.held = true;
-    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
-    if (k === 'escape' && state.screen === 'fly') togglePause();
-  });
-  addEventListener('keyup', e => {
-    const k = e.key.toLowerCase();
-    Input.keys[k] = false;
-    if (k === ' ' || k === 'enter') Input.held = false;
-  });
+function flight(dt) {
+  const h = craft.handling;
+  const sens = 0.45 + settings.sensitivity * 0.11;
 
-  const readPointer = e => {
-    const r = canvas.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    Input.pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-    Input.pointer.y = -(((e.clientY - r.top) / r.height) * 2 - 1);
-    Input.pointer.seen = true;
+  // A dead zone in the middle, so resting near the centre is genuinely level
+  // rather than a slow constant drift, and a squared response so small
+  // movements stay gentle and only the edges of the frame turn hard.
+  const dead = 0.06;
+  const shaped = v => {
+    const s = Math.sign(v);
+    const a = Math.max(0, Math.abs(v) - dead) / (1 - dead);
+    return s * a * a * 1.15;
   };
-  canvas.addEventListener('pointermove', readPointer, { passive: true });
-  canvas.addEventListener('pointerdown', e => { readPointer(e); Input.held = true; });
-  addEventListener('pointerup', () => { Input.held = false; });
+
+  const cx = cursor.seen ? shaped(cursor.x) : 0;
+  const cy = cursor.seen ? shaped(cursor.y) * (settings.invertY ? -1 : 1) : 0;
+
+  // Bank toward the cursor, and let the bank drive the turn. That is what
+  // makes it feel like an aircraft rather than a cursor with wings.
+  const wantRoll  = -cx * MAX_ROLL;
+  const wantPitch =  cy * MAX_PITCH;
+
+  const answer = 2.6 * h.turn * sens;
+  plane.roll  += (wantRoll  - plane.roll)  * Math.min(1, answer * dt);
+  plane.pitch += (wantPitch - plane.pitch) * Math.min(1, answer * 0.8 * dt);
+
+  plane.yaw += -plane.roll * 0.9 * h.turn * dt;
+
+  // Diving trades height for speed and climbing gives it back.
+  const target = h.cruise + Math.sin(-plane.pitch) * (h.top - h.cruise) * 1.6;
+  plane.speed += (target - plane.speed) * Math.min(1, 0.8 * dt);
+  plane.speed = Math.max(18, Math.min(h.top * 1.15, plane.speed));
+  plane.throttle = Math.max(0, Math.min(1,
+    (plane.speed - h.cruise * 0.4) / (h.top - h.cruise * 0.4)));
+
+  const fwd = forwardVector();
+  plane.pos.addScaledVector(fwd, plane.speed * dt);
+
+  // Ground and ceiling. Neither ends the flight: you get nudged back, and
+  // over water there is a splash. Losing a run to a mistimed climb would
+  // make this a worse place to spend time.
+  const ground = world.heightAt(plane.pos.x, plane.pos.z);
+  const floor = ground + 12;
+  if (plane.pos.y < floor) {
+    if (ground <= 0.5 && !state.wet) { audio.splash(); state.wet = true; }
+    plane.pos.y += (floor - plane.pos.y) * Math.min(1, 6 * dt);
+    plane.pitch += (0.35 - plane.pitch) * Math.min(1, 3 * dt);
+  } else if (plane.pos.y > floor + 8) {
+    state.wet = false;
+  }
+  if (plane.pos.y > 1400) {
+    plane.pos.y += (1400 - plane.pos.y) * Math.min(1, 2 * dt);
+    plane.pitch += (-0.2 - plane.pitch) * Math.min(1, 2 * dt);
+  }
+
+  _euler.set(plane.pitch, plane.yaw, plane.roll);
+  _quat.setFromEuler(_euler);
+  craft.group.quaternion.copy(_quat);
+  craft.group.position.copy(plane.pos);
+  craft.update(dt, { throttle: plane.throttle, speed: plane.speed });
 }
 
-/* ===== Scene ===== */
+/* ===== Camera ===== */
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
+const _camWant = new THREE.Vector3();
+const _look = new THREE.Vector3();
+const _up = new THREE.Vector3();
+const _worldUp = new THREE.Vector3(0, 1, 0);
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setClearColor(0x05080d, 1);
+function chase(dt) {
+  // Behind and above, in the aircraft's own frame, so the view rolls a little
+  // with it. Only a little: fully welded to the roll makes the horizon spin
+  // and is the quickest way to make someone put it down.
+  _camWant.set(0, 3.9, 13.5).applyQuaternion(craft.group.quaternion).add(plane.pos);
+  camera.position.lerp(_camWant, Math.min(1, 4.2 * dt));
 
-const craft = new THREE.Group();
-const gates = [];
+  _look.copy(forwardVector()).multiplyScalar(34).add(plane.pos);
+  camera.lookAt(_look);
 
-const COURSE = {
-  spacing: 26,     // world units between gates
-  count: 8,        // gates alive at once
-  reach: 9,        // how far off centre the craft may sit
-};
-
-function buildScene() {
-  scene.fog = new THREE.Fog(0x05080d, 40, 190);
-
-  scene.add(new THREE.HemisphereLight(0x9fd8ee, 0x0a1018, 1.1));
-  const key = new THREE.DirectionalLight(0xffffff, 1.6);
-  key.position.set(6, 10, 4);
-  scene.add(key);
-
-  // A floor grid gives the forward motion something to read against, which
-  // matters more than it looks: without it the craft appears to hang still.
-  const grid = new THREE.GridHelper(400, 80, 0x2b4657, 0x16232e);
-  grid.position.y = -12;
-  scene.add(grid);
-
-  // The craft, read from behind and slightly above. Deliberately high
-  // contrast against the background so it stays findable at low vision, and
-  // built from a fuselage plus wings plus a fin so the silhouette still says
-  // "aircraft" from the one angle the player ever sees it from.
-  const skin = new THREE.MeshStandardMaterial({ color: 0xe3552b, roughness: 0.35, metalness: 0.2 });
-  const trim = new THREE.MeshStandardMaterial({ color: 0xf6f1e8, roughness: 0.5 });
-
-  const fuselage = new THREE.Mesh(new THREE.ConeGeometry(0.44, 3.2, 12), skin);
-  fuselage.rotation.x = -Math.PI / 2;
-  fuselage.position.z = -0.5;
-  craft.add(fuselage);
-
-  // Swept wings as two pieces rather than one bar. From behind, a single box
-  // reads as a plank; two swept panels with marked tips read as a planform.
-  const wingGeo = new THREE.BoxGeometry(2.0, 0.16, 0.95);
-  const wingL = new THREE.Mesh(wingGeo, skin);
-  wingL.position.set(-1.0, 0, 0.5);
-  wingL.rotation.y = -0.2;
-  craft.add(wingL);
-  const wingR = new THREE.Mesh(wingGeo, skin);
-  wingR.position.set(1.0, 0, 0.5);
-  wingR.rotation.y = 0.2;
-  craft.add(wingR);
-
-  const tipGeo = new THREE.BoxGeometry(0.36, 0.2, 0.55);
-  const tipL = new THREE.Mesh(tipGeo, trim);
-  tipL.position.set(-1.98, 0, 0.72);
-  craft.add(tipL);
-  const tipR = new THREE.Mesh(tipGeo, trim);
-  tipR.position.set(1.98, 0, 0.72);
-  craft.add(tipR);
-
-  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), trim);
-  canopy.scale.set(1, 0.62, 1.5);
-  canopy.position.set(0, 0.26, -0.15);
-  craft.add(canopy);
-
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.05, 0.95), skin);
-  fin.position.set(0, 0.6, 1.0);
-  craft.add(fin);
-
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.14, 0.5), skin);
-  tail.position.set(0, 0.06, 1.1);
-  craft.add(tail);
-
-  craft.scale.setScalar(1.45);
-  scene.add(craft);
-
-  for (let i = 0; i < COURSE.count; i++) gates.push(makeGate(-(i + 1) * COURSE.spacing));
+  _up.set(0, 1, 0).applyQuaternion(craft.group.quaternion);
+  camera.up.copy(_worldUp).lerp(_up, 0.45).normalize();
 }
 
-function makeGate(z) {
-  const g = new THREE.Group();
-  const torus = new THREE.Mesh(
-    new THREE.TorusGeometry(gateRadius(), 0.22, 10, 40),
-    new THREE.MeshStandardMaterial({ color: 0x4fb8d8, emissive: 0x123845, roughness: 0.4 })
-  );
-  g.add(torus);
-  g.position.set(0, 0, z);
-  g.userData = { torus, passed: false };
-  placeGate(g);
-  scene.add(g);
-  return g;
+/* ===== State and screens ===== */
+
+const state = { screen: 'title', flying: false, paused: false, popped: 0, wet: false };
+
+const hudSpeed = document.getElementById('hud-speed');
+const hudAlt   = document.getElementById('hud-alt');
+const reticle  = document.getElementById('reticle');
+const pauseEl  = document.getElementById('fly-pause');
+
+function show(name) {
+  state.screen = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.body.classList.toggle('is-flying', name === 'fly');
+  if (name === 'fly') resize();
 }
 
-function gateRadius() { return 2.8 + settings.gate * 0.62; }
+function startFlight() {
+  audio.resume();
+  fitCraft();
+  plane.pos.set(0, 260, 0);
+  plane.yaw = 0; plane.pitch = 0; plane.roll = 0;
+  plane.speed = craft.handling.cruise;
+  state.flying = true;
+  state.paused = false;
+  state.popped = 0;
+  pauseEl.hidden = true;
+  show('fly');
+}
 
-function placeGate(g) {
-  const spread = COURSE.reach * 0.72;
-  g.position.x = (Math.random() * 2 - 1) * spread;
-  g.position.y = (Math.random() * 2 - 1) * spread * 0.62;
-  g.userData.passed = false;
-  g.userData.torus.material.color.setHex(0x4fb8d8);
+function togglePause() {
+  if (!state.flying) return;
+  state.paused = !state.paused;
+  pauseEl.hidden = !state.paused;
 }
 
 /* ===== Sizing ===== */
 
-let VW = 0, VH = 0, DPR = 1;
-
+let DPR = 1;
 function resize() {
   const r = wrap.getBoundingClientRect();
   // A hidden wrapper measures 0x0; keep the last good size rather than
   // rebuilding the drawing buffer at some meaningless floor.
   if (r.width < 2 || r.height < 2) return;
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  VW = Math.round(r.width);
-  VH = Math.round(r.height);
   renderer.setPixelRatio(DPR);
-  renderer.setSize(VW, VH, false);
-  camera.aspect = VW / VH;
+  renderer.setSize(Math.round(r.width), Math.round(r.height), false);
+  camera.aspect = r.width / r.height;
   camera.updateProjectionMatrix();
 }
-
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(wrap);
 addEventListener('resize', resize);
 
-/* ===== Game state ===== */
-
-const state = { screen: 'title', running: false, paused: false, gates: 0, streak: 0, t: 0 };
-
-const hud = {
-  gates:  document.getElementById('hud-gates'),
-  streak: document.getElementById('hud-streak'),
-  scheme: document.getElementById('hud-scheme'),
-};
-
-function show(name) {
-  state.screen = name;
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const el = document.getElementById('screen-' + name);
-  if (el) el.classList.add('active');
-  if (name === 'fly') resize();
-}
-
-function startRun() {
-  state.running = true;
-  state.paused = false;
-  state.gates = 0;
-  state.streak = 0;
-  craft.position.set(0, 0, 0);
-  gates.forEach((g, i) => { g.position.z = -(i + 1) * COURSE.spacing; placeGate(g); });
-  document.getElementById('fly-pause').hidden = true;
-  show('fly');
-  hintTimer = 4;
-  updateHud();
-}
-
-function togglePause() {
-  if (!state.running) return;
-  state.paused = !state.paused;
-  document.getElementById('fly-pause').hidden = !state.paused;
-}
-
-function updateHud() {
-  hud.gates.textContent = state.gates;
-  hud.streak.textContent = state.streak;
-  hud.scheme.textContent = Input.label();
-}
-
 /* ===== Loop ===== */
 
-let last = perfNow();
-let hintTimer = 4;
-const hintEl = document.getElementById('fly-hint');
+let last = performance.now();
+let hudTick = 0;
 
-function frameLoop() {
-  const now = perfNow();
+function loop() {
+  const now = performance.now();
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
-  if (state.screen === 'fly' && state.running && !state.paused) step(dt);
+  if (state.screen === 'fly' && state.flying && !state.paused) {
+    flight(dt);
+    world.update(plane.pos, dt);
+
+    fireCooldown -= dt;
+    if (cursor.down && fireCooldown <= 0) { fire(); fireCooldown = 0.11; }
+    stepBullets(dt);
+    chase(dt);
+    audio.flight(plane.throttle, Math.min(1, plane.speed / craft.handling.top));
+
+    hudTick -= dt;
+    if (hudTick <= 0) {
+      hudTick = 0.1;
+      hudSpeed.textContent = Math.round(plane.speed * 1.6);
+      hudAlt.textContent = Math.round(plane.pos.y * 3.28);
+    }
+  }
+
   renderer.render(scene, camera);
-  requestAnimationFrame(frameLoop);
+  requestAnimationFrame(loop);
 }
 
-function step(dt) {
-  state.t += dt;
+/* ===== Wiring ===== */
 
-  if (hintTimer > 0) {
-    hintTimer -= dt;
-    if (hintTimer <= 0) hintEl.classList.add('is-gone');
-  }
+canvas.addEventListener('pointermove', readCursor, { passive: true });
+canvas.addEventListener('pointerdown', e => { readCursor(e); cursor.down = true; audio.resume(); });
+addEventListener('pointerup', () => { cursor.down = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-  Input.sample(dt);
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'escape' && state.screen === 'fly') togglePause();
+  if (k === ' ' && state.screen === 'fly') { cursor.down = true; e.preventDefault(); }
+});
+addEventListener('keyup', e => { if (e.key === ' ') cursor.down = false; });
 
-  // Where the player is asking to be, in world units.
-  const wantX = Input.axis.x * COURSE.reach;
-  const wantY = Input.axis.y * COURSE.reach * 0.62;
+document.getElementById('btn-play').addEventListener('click', startFlight);
+document.getElementById('btn-settings').addEventListener('click', () => show('settings'));
+document.getElementById('btn-resume').addEventListener('click', togglePause);
+document.getElementById('btn-quit').addEventListener('click', () => {
+  state.flying = false;
+  pauseEl.hidden = true;
+  show('title');
+});
+document.querySelectorAll('[data-goto]').forEach(b =>
+  b.addEventListener('click', () => show(b.dataset.goto)));
 
-  // Steering help is a lerp rate, not a magnet: it never moves the craft
-  // somewhere the player did not ask for, it only decides how quickly it
-  // gets there. At 0 the craft answers instantly and holds still only if
-  // the input does.
-  const ease = 3 + settings.assist * 1.6;
-  craft.position.x += (wantX - craft.position.x) * Math.min(1, ease * dt);
-  craft.position.y += (wantY - craft.position.y) * Math.min(1, ease * dt);
-
-  // Bank into the turn. Purely cosmetic, and dropped in calm mode.
-  const bank = settings.calm ? 0 : (wantX - craft.position.x) * 0.06;
-  craft.rotation.z += (bank - craft.rotation.z) * Math.min(1, 6 * dt);
-
-  const speed = (6 + settings.speed * 3.4) * dt;
-
-  for (const g of gates) {
-    g.position.z += speed;
-
-    // Scored the moment the gate plane passes the craft.
-    if (!g.userData.passed && g.position.z > craft.position.z - 0.5) {
-      g.userData.passed = true;
-      const dx = g.position.x - craft.position.x;
-      const dy = g.position.y - craft.position.y;
-      const through = Math.hypot(dx, dy) <= gateRadius();
-      if (through) {
-        state.gates++;
-        state.streak++;
-        g.userData.torus.material.color.setHex(0x62c98d);
-      } else {
-        state.streak = 0;
-        g.userData.torus.material.color.setHex(0xe3552b);
-        // settings.noFail is the default and the only behaviour so far: a
-        // miss costs the streak and nothing else. A fail state, if it ever
-        // earns its place, hangs off here.
-      }
-      updateHud();
-    }
-
-    // Retire once it is behind the craft. Left any later it passes through
-    // the camera and fills the screen with the inside of a torus.
-    if (g.position.z > craft.position.z + 7) {
-      g.position.z -= COURSE.count * COURSE.spacing;
-      placeGate(g);
-      g.userData.torus.geometry.dispose();
-      g.userData.torus.geometry = new THREE.TorusGeometry(gateRadius(), 0.22, 10, 40);
-    }
-  }
-
-  // The camera trails the craft rather than being welded to it, which keeps
-  // the gate ahead in frame while still showing what the player is doing.
-  const camLag = settings.calm ? 2.2 : 3.4;
-  camera.position.x += (craft.position.x * 0.55 - camera.position.x) * Math.min(1, camLag * dt);
-  camera.position.y += (craft.position.y * 0.5 + 6.4 - camera.position.y) * Math.min(1, camLag * dt);
-  camera.position.z = craft.position.z + 14;
-  camera.lookAt(craft.position.x * 0.7, craft.position.y * 0.7 + 0.2, craft.position.z - 26);
-}
-
-/* ===== Menus and options ===== */
-
-function bindUi() {
-  document.getElementById('btn-play').addEventListener('click', startRun);
-  document.getElementById('btn-controls').addEventListener('click', () => show('controls'));
-  document.getElementById('btn-howto').addEventListener('click', () => show('howto'));
-  document.getElementById('btn-resume').addEventListener('click', togglePause);
-  document.getElementById('btn-quit').addEventListener('click', () => {
-    state.running = false;
-    document.getElementById('fly-pause').hidden = true;
-    show('title');
+const craftList = document.getElementById('craft-list');
+Object.entries(CRAFT).forEach(([key, def]) => {
+  const li = document.createElement('li');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'craft-card' + (settings.craft === key ? ' is-on' : '');
+  btn.dataset.craft = key;
+  btn.innerHTML = '<b></b><small></small>';
+  btn.querySelector('b').textContent = def.name;
+  btn.querySelector('small').textContent = def.blurb;
+  btn.addEventListener('click', () => {
+    settings.craft = key;
+    save();
+    craftList.querySelectorAll('.craft-card').forEach(c =>
+      c.classList.toggle('is-on', c.dataset.craft === key));
   });
-  document.querySelectorAll('[data-goto]').forEach(b =>
-    b.addEventListener('click', () => show(b.dataset.goto)));
-
-  document.querySelectorAll('input[name="scheme"]').forEach(r => {
-    r.checked = r.value === settings.scheme;
-    r.addEventListener('change', () => {
-      if (!r.checked) return;
-      settings.scheme = r.value;
-      Input.axis.x = 0; Input.axis.y = 0;
-      saveSettings();
-      updateHud();
-    });
-  });
-
-  bindRange('opt-speed',  'speed');
-  bindRange('opt-assist', 'assist');
-  bindRange('opt-gate',   'gate', () => {
-    for (const g of gates) {
-      g.userData.torus.geometry.dispose();
-      g.userData.torus.geometry = new THREE.TorusGeometry(gateRadius(), 0.22, 10, 40);
-    }
-  });
-  bindCheck('opt-nofail',   'noFail');
-  bindCheck('opt-contrast', 'contrast', applyContrast);
-  bindCheck('opt-calm',     'calm');
-}
+  li.appendChild(btn);
+  craftList.appendChild(li);
+});
 
 function bindRange(id, key, after) {
   const el = document.getElementById(id);
-  if (!el) return;
   el.value = settings[key];
-  el.addEventListener('input', () => {
-    settings[key] = +el.value;
-    saveSettings();
-    if (after) after();
-  });
+  el.addEventListener('input', () => { settings[key] = +el.value; save(); if (after) after(); });
 }
-
-function bindCheck(id, key, after) {
+function bindCheck(id, key) {
   const el = document.getElementById(id);
-  if (!el) return;
   el.checked = !!settings[key];
-  el.addEventListener('change', () => {
-    settings[key] = el.checked;
-    saveSettings();
-    if (after) after();
-  });
+  el.addEventListener('change', () => { settings[key] = el.checked; save(); });
 }
 
-function applyContrast() {
-  document.body.classList.toggle('is-contrast', settings.contrast);
-}
+bindRange('opt-sens', 'sensitivity');
+bindRange('opt-vol', 'volume', () => audio.setVolume(settings.volume / 10));
+bindCheck('opt-invert', 'invertY');
 
-/* ===== Boot ===== */
-
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function perfNow() { return performance.now(); }
-
-buildScene();
-bindInput();
-bindUi();
-applyContrast();
+audio.setVolume(settings.volume / 10);
 resize();
-updateHud();
-requestAnimationFrame(frameLoop);
+requestAnimationFrame(loop);
