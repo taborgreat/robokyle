@@ -110,32 +110,51 @@ export function createAudio() {
 
     wind = { filter: windFilter, gain: windGain };
 
-    // The dive siren. A continuous voice like the engine rather than a clip,
-    // so it winds up and down with the dive instead of being triggered. Two
-    // detuned saws through a resonant bandpass is what gives it the reedy
-    // scream rather than a clean tone.
-    const sA = ctx.createOscillator();
-    const sB = ctx.createOscillator();
+    // The dive siren.
+    //
+    // The real thing is a propeller driven siren, so it is not a tone: it is
+    // a fundamental with a hard harmonic on top and a fast chop from the
+    // ports passing the opening. Three parts, then: a saw for the body, a
+    // square an octave up for the shriek, and a fast tremolo for the chop.
+    // Without the chop it is just a whistle, and without the octave it is
+    // too soft to be recognisable.
+    const sA = ctx.createOscillator();   // body
+    const sB = ctx.createOscillator();   // beating against it
+    const sC = ctx.createOscillator();   // the octave that does the screaming
     sA.type = 'sawtooth';
     sB.type = 'sawtooth';
-    sB.detune.value = 22;
+    sC.type = 'square';
+    sB.detune.value = 14;
 
     const sirenFilter = ctx.createBiquadFilter();
     sirenFilter.type = 'bandpass';
     sirenFilter.frequency.value = 900;
-    sirenFilter.Q.value = 6.5;
+    sirenFilter.Q.value = 9;
+
+    // the chop: a fast tremolo across the whole voice
+    const chop = ctx.createOscillator();
+    chop.type = 'sine';
+    chop.frequency.value = 26;
+    const chopDepth = ctx.createGain();
+    chopDepth.gain.value = 0;
+
+    const octGain = ctx.createGain();
+    octGain.gain.value = 0.5;
 
     const sirenGain = ctx.createGain();
     sirenGain.gain.value = 0;
 
     sA.connect(sirenFilter);
     sB.connect(sirenFilter);
+    sC.connect(octGain); octGain.connect(sirenFilter);
     sirenFilter.connect(sirenGain);
+    chop.connect(chopDepth);
+    chopDepth.connect(sirenGain.gain);   // modulates the level, not the pitch
     sirenGain.connect(master);
-    sA.start();
-    sB.start();
+    sA.start(); sB.start(); sC.start(); chop.start();
 
-    siren = { oscA: sA, oscB: sB, filter: sirenFilter, gain: sirenGain };
+    siren = { oscA: sA, oscB: sB, oscC: sC, filter: sirenFilter,
+              gain: sirenGain, chop, chopDepth };
   }
 
   return {
@@ -176,13 +195,23 @@ export function createAudio() {
       if (!ctx || !siren) return;
       const t = ctx.currentTime;
       const a = Math.max(0, Math.min(1, amount));
-      const hz = 320 + a * 900;
-      siren.oscA.frequency.setTargetAtTime(hz, t, 0.12);
-      siren.oscB.frequency.setTargetAtTime(hz * 1.005, t, 0.12);
-      siren.filter.frequency.setTargetAtTime(hz * 1.6, t, 0.12);
-      // Cubed, so it only really shows up in a committed dive rather than
-      // wailing quietly every time the nose dips.
-      siren.gain.gain.setTargetAtTime(a * a * a * 0.16, t, 0.14);
+
+      // Winds up over a wide range, which is the part everyone recognises.
+      const hz = 260 + a * 760;
+      siren.oscA.frequency.setTargetAtTime(hz, t, 0.14);
+      siren.oscB.frequency.setTargetAtTime(hz * 1.004, t, 0.14);
+      siren.oscC.frequency.setTargetAtTime(hz * 2, t, 0.14);
+      siren.filter.frequency.setTargetAtTime(hz * 1.5, t, 0.14);
+      // The chop speeds up with it, because on the real thing the same
+      // airflow drives both the pitch and the rate of the ports.
+      siren.chop.frequency.setTargetAtTime(18 + a * 26, t, 0.2);
+
+      // Cubed, so it only shows up in a committed dive rather than wailing
+      // every time the nose dips. Quieter than it was: it sits under the
+      // engine rather than over it.
+      const level = a * a * a * 0.085;
+      siren.gain.gain.setTargetAtTime(level, t, 0.16);
+      siren.chopDepth.gain.setTargetAtTime(level * 0.55, t, 0.16);
     },
 
     gun() {
@@ -552,7 +581,10 @@ export function createAudio() {
       const t = ctx.currentTime;
       engine.gain.gain.setTargetAtTime(0, t, 0.05);
       wind.gain.gain.setTargetAtTime(0, t, 0.05);
-      if (siren) siren.gain.gain.setTargetAtTime(0, t, 0.05);
+      if (siren) {
+        siren.gain.gain.setTargetAtTime(0, t, 0.05);
+        siren.chopDepth.gain.setTargetAtTime(0, t, 0.05);
+      }
     },
 
     // A crash into land. Body first, then the crack, then a long tail, which

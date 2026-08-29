@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=9';
-import { buildCraft, CRAFT } from './craft.js?v=9';
-import { createAudio } from './audio.js?v=9';
-import { createEffects } from './effects.js?v=9';
+import { createWorld, ENEMY_GUNS } from './world.js?v=12';
+import { buildCraft, CRAFT } from './craft.js?v=12';
+import { createAudio } from './audio.js?v=12';
+import { createEffects } from './effects.js?v=12';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -327,15 +327,26 @@ function rand(a, b) { return a + Math.random() * (b - a); }
    ================================================================== */
 
 const FLAK_RANGE = 1100;      // how far out a ship will bother
-const FLAK_SPEED = 320;
-const FLAK_GRAVITY = 16;      // their shells drop too
-const FLAK_SPREAD = 34;       // metres of aiming error at maximum range
-const FLAK_HURT = 26;         // burst this close and you feel it
+const FLAK_SPEED = 620;       // fast, so a shell is on its way before you react
+// Deliberately poor shots.
+//
+// The point of the barrage is the spectacle of it going off all around you,
+// not the threat. Someone sitting with this should be able to fly through a
+// wall of it and mostly just enjoy the view, so the pattern is wide, it
+// stays wide even at point blank range, and the radius that actually counts
+// as a hit is small.
+const FLAK_SPREAD = 46;       // how wide the pattern is at maximum range
+const FLAK_SPREAD_MIN = 0.6;  // and it never tightens past this fraction
+const FLAK_HURT = 15;         // burst this close and you feel it
+const FLAK_AHEAD = 0.45;      // extra seconds of lead, so bursts sit in front
 
 const flak = [];
 const _gunAt = new THREE.Vector3();
 const _lead = new THREE.Vector3();
 const _toShip = new THREE.Vector3();
+const _side = new THREE.Vector3();
+const _lift = new THREE.Vector3();
+const _muzzleDir = new THREE.Vector3();
 const _flakVel = new THREE.Vector3();
 const shellGeo = new THREE.SphereGeometry(0.45, 6, 5);
 const shellMat = new THREE.MeshBasicMaterial({ color: 0x6E6A62 });
@@ -354,7 +365,7 @@ function enemyGuns(dt) {
     if (t.cool > 0) continue;
     // Slow, so the sky fills gradually rather than all at once. Closer in
     // they work a little harder.
-    t.cool = 2.6 + Math.random() * 2.2 - (1 - range / FLAK_RANGE) * 1.1;
+    t.cool = 0.85 + Math.random() * 0.9 - (1 - range / FLAK_RANGE) * 0.45;
 
     // One mount per salvo, so a ship walks its fire around rather than
     // spitting five shells from the same spot.
@@ -364,24 +375,46 @@ function enemyGuns(dt) {
       .applyQuaternion(t.mesh.quaternion)
       .add(t.mesh.position);
 
-    // Lead the aircraft by the time of flight, then miss by a bit.
-    const flight = range / FLAK_SPEED;
-    const wobble = (range / FLAK_RANGE) * FLAK_SPREAD;
-    _lead.copy(forwardVector()).multiplyScalar(plane.speed * flight).add(plane.pos);
-    _lead.x += (Math.random() * 2 - 1) * wobble;
-    _lead.y += (Math.random() * 2 - 1) * wobble * 0.7;
-    _lead.z += (Math.random() * 2 - 1) * wobble;
+    // Work out where the aircraft will actually be. One pass is not enough:
+    // the lead point is further away than the aircraft is now, so the time of
+    // flight is longer than the first guess, so solve it twice.
+    // eslint-disable-next-line no-unused-vars
+    const fwdNow = forwardVector();
+    let flight = range / FLAK_SPEED;
+    for (let k = 0; k < 2; k++) {
+      _lead.copy(fwdNow).multiplyScalar(plane.speed * flight).add(plane.pos);
+      flight = _lead.distanceTo(_gunAt) / FLAK_SPEED;
+    }
+    // Then aim a little beyond that. Gunners lay a barrage into the path
+    // rather than at the aeroplane, and a pattern centred on where you are
+    // now puts half of it behind you, between the camera and the aircraft,
+    // where it blocks the view and looks like nothing was aimed at all.
+    _lead.addScaledVector(fwdNow, plane.speed * FLAK_AHEAD);
 
-    // Solve the launch so the arc actually arrives at the aim point.
-    _flakVel.copy(_lead).sub(_gunAt).divideScalar(flight);
-    _flakVel.y += 0.5 * FLAK_GRAVITY * flight;
+    // Scatter along the flight path, across it and above it separately. The
+    // along track error leans forward for the same reason.
+    const wobble = (FLAK_SPREAD_MIN + (1 - FLAK_SPREAD_MIN) * range / FLAK_RANGE) * FLAK_SPREAD;
+    _side.crossVectors(fwdNow, _worldUp).normalize();
+    _lift.crossVectors(_side, fwdNow).normalize();
+    _lead.addScaledVector(fwdNow, (Math.random() * 1.5 - 0.35) * wobble);
+    _lead.addScaledVector(_side, (Math.random() * 2 - 1) * wobble);
+    _lead.addScaledVector(_lift, (Math.random() * 2 - 1) * wobble * 0.8);
+
+    // Flat trajectory, no drop. These are fused to burst at a set point
+    // rather than to hit, so an arc buys nothing and only makes the burst
+    // land somewhere other than where the gun was pointed.
+    _flakVel.copy(_lead).sub(_gunAt);
+    const travel = _flakVel.length();
+    _flakVel.multiplyScalar(FLAK_SPEED / Math.max(1, travel));
 
     const m = new THREE.Mesh(shellGeo, shellMat);
     m.position.copy(_gunAt);
     scene.add(m);
-    flak.push({ mesh: m, vel: _flakVel.clone(), fuse: flight });
+    flak.push({ mesh: m, vel: _flakVel.clone(), fuse: travel / FLAK_SPEED });
 
-    effects.flakMuzzle(_gunAt.clone());
+    // Point the flash out along the barrel rather than straight up.
+    _muzzleDir.copy(_flakVel).normalize();
+    effects.flakMuzzle(_gunAt.clone(), _muzzleDir.clone());
     audio.flakFire(range);
   }
 }
@@ -389,7 +422,6 @@ function enemyGuns(dt) {
 function stepFlak(dt) {
   for (let i = flak.length - 1; i >= 0; i--) {
     const f = flak[i];
-    f.vel.y -= FLAK_GRAVITY * dt;
     f.mesh.position.addScaledVector(f.vel, dt);
     f.fuse -= dt;
 
@@ -405,7 +437,9 @@ function stepFlak(dt) {
     // Close ones rattle the aircraft. They cannot bring it down yet.
     if (away < FLAK_HURT && !state.dead) {
       const bite = 1 - away / FLAK_HURT;
-      state.shake = Math.min(1.6, state.shake + 0.5 + bite * 1.1);
+      // Gentle. It should read as being rattled, not as the camera coming
+      // loose: the old figure moved the view further than the aircraft is wide.
+      state.shake = Math.min(0.34, state.shake + 0.07 + bite * 0.2);
       audio.shrapnelHit(bite);
       flashEl.className = 'fly-flash is-hit';
       void flashEl.offsetWidth;
@@ -520,11 +554,15 @@ function flight(dt) {
   // forward vector now rather than a pitch angle, because there no longer is
   // one and because it stays correct upside down.
   const lean = -forwardVector().y;
-  // A dive is not capped at the level top speed any more. Point it down and
-  // it keeps building, which is the whole appeal of pointing it down.
+  // Squared rather than linear, so the curve is flat near level. Straight
+  // multiplication meant a nine degree nose down jumped the speed by a third
+  // and you were in the sea before it felt like a dive had started. Squared,
+  // that same nose down is worth about four miles an hour, while pointing it
+  // properly down still builds all the way up.
+  const bend = Math.sign(lean) * lean * lean;
   const swing = (h.top - h.cruise) * (lean >= 0 ? 3.4 : 0.5);
-  const target = h.cruise + lean * swing;
-  plane.speed += (target - plane.speed) * Math.min(1, 0.9 * dt);
+  const target = h.cruise + bend * swing;
+  plane.speed += (target - plane.speed) * Math.min(1, 0.55 * dt);
   // The remaining ceiling is not about balance, it is about not covering more
   // ground between two frames than a hillside is thick.
   plane.speed = Math.max(h.cruise * 0.62, Math.min(h.top * 2.6, plane.speed));
@@ -609,7 +647,7 @@ function chase(dt) {
     camera.position.x += (Math.random() * 2 - 1) * k;
     camera.position.y += (Math.random() * 2 - 1) * k;
     camera.position.z += (Math.random() * 2 - 1) * k * 0.5;
-    state.shake *= Math.max(0, 1 - 4.5 * dt);
+    state.shake *= Math.max(0, 1 - 6.5 * dt);
   }
 
   _look.copy(forwardVector()).multiplyScalar(34).add(plane.pos);

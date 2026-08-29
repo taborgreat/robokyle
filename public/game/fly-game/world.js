@@ -50,13 +50,16 @@ const BUILT_SCALE = 1.15;
 // Where an enemy ship's flak mounts sit, in its own space. The model and the
 // firing code both read this, so a shell always leaves a barrel you can see.
 export const ENEMY_GUNS = [
-  { x: 7.6, z: -2.4 }, { x: 7.6, z: 2.4 },
-  { x: -6.0, z: -2.4 }, { x: -6.0, z: 2.4 },
-  { x: 1.0, z: 0 },
+  { x: 13.0, z: 0 },
+  { x: 7.0, z: -2.8 }, { x: 7.0, z: 2.8 },
+  { x: 2.0, z: 0 },
+  { x: -6.2, z: -2.8 }, { x: -6.2, z: 2.8 },
+  { x: -16.0, z: 0 },
 ];
 
-// Roughly one ship in ten is hostile.
-const ENEMY_SHARE = 0.1;
+// Turned up from one in ten while the flak is being worked on, so a hostile
+// ship turns up often enough to watch. Drop it back to 0.1 when done.
+const ENEMY_SHARE = 0.35;
 
 // Where the hillside actually is, at a horizontal distance d from the middle
 // of an island of radius r and height h.
@@ -315,12 +318,12 @@ function sailShipGeo(rnd) {
   const sail = rnd() < 0.35 ? 0xE7DFCE : 0xF4EFE2;
 
   const parts = [
-    piece(GEO.box, dark, -0.5, 1.0, 0, 15.5, 2.2, 5.2, 0),
-    piece(GEO.box, wood, -0.5, 3.0, 0, 15.5, 2.6, 5.6, 0),
-    piece(GEO.box, trim, -0.5, 4.15, 0, 15.6, 0.5, 5.8, 0),
+    piece(GEO.box, dark, -0.5, 1.0, 0, 21, 2.2, 5.4, 0),
+    piece(GEO.box, wood, -0.5, 3.0, 0, 21, 2.6, 5.8, 0),
+    piece(GEO.box, trim, -0.5, 4.15, 0, 21.2, 0.5, 6.0, 0),
 
-    piece(GEO.roof, wood, 8.9, 2.2, 0, 2.9, 5.0, 2.9, 0, Math.PI / 4, -Math.PI / 2),
-    piece(GEO.box,  trim, 7.6, 4.3, 0, 3.4, 0.5, 3.6, 0),
+    piece(GEO.roof, wood, 11.6, 2.2, 0, 3.0, 5.2, 3.0, 0, Math.PI / 4, -Math.PI / 2),
+    piece(GEO.box,  trim, 9.6, 4.3, 0, 3.6, 0.5, 3.8, 0),
 
     piece(GEO.box, wood, -6.2, 5.4, 0, 4.6, 3.0, 5.2, 0),
     piece(GEO.box, wood, -7.4, 7.4, 0, 3.0, 1.6, 4.6, 0),
@@ -329,13 +332,13 @@ function sailShipGeo(rnd) {
 
     piece(GEO.box, 0x7C5735, 0.5, 4.4, 0, 13.5, 0.35, 4.6, 0),
 
-    piece(GEO.cyl, trim, 11.2, 4.4, 0, 0.34, 5.6, 0.34, 0, 0, -Math.PI / 2.6),
+    piece(GEO.cyl, trim, 14.0, 4.4, 0, 0.34, 6.0, 0.34, 0, 0, -Math.PI / 2.6),
   ];
 
   for (const sz of [-2.9, 2.9]) {
-    parts.push(piece(GEO.box, wood, -0.5, 5.0, sz, 15.2, 1.2, 0.35, 0));
-    for (let i = -3; i <= 3; i++) {
-      parts.push(piece(GEO.box, dark, i * 2.0 - 0.5, 3.0, sz + (sz > 0 ? 0.12 : -0.12), 1.1, 1.1, 0.2, 0));
+    parts.push(piece(GEO.box, wood, -0.5, 5.0, sz, 20.6, 1.2, 0.35, 0));
+    for (let i = -4; i <= 4; i++) {
+      parts.push(piece(GEO.box, dark, i * 2.1 - 0.5, 3.0, sz + (sz > 0 ? 0.12 : -0.12), 1.1, 1.1, 0.2, 0));
     }
   }
 
@@ -351,98 +354,116 @@ function sailShipGeo(rnd) {
   parts.push(piece(GEO.box, 0x1A1A1F, masts[0].x + 1.6, 4.4 + masts[0].h - 0.6, 0, 3.0, 1.8, 0.2, 0));
   parts.push(piece(GEO.box, 0xF4EFE2, masts[0].x + 1.4, 4.4 + masts[0].h - 0.6, 0, 0.7, 0.7, 0.28, 0));
 
-  return { geo: mergeGeometries(parts), r: 10, hp: 6 };
+  return { geo: mergeGeometries(parts), r: 13, hp: 7 };
 }
 
-// A working steamer. No guns, nothing to fear, just something on the water.
+// A working steamer.
+//
+// Lengthened, because the deck run of containers was longer than the hull
+// they sat on and the forward stack hung off the bow into open air. The
+// hull is thirty two now and the cargo is laid out inside it with the
+// forecastle left clear.
 function cargoShipGeo(rnd) {
   const hull = [0x3E4A57, 0x4A3A32, 0x2F4A44][Math.floor(rnd() * 3)];
-  const deck = 0x8A8577;
   const parts = [
-    piece(GEO.box, 0x22262B, -0.5, 1.0, 0, 20, 2.4, 6.0, 0),
-    piece(GEO.box, hull,     -0.5, 3.2, 0, 20, 2.2, 6.4, 0),
-    piece(GEO.box, 0xC9C2B0, -0.5, 4.4, 0, 20.2, 0.4, 6.6, 0),
-    piece(GEO.roof, hull, 10.6, 2.3, 0, 3.2, 4.6, 3.2, 0, Math.PI / 4, -Math.PI / 2),
-    // deckhouse aft, with a funnel
-    piece(GEO.box, 0xE4DED0, -6.4, 6.2, 0, 5.4, 3.6, 5.4, 0),
-    piece(GEO.box, 0xC9C2B0, -6.4, 8.2, 0, 5.8, 0.5, 5.8, 0),
-    piece(GEO.box, 0x2B3138, -6.4, 6.6, 2.75, 4.2, 1.2, 0.3, 0),
-    piece(GEO.box, 0x2B3138, -6.4, 6.6, -2.75, 4.2, 1.2, 0.3, 0),
-    piece(GEO.cyl, 0xB8452F, -8.8, 10.4, 0, 1.5, 4.6, 1.5, 0),
-    piece(GEO.cyl, 0x22262B, -8.8, 12.8, 0, 1.6, 0.6, 1.6, 0),
-    piece(GEO.cyl, 0xC9C2B0, -2.2, 8.0, 0, 0.25, 7.0, 0.25, 0),
+    piece(GEO.box, 0x22262B, -1.0, 1.0, 0, 32, 2.4, 6.4, 0),
+    piece(GEO.box, hull,     -1.0, 3.2, 0, 32, 2.2, 6.8, 0),
+    piece(GEO.box, 0xC9C2B0, -1.0, 4.4, 0, 32.2, 0.4, 7.0, 0),
+    // bow, sitting at the very end of the hull rather than short of it
+    piece(GEO.roof, hull, 16.6, 2.3, 0, 3.4, 5.6, 3.4, 0, Math.PI / 4, -Math.PI / 2),
+    piece(GEO.box, 0xC9C2B0, 14.6, 4.5, 0, 4.0, 0.4, 4.4, 0),
+    // deckhouse and funnel, right aft
+    piece(GEO.box, 0xE4DED0, -11.0, 6.4, 0, 6.0, 4.0, 5.8, 0),
+    piece(GEO.box, 0xC9C2B0, -11.0, 8.6, 0, 6.4, 0.5, 6.2, 0),
+    piece(GEO.box, 0x2B3138, -11.0, 6.9, 3.0, 4.6, 1.3, 0.3, 0),
+    piece(GEO.box, 0x2B3138, -11.0, 6.9, -3.0, 4.6, 1.3, 0.3, 0),
+    piece(GEO.cyl, 0xB8452F, -13.8, 10.8, 0, 1.6, 5.0, 1.6, 0),
+    piece(GEO.cyl, 0x22262B, -13.8, 13.4, 0, 1.7, 0.6, 1.7, 0),
+    piece(GEO.cyl, 0xC9C2B0, -6.6, 8.2, 0, 0.25, 7.4, 0.25, 0),
+    piece(GEO.box, 0x8A8577, 0.5, 4.7, 0, 28, 0.3, 5.4, 0),
   ];
-  // containers stacked on the foredeck
-  const crates = [0xC1462F, 0x2F6E8C, 0xE8B444, 0x5A8A4A];
-  for (let i = 0; i < 5; i++) {
+  // Containers, kept between the forecastle and the deckhouse.
+  const crates = [0xC1462F, 0x2F6E8C, 0xE8B444, 0x5A8A4A, 0x8A6236];
+  for (let i = 0; i < 7; i++) {
     for (let j = 0; j < 2; j++) {
-      const h = rnd() < 0.35 ? 2 : 1;
-      for (let k = 0; k < h; k++) {
+      const stack = rnd() < 0.4 ? 2 : 1;
+      for (let k = 0; k < stack; k++) {
         parts.push(piece(GEO.box, crates[Math.floor(rnd() * crates.length)],
-          1.2 + i * 2.6, 5.4 + k * 2.0, -1.5 + j * 3.0, 2.3, 1.9, 2.7, 0));
+          -6.4 + i * 2.7, 5.5 + k * 2.0, -1.5 + j * 3.0, 2.4, 1.9, 2.8, 0));
       }
     }
   }
-  parts.push(piece(GEO.box, deck, 0.5, 4.7, 0, 18, 0.3, 5.2, 0));
-  return { geo: mergeGeometries(parts), r: 12, hp: 7 };
+  // gunwales
+  for (const sz of [-3.3, 3.3]) {
+    parts.push(piece(GEO.box, hull, -1.0, 5.2, sz, 31, 1.2, 0.3, 0));
+  }
+  return { geo: mergeGeometries(parts), r: 17, hp: 8 };
 }
 
-// Turrets and a mast, in a friendly grey. Tough, but it never shoots back.
+// Turrets and a mast, in a friendly grey. Tough, and it never shoots back.
 function battleshipGeo(rnd) {
   const hull = 0x5A6672;
   const deck = 0x76818B;
   const dark = 0x2B3138;
   const parts = [
-    piece(GEO.box, dark, -0.5, 1.0, 0, 26, 2.4, 6.6, 0),
-    piece(GEO.box, hull, -0.5, 3.2, 0, 26, 2.2, 7.0, 0),
-    piece(GEO.box, deck, -0.5, 4.4, 0, 26.2, 0.4, 7.2, 0),
-    piece(GEO.roof, hull, 13.8, 2.3, 0, 3.5, 5.4, 3.5, 0, Math.PI / 4, -Math.PI / 2),
-    // superstructure and mast
-    piece(GEO.box, deck, -2.0, 6.6, 0, 6.0, 4.0, 5.4, 0),
-    piece(GEO.box, deck, -2.0, 9.4, 0, 4.0, 2.0, 4.0, 0),
-    piece(GEO.cyl, dark, -2.0, 13.6, 0, 0.35, 7.0, 0.35, 0),
-    piece(GEO.box, dark, -2.0, 15.4, 0, 0.3, 0.3, 3.0, 0),
-    piece(GEO.cyl, 0x8A8F94, -6.6, 8.4, 0, 1.4, 4.0, 1.4, 0),
+    piece(GEO.box, dark, -1.0, 1.0, 0, 38, 2.4, 7.0, 0),
+    piece(GEO.box, hull, -1.0, 3.2, 0, 38, 2.2, 7.4, 0),
+    piece(GEO.box, deck, -1.0, 4.4, 0, 38.2, 0.4, 7.6, 0),
+    piece(GEO.roof, hull, 19.6, 2.3, 0, 3.7, 6.0, 3.7, 0, Math.PI / 4, -Math.PI / 2),
+    // bridge, stepped, amidships
+    piece(GEO.box, deck, -2.4, 6.8, 0, 7.0, 4.4, 5.8, 0),
+    piece(GEO.box, deck, -2.4, 9.8, 0, 4.6, 2.2, 4.4, 0),
+    piece(GEO.box, dark, -2.4, 11.4, 0, 3.0, 1.0, 3.0, 0),
+    piece(GEO.cyl, dark, -2.4, 15.0, 0, 0.35, 7.6, 0.35, 0),
+    piece(GEO.box, dark, -2.4, 17.0, 0, 0.3, 0.3, 3.2, 0),
+    piece(GEO.cyl, 0x8A8F94, -8.4, 8.6, 0, 1.5, 4.4, 1.5, 0),
+    piece(GEO.cyl, 0x8A8F94, -12.4, 8.2, 0, 1.3, 3.6, 1.3, 0),
   ];
-  // main turrets fore and aft
-  for (const tx of [6.4, -8.6]) {
-    parts.push(piece(GEO.cyl, deck, tx, 5.4, 0, 2.6, 1.8, 2.6, 0));
-    parts.push(piece(GEO.box, deck, tx, 6.4, 0, 4.0, 2.0, 3.4, 0));
-    for (const bz of [-0.8, 0.8]) {
-      parts.push(piece(GEO.cyl, dark, tx + 3.4, 6.6, bz, 0.3, 5.0, 0.3, 0, 0, -Math.PI / 2));
+  // two turrets forward, two aft, stepped so they read as a battle line
+  for (const t of [{ x: 10.4, s: 1 }, { x: 5.2, s: 0.9 }, { x: -11.0, s: 0.9 }, { x: -15.6, s: 0.85 }]) {
+    parts.push(piece(GEO.cyl, deck, t.x, 5.3, 0, 2.7 * t.s, 1.6, 2.7 * t.s, 0));
+    parts.push(piece(GEO.box, deck, t.x, 6.4, 0, 4.2 * t.s, 2.0, 3.6 * t.s, 0));
+    for (const bz of [-0.9, 0.9]) {
+      parts.push(piece(GEO.cyl, dark, t.x + 3.6 * t.s, 6.6, bz, 0.3, 5.4 * t.s, 0.3, 0, 0, -Math.PI / 2));
     }
   }
-  return { geo: mergeGeometries(parts), r: 14, hp: 10 };
+  for (const sz of [-3.6, 3.6]) {
+    parts.push(piece(GEO.box, hull, -1.0, 5.2, sz, 37, 1.2, 0.3, 0));
+  }
+  return { geo: mergeGeometries(parts), r: 20, hp: 12 };
 }
 
-// The one that shoots back. Same hull, darker paint, red markings, and a
-// row of flak mounts that are actually where the shells come from.
+// The one that shoots back. Same length of hull, darker paint, red
+// markings, and flak mounts where its shells actually come from.
 function enemyShipGeo(rnd) {
   const hull = 0x3A3F46;
   const deck = 0x4C525A;
   const dark = 0x1E2227;
   const mark = 0xB8332A;
   const parts = [
-    piece(GEO.box, dark, -0.5, 1.0, 0, 26, 2.4, 6.6, 0),
-    piece(GEO.box, hull, -0.5, 3.2, 0, 26, 2.2, 7.0, 0),
-    piece(GEO.box, mark, -0.5, 4.35, 0, 26.2, 0.5, 7.2, 0),
-    piece(GEO.roof, hull, 13.8, 2.3, 0, 3.5, 5.4, 3.5, 0, Math.PI / 4, -Math.PI / 2),
-    piece(GEO.box, deck, -2.0, 6.8, 0, 6.4, 4.4, 5.6, 0),
-    piece(GEO.box, deck, -2.0, 9.8, 0, 4.2, 2.2, 4.2, 0),
-    piece(GEO.box, mark, -2.0, 11.2, 0, 3.0, 0.6, 3.0, 0),
-    piece(GEO.cyl, dark, -2.0, 14.4, 0, 0.35, 7.5, 0.35, 0),
-    piece(GEO.cyl, 0x6A7078, -6.8, 8.6, 0, 1.5, 4.2, 1.5, 0),
-    piece(GEO.box, mark, -6.8, 11.0, 0, 3.2, 0.9, 3.2, 0),
+    piece(GEO.box, dark, -1.0, 1.0, 0, 38, 2.4, 7.0, 0),
+    piece(GEO.box, hull, -1.0, 3.2, 0, 38, 2.2, 7.4, 0),
+    piece(GEO.box, mark, -1.0, 4.35, 0, 38.2, 0.5, 7.6, 0),
+    piece(GEO.roof, hull, 19.6, 2.3, 0, 3.7, 6.0, 3.7, 0, Math.PI / 4, -Math.PI / 2),
+    piece(GEO.box, deck, -2.4, 7.0, 0, 7.4, 4.8, 6.0, 0),
+    piece(GEO.box, deck, -2.4, 10.2, 0, 4.8, 2.4, 4.6, 0),
+    piece(GEO.box, mark, -2.4, 11.8, 0, 3.2, 0.7, 3.2, 0),
+    piece(GEO.cyl, dark, -2.4, 15.4, 0, 0.35, 8.0, 0.35, 0),
+    piece(GEO.cyl, 0x6A7078, -9.0, 8.8, 0, 1.6, 4.6, 1.6, 0),
+    piece(GEO.box, mark, -9.0, 11.4, 0, 3.4, 0.9, 3.4, 0),
+    piece(GEO.cyl, 0x6A7078, -13.4, 8.2, 0, 1.3, 3.6, 1.3, 0),
   ];
-  // flak mounts: a tub, a base and a pair of barrels angled up
   for (const g of ENEMY_GUNS) {
-    parts.push(piece(GEO.cyl, dark, g.x, 5.0, g.z, 1.7, 1.4, 1.7, 0));
-    parts.push(piece(GEO.cyl, deck, g.x, 5.9, g.z, 1.1, 1.2, 1.1, 0));
-    for (const off of [-0.35, 0.35]) {
-      parts.push(piece(GEO.cyl, dark, g.x + 0.7, 7.0, g.z + off, 0.22, 3.4, 0.22, 0, 0, -0.9));
+    parts.push(piece(GEO.cyl, dark, g.x, 5.0, g.z, 1.8, 1.4, 1.8, 0));
+    parts.push(piece(GEO.cyl, deck, g.x, 5.9, g.z, 1.2, 1.2, 1.2, 0));
+    for (const off of [-0.4, 0.4]) {
+      parts.push(piece(GEO.cyl, dark, g.x + 0.8, 7.2, g.z + off, 0.24, 3.8, 0.24, 0, 0, -0.9));
     }
   }
-  return { geo: mergeGeometries(parts), r: 14, hp: 12 };
+  for (const sz of [-3.6, 3.6]) {
+    parts.push(piece(GEO.box, hull, -1.0, 5.2, sz, 37, 1.2, 0.3, 0));
+  }
+  return { geo: mergeGeometries(parts), r: 20, hp: 14 };
 }
 
 const PROPS = [houseGeo, houseGeo, houseGeo, hutGeo, hutGeo,

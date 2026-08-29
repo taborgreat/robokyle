@@ -79,6 +79,7 @@ export function createEffects(scene) {
   const _v = new THREE.Vector3();
 
   function rand(a, b) { return a + Math.random() * (b - a); }
+  function dir3(spread) { return dir(spread); }
   function dir(spread) {
     return new THREE.Vector3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize().multiplyScalar(spread);
   }
@@ -262,8 +263,8 @@ export function createEffects(scene) {
        outliving the flash by two seconds is most of what sells it, so the
        sky behind you fills up with the ones that already went off. */
     flak(pos) {
-      spawn('sphere', { pos, color: 0xFFF6D8, from: 0.6, to: 7.5, life: 0.09, opacity: 1 });
-      spawn('sphere', { pos, color: 0xFFB03C, from: 1.2, to: 12, life: 0.17, opacity: 0.95, fadePow: 1.5 });
+      spawn('sphere', { pos, color: 0xFFF6D8, from: 0.4, to: 3.6, life: 0.08, opacity: 1 });
+      spawn('sphere', { pos, color: 0xFFB03C, from: 0.8, to: 6.0, life: 0.15, opacity: 0.95, fadePow: 1.5 });
 
       // the black cloud, several overlapping puffs so the edge is ragged
       for (let i = 0; i < 7; i++) {
@@ -271,27 +272,48 @@ export function createEffects(scene) {
           pos, color: i < 2 ? 0x4A4A50 : 0x24242A,
           vel: dir(rand(1.5, 6)).add(_v.set(0, rand(0.5, 2.5), 0)),
           grav: -0.6, drag: 1.5,
-          from: rand(1.5, 3.5), to: rand(7, 13),
-          life: rand(1.8, 3.2), opacity: 0.9, fadePow: 2.2,
+          from: rand(0.8, 1.8), to: rand(3.0, 5.4),
+          life: rand(1.6, 2.8), opacity: 0.85, fadePow: 2.2,
         });
       }
       // shrapnel, thrown far enough to read as separate from the cloud
       for (let i = 0; i < 14; i++) {
         spawn('box', {
           pos, color: i % 3 === 0 ? 0xFFC24A : 0x3A3A40,
-          vel: dir(rand(22, 58)),
+          vel: dir(rand(16, 42)),
           grav: 22, drag: 0.35, spin: rand(-20, 20),
-          from: rand(0.18, 0.5), to: rand(0.1, 0.3),
+          from: rand(0.14, 0.36), to: rand(0.08, 0.22),
           life: rand(0.35, 0.9),
         });
       }
     },
 
-    /* The muzzle of a gun that is shooting at you, seen from a distance. */
-    flakMuzzle(pos) {
-      spawn('sphere', { pos, color: 0xFFE9A0, from: 0.4, to: 2.2, life: 0.07, opacity: 1 });
-      spawn('sphere', { pos, color: 0x8A8A92, from: 0.8, to: 5.0, life: 0.55,
-                        opacity: 0.5, fadePow: 2, vel: new THREE.Vector3(0, 4, 0), drag: 1.4 });
+    /* The muzzle of a gun that is shooting at you. Bigger than your own,
+       because it has to read from several hundred units away, and thrown out
+       along the barrel so you can tell which way the gun is pointing. */
+    flakMuzzle(pos, dir) {
+      const d = dir || new THREE.Vector3(0, 1, 0);
+      const lip = pos.clone().addScaledVector(d, 2.2);
+
+      spawn('sphere', { pos: lip, color: 0xFFF6D8, from: 0.8, to: 3.4, life: 0.06, opacity: 1 });
+      spawn('sphere', { pos: lip, color: 0xFFC24A, from: 1.4, to: 6.2, life: 0.13, opacity: 0.9, fadePow: 1.5 });
+
+      // a few sparks down the line of fire
+      for (let i = 0; i < 5; i++) {
+        spawn('box', {
+          pos: lip, color: 0xFFD98A,
+          vel: d.clone().multiplyScalar(rand(30, 70)).add(dir3(6)),
+          grav: 8, drag: 1.2,
+          from: rand(0.2, 0.5), to: 0.08,
+          life: rand(0.1, 0.25),
+        });
+      }
+      // and the smoke it leaves hanging at the mount
+      spawn('sphere', {
+        pos: lip, color: 0x9AA0A8, from: 1.0, to: 6.5, life: 0.7,
+        opacity: 0.45, fadePow: 2,
+        vel: d.clone().multiplyScalar(7).add(_v.set(0, 3, 0)), drag: 1.5,
+      });
     },
 
     /* Brass out of the breech. */
