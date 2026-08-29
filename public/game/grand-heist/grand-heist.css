@@ -947,10 +947,12 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 
 .hud {
     position: absolute; inset: 0;
-    margin-inline: auto; max-width: 1700px;
     pointer-events: none;
     display: flex; justify-content: space-between; align-items: flex-start;
-    padding: .7rem; gap: .7rem;
+    /* Anchored to the corners; the inset grows a little on a wide display
+       rather than the whole HUD being pulled toward the middle. */
+    padding: clamp(.6rem, 1.4vh, 1.1rem) clamp(.7rem, 1.4vw, 1.9rem);
+    gap: .7rem;
 }
 .hud-left, .hud-right { display: grid; gap: .4rem; }
 .hud-right { justify-items: end; }

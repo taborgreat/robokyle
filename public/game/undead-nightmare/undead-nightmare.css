@@ -582,10 +582,10 @@ body.game-body {
 .hud {
     position: absolute;
     inset: 0;
-    margin-inline: auto;
-    max-width: 1700px;
     pointer-events: none;
-    padding: 1rem 1.2rem;
+    /* Anchored to the corners, with the inset growing a little on a wide
+       display rather than the whole HUD being pulled toward the middle. */
+    padding: clamp(.8rem, 1.6vh, 1.3rem) clamp(1rem, 1.6vw, 2.2rem);
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: start;

@@ -2127,16 +2127,16 @@
       : { x0: 0, y0: 0, x1: m.worldW, y1: m.worldH };
   }
 
-  // How far the camera may pull back before the viewport would show ground
-  // that is not part of the arena.
+  // The designed zoom range, unchanged by viewport size.
+  //
+  // This briefly carried a floor derived from the world size, so the view
+  // could never be larger than the arena. It did remove the dead ground past
+  // the edge, but it also meant a wide display could barely zoom out at all:
+  // at 2560 the floor came out at 1.07 against a designed minimum of 0.55.
+  // The arena already draws its own border, so seeing past it reads as the
+  // edge of the level rather than as a bug, and the range matters more.
   function zoomLimits() {
-    const r = worldRect();
-    if (!r) return { lo: 0.55, hi: 1.75 };
-    // A hair over the exact fit: at exactly W/worldW the view and the world
-    // are the same width, and float rounding leaves a one pixel sliver of
-    // nothing down one edge.
-    const lo = Math.max(0.55, (W / (r.x1 - r.x0)) * 1.002, (H / (r.y1 - r.y0)) * 1.002);
-    return { lo, hi: Math.max(lo, 1.75) };
+    return { lo: 0.55, hi: 1.75 };
   }
 
   // ==================== RENDER ====================

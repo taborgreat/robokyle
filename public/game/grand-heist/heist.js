@@ -5302,18 +5302,16 @@
 
   const ZOOM_MIN = 0.62, ZOOM_MAX = 1.85;
 
-  // The camera must never be able to see past the edge of the bank. A small
-  // bank is 1250 wide, so on a 2560 wide display at zoom 1 more than half the
-  // screen would be ground that does not exist. The floor rises until the
-  // view fits, and it is a hair over the exact fit because at exactly
-  // VW/world.w float rounding leaves a sliver down one edge.
-  function zoomFloor() {
-    if (!H || !H.world) return ZOOM_MIN;
-    return Math.max(ZOOM_MIN,
-                    (VW / H.world.w) * 1.002,
-                    (VH / H.world.h) * 1.002);
-  }
-  function zoomCeil() { return Math.max(ZOOM_MAX, zoomFloor()); }
+  // The designed zoom range, unchanged by viewport size.
+  //
+  // This briefly rose with the viewport so the view could never be wider
+  // than the bank. It stopped the floor showing past the walls, but on a
+  // wide display it also took most of the zoom out range away, and being
+  // able to pull back and read the whole floor plan is the point. The
+  // camera still centres on a bank smaller than the view, so the building
+  // sits in the middle of the screen rather than drifting off one side.
+  function zoomFloor() { return ZOOM_MIN; }
+  function zoomCeil()  { return ZOOM_MAX; }
 
   function camOffset() {
     // Entering fullscreen changes VW/VH without touching H.zoom, so the floor
