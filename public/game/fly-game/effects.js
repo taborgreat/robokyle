@@ -254,6 +254,46 @@ export function createEffects(scene) {
       }
     },
 
+    /* A flak burst.
+
+       The look this is after is wartime gun camera film: a hard bright
+       flash for a fraction of a second, then a ragged black puff that hangs
+       in the air long after the bang and drifts while it fades. The smoke
+       outliving the flash by two seconds is most of what sells it, so the
+       sky behind you fills up with the ones that already went off. */
+    flak(pos) {
+      spawn('sphere', { pos, color: 0xFFF6D8, from: 0.6, to: 7.5, life: 0.09, opacity: 1 });
+      spawn('sphere', { pos, color: 0xFFB03C, from: 1.2, to: 12, life: 0.17, opacity: 0.95, fadePow: 1.5 });
+
+      // the black cloud, several overlapping puffs so the edge is ragged
+      for (let i = 0; i < 7; i++) {
+        spawn('sphere', {
+          pos, color: i < 2 ? 0x4A4A50 : 0x24242A,
+          vel: dir(rand(1.5, 6)).add(_v.set(0, rand(0.5, 2.5), 0)),
+          grav: -0.6, drag: 1.5,
+          from: rand(1.5, 3.5), to: rand(7, 13),
+          life: rand(1.8, 3.2), opacity: 0.9, fadePow: 2.2,
+        });
+      }
+      // shrapnel, thrown far enough to read as separate from the cloud
+      for (let i = 0; i < 14; i++) {
+        spawn('box', {
+          pos, color: i % 3 === 0 ? 0xFFC24A : 0x3A3A40,
+          vel: dir(rand(22, 58)),
+          grav: 22, drag: 0.35, spin: rand(-20, 20),
+          from: rand(0.18, 0.5), to: rand(0.1, 0.3),
+          life: rand(0.35, 0.9),
+        });
+      }
+    },
+
+    /* The muzzle of a gun that is shooting at you, seen from a distance. */
+    flakMuzzle(pos) {
+      spawn('sphere', { pos, color: 0xFFE9A0, from: 0.4, to: 2.2, life: 0.07, opacity: 1 });
+      spawn('sphere', { pos, color: 0x8A8A92, from: 0.8, to: 5.0, life: 0.55,
+                        opacity: 0.5, fadePow: 2, vel: new THREE.Vector3(0, 4, 0), drag: 1.4 });
+    },
+
     /* Brass out of the breech. */
     casing(pos, vel) {
       spawn('box', {

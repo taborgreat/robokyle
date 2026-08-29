@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld } from './world.js?v=8';
-import { buildCraft, CRAFT } from './craft.js?v=8';
-import { createAudio } from './audio.js?v=8';
-import { createEffects } from './effects.js?v=8';
+import { createWorld, ENEMY_GUNS } from './world.js?v=9';
+import { buildCraft, CRAFT } from './craft.js?v=9';
+import { createAudio } from './audio.js?v=9';
+import { createEffects } from './effects.js?v=9';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -314,6 +314,114 @@ function clearBullets() {
 
 function rand(a, b) { return a + Math.random() * (b - a); }
 
+/* ===== Incoming =====
+
+   Enemy ships fire shells on a timed fuse rather than tracking rounds. A
+   gun lays a shell at where the aircraft will be in the time of flight and
+   sets the fuse to burst there, so the sky ahead of you fills with puffs
+   whether or not any of them were ever going to connect. That is what the
+   gun camera footage looks like, and it is also how it actually worked.
+
+   The aim is deliberately imperfect and gets worse with range. Bursts that
+   are all misses look right; bursts that all connect would be miserable.
+   ================================================================== */
+
+const FLAK_RANGE = 1100;      // how far out a ship will bother
+const FLAK_SPEED = 320;
+const FLAK_GRAVITY = 16;      // their shells drop too
+const FLAK_SPREAD = 34;       // metres of aiming error at maximum range
+const FLAK_HURT = 26;         // burst this close and you feel it
+
+const flak = [];
+const _gunAt = new THREE.Vector3();
+const _lead = new THREE.Vector3();
+const _toShip = new THREE.Vector3();
+const _flakVel = new THREE.Vector3();
+const shellGeo = new THREE.SphereGeometry(0.45, 6, 5);
+const shellMat = new THREE.MeshBasicMaterial({ color: 0x6E6A62 });
+
+function enemyGuns(dt) {
+  if (state.dead) return;
+
+  for (const t of world.targets) {
+    if (!t.alive || !t.hostile) continue;
+
+    _toShip.copy(t.mesh.position);
+    const range = _toShip.distanceTo(plane.pos);
+    if (range > FLAK_RANGE) continue;
+
+    t.cool -= dt;
+    if (t.cool > 0) continue;
+    // Slow, so the sky fills gradually rather than all at once. Closer in
+    // they work a little harder.
+    t.cool = 2.6 + Math.random() * 2.2 - (1 - range / FLAK_RANGE) * 1.1;
+
+    // One mount per salvo, so a ship walks its fire around rather than
+    // spitting five shells from the same spot.
+    const mount = ENEMY_GUNS[Math.floor(Math.random() * ENEMY_GUNS.length)];
+    _gunAt.set(mount.x, 6.8, mount.z)
+      .multiplyScalar(t.mesh.scale.x)
+      .applyQuaternion(t.mesh.quaternion)
+      .add(t.mesh.position);
+
+    // Lead the aircraft by the time of flight, then miss by a bit.
+    const flight = range / FLAK_SPEED;
+    const wobble = (range / FLAK_RANGE) * FLAK_SPREAD;
+    _lead.copy(forwardVector()).multiplyScalar(plane.speed * flight).add(plane.pos);
+    _lead.x += (Math.random() * 2 - 1) * wobble;
+    _lead.y += (Math.random() * 2 - 1) * wobble * 0.7;
+    _lead.z += (Math.random() * 2 - 1) * wobble;
+
+    // Solve the launch so the arc actually arrives at the aim point.
+    _flakVel.copy(_lead).sub(_gunAt).divideScalar(flight);
+    _flakVel.y += 0.5 * FLAK_GRAVITY * flight;
+
+    const m = new THREE.Mesh(shellGeo, shellMat);
+    m.position.copy(_gunAt);
+    scene.add(m);
+    flak.push({ mesh: m, vel: _flakVel.clone(), fuse: flight });
+
+    effects.flakMuzzle(_gunAt.clone());
+    audio.flakFire(range);
+  }
+}
+
+function stepFlak(dt) {
+  for (let i = flak.length - 1; i >= 0; i--) {
+    const f = flak[i];
+    f.vel.y -= FLAK_GRAVITY * dt;
+    f.mesh.position.addScaledVector(f.vel, dt);
+    f.fuse -= dt;
+
+    const hitWater = f.mesh.position.y <= 1;
+    if (f.fuse > 0 && !hitWater) continue;
+
+    const at = f.mesh.position.clone();
+    const away = at.distanceTo(plane.pos);
+
+    effects.flak(at);
+    audio.flakBurst(away);
+
+    // Close ones rattle the aircraft. They cannot bring it down yet.
+    if (away < FLAK_HURT && !state.dead) {
+      const bite = 1 - away / FLAK_HURT;
+      state.shake = Math.min(1.6, state.shake + 0.5 + bite * 1.1);
+      audio.shrapnelHit(bite);
+      flashEl.className = 'fly-flash is-hit';
+      void flashEl.offsetWidth;
+      flashEl.classList.add('is-on');
+    }
+
+    scene.remove(f.mesh);
+    flak.splice(i, 1);
+  }
+}
+
+function clearFlak() {
+  for (const f of flak) scene.remove(f.mesh);
+  flak.length = 0;
+}
+
 /* ===== Cursor ===== */
 
 // Where the cursor sits in the frame, as -1 to 1 on each axis. Nothing else
@@ -336,6 +444,8 @@ function readCursor(e) {
 const _fwd = new THREE.Vector3();
 const _spin = new THREE.Quaternion();
 const _bodyUp = new THREE.Vector3();
+const _wasAt = new THREE.Vector3();
+const _midAt = new THREE.Vector3();
 const _bodyRight = new THREE.Vector3();
 const _rollQ = new THREE.Quaternion();
 const _bodyQ = new THREE.Quaternion();
@@ -410,15 +520,34 @@ function flight(dt) {
   // forward vector now rather than a pitch angle, because there no longer is
   // one and because it stays correct upside down.
   const lean = -forwardVector().y;
-  const swing = (h.top - h.cruise) * (lean >= 0 ? 1.6 : 0.5);
+  // A dive is not capped at the level top speed any more. Point it down and
+  // it keeps building, which is the whole appeal of pointing it down.
+  const swing = (h.top - h.cruise) * (lean >= 0 ? 3.4 : 0.5);
   const target = h.cruise + lean * swing;
   plane.speed += (target - plane.speed) * Math.min(1, 0.9 * dt);
-  plane.speed = Math.max(h.cruise * 0.62, Math.min(h.top * 1.15, plane.speed));
+  // The remaining ceiling is not about balance, it is about not covering more
+  // ground between two frames than a hillside is thick.
+  plane.speed = Math.max(h.cruise * 0.62, Math.min(h.top * 2.6, plane.speed));
   plane.throttle = Math.max(0, Math.min(1,
     (plane.speed - h.cruise * 0.4) / (h.top - h.cruise * 0.4)));
 
   const fwd = forwardVector();
+  _wasAt.copy(plane.pos);
   plane.pos.addScaledVector(fwd, plane.speed * dt);
+
+  // Diving at three hundred a second a frame covers fifteen units, which is
+  // more than some hills are thick, so check the halfway point too or a steep
+  // dive passes straight through a summit without touching it.
+  _midAt.copy(_wasAt).add(plane.pos).multiplyScalar(0.5);
+  const midGround = world.heightAt(_midAt.x, _midAt.z);
+  if (midGround > 1.5 && _midAt.y <= midGround + 4.5) {
+    plane.pos.copy(_midAt);
+    crash('land');
+    return;
+  }
+
+  // The siren winds up with how steeply and how fast you are going down.
+  audio.dive(Math.max(0, lean) * Math.min(1, plane.speed / (h.top * 1.5)));
 
   // Ground. Land and water end the flight, and differently: one is a
   // fireball, the other is a splash.
@@ -473,6 +602,16 @@ function chase(dt) {
   _camWant.set(0, 3.9, 13.5).applyQuaternion(plane.orient).add(plane.pos);
   camera.position.lerp(_camWant, Math.min(1, 7 * dt));
 
+  // A near miss shakes the camera rather than the aircraft, so being rattled
+  // never costs you control of where the nose is pointing.
+  if (state.shake > 0.001) {
+    const k = state.shake;
+    camera.position.x += (Math.random() * 2 - 1) * k;
+    camera.position.y += (Math.random() * 2 - 1) * k;
+    camera.position.z += (Math.random() * 2 - 1) * k * 0.5;
+    state.shake *= Math.max(0, 1 - 4.5 * dt);
+  }
+
   _look.copy(forwardVector()).multiplyScalar(34).add(plane.pos);
   camera.lookAt(_look);
 
@@ -489,7 +628,7 @@ function chase(dt) {
 
 const state = { screen: 'title', flying: false, paused: false, popped: 0,
                 dead: false, deadKind: null, deadTimer: 0,
-                crashAt: null, crashDir: null };
+                crashAt: null, crashDir: null, shake: 0 };
 
 const hudSpeed = document.getElementById('hud-speed');
 const hudAlt   = document.getElementById('hud-alt');
@@ -517,8 +656,10 @@ function startFlight() {
   state.paused = false;
   state.popped = 0;
   state.dead = false;
+  state.shake = 0;
   effects.clear();
   clearBullets();
+  clearFlak();
   craft.group.visible = true;
   flashEl.className = 'fly-flash';
   pauseEl.hidden = true;
@@ -529,6 +670,7 @@ function crash(kind) {
   if (state.dead) return;
   state.dead = true;
   state.deadKind = kind;
+  state.shake = 0;
   state.deadTimer = kind === 'land' ? 2.6 : 2.3;
   state.crashAt = plane.pos.clone();
   state.crashDir = forwardVector();
@@ -557,6 +699,8 @@ function respawn() {
   state.deadKind = null;
   effects.clear();
   clearBullets();
+  clearFlak();
+  state.shake = 0;
 
   const ground = world.heightAt(0, 0);
   plane.pos.set(0, Math.max(260, ground + 180), 0);
@@ -635,6 +779,8 @@ function loop() {
     // These keep running through a crash: the debris has to fall somewhere
     // and the camera has to stay pointed at it.
     world.update(plane.pos, dt);
+    enemyGuns(dt);
+    stepFlak(dt);
     stepBullets(dt);
     effects.update(dt);
     chase(dt);
@@ -770,6 +916,9 @@ if (location.search.includes('debug')) {
     roll: +plane.roll.toFixed(3), speed: Math.round(plane.speed),
     dead: state.dead, deadKind: state.deadKind,
     bullets: bullets.length,
+    flakInAir: flak.length,
+    enemyShips: world.targets.filter(t => t.hostile && t.alive).length,
+    shake: +state.shake.toFixed(2),
     balloons: world.balloons.length,
     islands: world.islands.length,
     targets: world.targets.length,
@@ -779,7 +928,7 @@ if (location.search.includes('debug')) {
       x: Math.round(b.mesh.position.x), y: Math.round(b.mesh.position.y), z: Math.round(b.mesh.position.z),
     })),
     targetList: world.targets.slice(0, 60).map(t => ({
-      kind: t.kind, hp: t.hp,
+      kind: t.kind, hp: t.hp, hostile: !!t.hostile,
       x: Math.round(t.mesh.position.x), y: Math.round(t.mesh.position.y),
       z: Math.round(t.mesh.position.z),
       d: Math.round(t.mesh.position.distanceTo(plane.pos)),

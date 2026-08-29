@@ -276,6 +276,18 @@ body.fly-body {
     background: radial-gradient(circle at 50% 52%,
         rgba(220,242,255,0) 22%, rgba(74,158,212,.42) 62%, rgba(22,74,124,.66) 100%);
 }
+/* Taking fragments. Shorter and weaker than either crash tint, because this
+   one fires repeatedly and must never become the thing you are looking at. */
+.fly-flash.is-hit {
+    background: radial-gradient(circle at 50% 52%,
+        rgba(255,210,150,0) 30%, rgba(220,110,50,.3) 68%, rgba(150,40,20,.42) 100%);
+}
+.fly-flash.is-hit.is-on { animation: flyHit .45s ease-out forwards; }
+@keyframes flyHit {
+    0%   { opacity: .8; }
+    100% { opacity: 0; }
+}
+
 @keyframes flyFlash {
     0%   { opacity: .9; }
     100% { opacity: 0; }

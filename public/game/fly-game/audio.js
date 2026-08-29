@@ -16,6 +16,7 @@ export function createAudio() {
   let master = null;
   let engine = null;
   let wind = null;
+  let siren = null;
   let started = false;
   let muted = false;
   let volume = 0.7;
@@ -108,6 +109,33 @@ export function createAudio() {
     src.start();
 
     wind = { filter: windFilter, gain: windGain };
+
+    // The dive siren. A continuous voice like the engine rather than a clip,
+    // so it winds up and down with the dive instead of being triggered. Two
+    // detuned saws through a resonant bandpass is what gives it the reedy
+    // scream rather than a clean tone.
+    const sA = ctx.createOscillator();
+    const sB = ctx.createOscillator();
+    sA.type = 'sawtooth';
+    sB.type = 'sawtooth';
+    sB.detune.value = 22;
+
+    const sirenFilter = ctx.createBiquadFilter();
+    sirenFilter.type = 'bandpass';
+    sirenFilter.frequency.value = 900;
+    sirenFilter.Q.value = 6.5;
+
+    const sirenGain = ctx.createGain();
+    sirenGain.gain.value = 0;
+
+    sA.connect(sirenFilter);
+    sB.connect(sirenFilter);
+    sirenFilter.connect(sirenGain);
+    sirenGain.connect(master);
+    sA.start();
+    sB.start();
+
+    siren = { oscA: sA, oscB: sB, filter: sirenFilter, gain: sirenGain };
   }
 
   return {
@@ -141,6 +169,20 @@ export function createAudio() {
 
       wind.gain.gain.setTargetAtTime(speed * 0.05, t, 0.2);
       wind.filter.frequency.setTargetAtTime(380 + speed * 900, t, 0.2);
+    },
+
+    // dive runs 0 to 1: how steeply and how fast you are going down.
+    dive(amount) {
+      if (!ctx || !siren) return;
+      const t = ctx.currentTime;
+      const a = Math.max(0, Math.min(1, amount));
+      const hz = 320 + a * 900;
+      siren.oscA.frequency.setTargetAtTime(hz, t, 0.12);
+      siren.oscB.frequency.setTargetAtTime(hz * 1.005, t, 0.12);
+      siren.filter.frequency.setTargetAtTime(hz * 1.6, t, 0.12);
+      // Cubed, so it only really shows up in a committed dive rather than
+      // wailing quietly every time the nose dips.
+      siren.gain.gain.setTargetAtTime(a * a * a * 0.16, t, 0.14);
     },
 
     gun() {
@@ -357,6 +399,95 @@ export function createAudio() {
       wash.start(t); wash.stop(t + 1.3);
     },
 
+    // A gun going off somewhere out there. Dull, because it is over water
+    // and a long way off, and it must not compete with your own guns.
+    flakFire(dist) {
+      if (!ctx || !impactBudget()) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist || 0) * 0.5;
+      if (v < 0.005) return;
+
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(0.3);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(700, t);
+      lp.frequency.exponentialRampToValueAtTime(180, t + 0.25);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(v * 0.4, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.3);
+      src.connect(lp); lp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + 0.32);
+    },
+
+    // The shell going off. Sharp and close, with a tail of tearing air, and
+    // it gets its own voice rather than borrowing the aircraft's explosion.
+    flakBurst(dist) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist || 0) * 0.85;
+      if (v < 0.004) return;
+
+      const crack = ctx.createBufferSource();
+      crack.buffer = noiseBuffer(0.25);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(2200, t);
+      bp.frequency.exponentialRampToValueAtTime(400, t + 0.2);
+      bp.Q.value = 0.9;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.0001, t);
+      cg.gain.linearRampToValueAtTime(v * 0.42, t + 0.006);
+      cg.gain.exponentialRampToValueAtTime(0.0005, t + 0.26);
+      crack.connect(bp); bp.connect(cg); cg.connect(master);
+      crack.start(t); crack.stop(t + 0.28);
+
+      const thump = ctx.createOscillator();
+      thump.type = 'sine';
+      thump.frequency.setValueAtTime(190, t);
+      thump.frequency.exponentialRampToValueAtTime(52, t + 0.3);
+      const tg = ctx.createGain();
+      tg.gain.setValueAtTime(0.0001, t);
+      tg.gain.linearRampToValueAtTime(v * 0.3, t + 0.01);
+      tg.gain.exponentialRampToValueAtTime(0.0005, t + 0.35);
+      thump.connect(tg); tg.connect(master);
+      thump.start(t); thump.stop(t + 0.36);
+    },
+
+    // Fragments going through the airframe. Metallic, and nothing else in
+    // the game sounds like it, which is the point: you should know without
+    // looking that this one was close.
+    shrapnelHit(strength) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const v = 0.28 + (strength || 0) * 0.4;
+
+      for (let i = 0; i < 3; i++) {
+        const at = t + i * (0.012 + Math.random() * 0.03);
+        const osc = ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1700 + Math.random() * 1400, at);
+        osc.frequency.exponentialRampToValueAtTime(600, at + 0.06);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.linearRampToValueAtTime(v * 0.16, at + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0004, at + 0.07);
+        osc.connect(g); g.connect(master);
+        osc.start(at); osc.stop(at + 0.08);
+      }
+
+      const rip = ctx.createBufferSource();
+      rip.buffer = noiseBuffer(0.2);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 1800;
+      const rg = ctx.createGain();
+      rg.gain.setValueAtTime(v * 0.3, t);
+      rg.gain.exponentialRampToValueAtTime(0.0004, t + 0.18);
+      rip.connect(hp); hp.connect(rg); rg.connect(master);
+      rip.start(t); rip.stop(t + 0.2);
+    },
+
     // Menus. Quiet and short, because you pass over a lot of buttons.
     uiHover() {
       if (!ctx) return;
@@ -421,6 +552,7 @@ export function createAudio() {
       const t = ctx.currentTime;
       engine.gain.gain.setTargetAtTime(0, t, 0.05);
       wind.gain.gain.setTargetAtTime(0, t, 0.05);
+      if (siren) siren.gain.gain.setTargetAtTime(0, t, 0.05);
     },
 
     // A crash into land. Body first, then the crack, then a long tail, which

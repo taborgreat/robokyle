@@ -47,6 +47,17 @@ const BALLOON_COLOURS = [0xE2402F, 0xE8B444, 0x5FBF87, 0xE06FA8, 0x6FA8E0];
 // would pass through it.
 const BUILT_SCALE = 1.15;
 
+// Where an enemy ship's flak mounts sit, in its own space. The model and the
+// firing code both read this, so a shell always leaves a barrel you can see.
+export const ENEMY_GUNS = [
+  { x: 7.6, z: -2.4 }, { x: 7.6, z: 2.4 },
+  { x: -6.0, z: -2.4 }, { x: -6.0, z: 2.4 },
+  { x: 1.0, z: 0 },
+];
+
+// Roughly one ship in ten is hostile.
+const ENEMY_SHARE = 0.1;
+
 // Where the hillside actually is, at a horizontal distance d from the middle
 // of an island of radius r and height h.
 //
@@ -292,13 +303,12 @@ function waterTowerGeo() {
   return { geo: mergeGeometries(parts), r: 4.0, hp: 1 };
 }
 
-// A pirate ship, running bow first along +X.
+// Everything afloat runs bow first along +X.
 //
-// The bow used to be a four sided cone left pointing straight up, which is
-// what looked wrong: it read as a tent pitched on the foredeck. Turned a
-// quarter about Z it points along the hull, and turned again about its own
-// axis it sits flat side down and reads as a prow.
-function shipGeo(rnd) {
+// A bow is a four sided cone turned a quarter about Z so it points along the
+// hull, and again about its own axis so it sits flat side down. Left
+// pointing straight up, as it first was, it reads as a tent on the foredeck.
+function sailShipGeo(rnd) {
   const wood = rnd() < 0.5 ? 0x5A3A22 : 0x6B4A2F;
   const trim = 0x8A6236;
   const dark = 0x33251A;
@@ -342,6 +352,97 @@ function shipGeo(rnd) {
   parts.push(piece(GEO.box, 0xF4EFE2, masts[0].x + 1.4, 4.4 + masts[0].h - 0.6, 0, 0.7, 0.7, 0.28, 0));
 
   return { geo: mergeGeometries(parts), r: 10, hp: 6 };
+}
+
+// A working steamer. No guns, nothing to fear, just something on the water.
+function cargoShipGeo(rnd) {
+  const hull = [0x3E4A57, 0x4A3A32, 0x2F4A44][Math.floor(rnd() * 3)];
+  const deck = 0x8A8577;
+  const parts = [
+    piece(GEO.box, 0x22262B, -0.5, 1.0, 0, 20, 2.4, 6.0, 0),
+    piece(GEO.box, hull,     -0.5, 3.2, 0, 20, 2.2, 6.4, 0),
+    piece(GEO.box, 0xC9C2B0, -0.5, 4.4, 0, 20.2, 0.4, 6.6, 0),
+    piece(GEO.roof, hull, 10.6, 2.3, 0, 3.2, 4.6, 3.2, 0, Math.PI / 4, -Math.PI / 2),
+    // deckhouse aft, with a funnel
+    piece(GEO.box, 0xE4DED0, -6.4, 6.2, 0, 5.4, 3.6, 5.4, 0),
+    piece(GEO.box, 0xC9C2B0, -6.4, 8.2, 0, 5.8, 0.5, 5.8, 0),
+    piece(GEO.box, 0x2B3138, -6.4, 6.6, 2.75, 4.2, 1.2, 0.3, 0),
+    piece(GEO.box, 0x2B3138, -6.4, 6.6, -2.75, 4.2, 1.2, 0.3, 0),
+    piece(GEO.cyl, 0xB8452F, -8.8, 10.4, 0, 1.5, 4.6, 1.5, 0),
+    piece(GEO.cyl, 0x22262B, -8.8, 12.8, 0, 1.6, 0.6, 1.6, 0),
+    piece(GEO.cyl, 0xC9C2B0, -2.2, 8.0, 0, 0.25, 7.0, 0.25, 0),
+  ];
+  // containers stacked on the foredeck
+  const crates = [0xC1462F, 0x2F6E8C, 0xE8B444, 0x5A8A4A];
+  for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 2; j++) {
+      const h = rnd() < 0.35 ? 2 : 1;
+      for (let k = 0; k < h; k++) {
+        parts.push(piece(GEO.box, crates[Math.floor(rnd() * crates.length)],
+          1.2 + i * 2.6, 5.4 + k * 2.0, -1.5 + j * 3.0, 2.3, 1.9, 2.7, 0));
+      }
+    }
+  }
+  parts.push(piece(GEO.box, deck, 0.5, 4.7, 0, 18, 0.3, 5.2, 0));
+  return { geo: mergeGeometries(parts), r: 12, hp: 7 };
+}
+
+// Turrets and a mast, in a friendly grey. Tough, but it never shoots back.
+function battleshipGeo(rnd) {
+  const hull = 0x5A6672;
+  const deck = 0x76818B;
+  const dark = 0x2B3138;
+  const parts = [
+    piece(GEO.box, dark, -0.5, 1.0, 0, 26, 2.4, 6.6, 0),
+    piece(GEO.box, hull, -0.5, 3.2, 0, 26, 2.2, 7.0, 0),
+    piece(GEO.box, deck, -0.5, 4.4, 0, 26.2, 0.4, 7.2, 0),
+    piece(GEO.roof, hull, 13.8, 2.3, 0, 3.5, 5.4, 3.5, 0, Math.PI / 4, -Math.PI / 2),
+    // superstructure and mast
+    piece(GEO.box, deck, -2.0, 6.6, 0, 6.0, 4.0, 5.4, 0),
+    piece(GEO.box, deck, -2.0, 9.4, 0, 4.0, 2.0, 4.0, 0),
+    piece(GEO.cyl, dark, -2.0, 13.6, 0, 0.35, 7.0, 0.35, 0),
+    piece(GEO.box, dark, -2.0, 15.4, 0, 0.3, 0.3, 3.0, 0),
+    piece(GEO.cyl, 0x8A8F94, -6.6, 8.4, 0, 1.4, 4.0, 1.4, 0),
+  ];
+  // main turrets fore and aft
+  for (const tx of [6.4, -8.6]) {
+    parts.push(piece(GEO.cyl, deck, tx, 5.4, 0, 2.6, 1.8, 2.6, 0));
+    parts.push(piece(GEO.box, deck, tx, 6.4, 0, 4.0, 2.0, 3.4, 0));
+    for (const bz of [-0.8, 0.8]) {
+      parts.push(piece(GEO.cyl, dark, tx + 3.4, 6.6, bz, 0.3, 5.0, 0.3, 0, 0, -Math.PI / 2));
+    }
+  }
+  return { geo: mergeGeometries(parts), r: 14, hp: 10 };
+}
+
+// The one that shoots back. Same hull, darker paint, red markings, and a
+// row of flak mounts that are actually where the shells come from.
+function enemyShipGeo(rnd) {
+  const hull = 0x3A3F46;
+  const deck = 0x4C525A;
+  const dark = 0x1E2227;
+  const mark = 0xB8332A;
+  const parts = [
+    piece(GEO.box, dark, -0.5, 1.0, 0, 26, 2.4, 6.6, 0),
+    piece(GEO.box, hull, -0.5, 3.2, 0, 26, 2.2, 7.0, 0),
+    piece(GEO.box, mark, -0.5, 4.35, 0, 26.2, 0.5, 7.2, 0),
+    piece(GEO.roof, hull, 13.8, 2.3, 0, 3.5, 5.4, 3.5, 0, Math.PI / 4, -Math.PI / 2),
+    piece(GEO.box, deck, -2.0, 6.8, 0, 6.4, 4.4, 5.6, 0),
+    piece(GEO.box, deck, -2.0, 9.8, 0, 4.2, 2.2, 4.2, 0),
+    piece(GEO.box, mark, -2.0, 11.2, 0, 3.0, 0.6, 3.0, 0),
+    piece(GEO.cyl, dark, -2.0, 14.4, 0, 0.35, 7.5, 0.35, 0),
+    piece(GEO.cyl, 0x6A7078, -6.8, 8.6, 0, 1.5, 4.2, 1.5, 0),
+    piece(GEO.box, mark, -6.8, 11.0, 0, 3.2, 0.9, 3.2, 0),
+  ];
+  // flak mounts: a tub, a base and a pair of barrels angled up
+  for (const g of ENEMY_GUNS) {
+    parts.push(piece(GEO.cyl, dark, g.x, 5.0, g.z, 1.7, 1.4, 1.7, 0));
+    parts.push(piece(GEO.cyl, deck, g.x, 5.9, g.z, 1.1, 1.2, 1.1, 0));
+    for (const off of [-0.35, 0.35]) {
+      parts.push(piece(GEO.cyl, dark, g.x + 0.7, 7.0, g.z + off, 0.22, 3.4, 0.22, 0, 0, -0.9));
+    }
+  }
+  return { geo: mergeGeometries(parts), r: 14, hp: 12 };
 }
 
 const PROPS = [houseGeo, houseGeo, houseGeo, hutGeo, hutGeo,
@@ -592,15 +693,27 @@ export function createWorld(scene) {
         if (Math.hypot(sx - isl.x, sz - isl.z) < isl.r * 1.35 + 30) { clear = false; break; }
       }
       if (!clear) continue;
-      const def = shipGeo(rnd);
+      const roll = rnd();
+      const hostile = roll < ENEMY_SHARE;
+      const build = hostile ? enemyShipGeo
+                  : roll < 0.4 ? battleshipGeo
+                  : roll < 0.72 ? cargoShipGeo
+                  : sailShipGeo;
+      const def = build(rnd);
       const m = new THREE.Mesh(def.geo, landMat);
       m.position.set(sx, 1.2, sz);
       m.rotation.y = rnd() * 6.28;
       m.scale.setScalar(BUILT_SCALE);
       scene.add(m);
-      // A hull seventeen long does not fit a ten unit sphere.
-      const t = { mesh: m, kind: 'ship', r: def.r * BUILT_SCALE + 4, hp: def.hp, maxHp: def.hp,
-                  alive: true, bob: rnd() * 6.28, baseY: 1.2 };
+      // A hull twenty six long does not fit a ten unit sphere.
+      const t = {
+        mesh: m, kind: 'ship', hostile,
+        r: def.r * BUILT_SCALE + 4,
+        hp: def.hp, maxHp: def.hp,
+        alive: true, bob: rnd() * 6.28, baseY: 1.2,
+        // Staggered so a group of ships does not fire as one volley.
+        cool: 0.6 + rnd() * 2.4,
+      };
       localTargets.push(t); targets.push(t);
     }
 
