@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=17';
-import { buildCraft, CRAFT } from './craft.js?v=17';
-import { createAudio } from './audio.js?v=17';
-import { createEffects } from './effects.js?v=17';
+import { createWorld, ENEMY_GUNS } from './world.js?v=18';
+import { buildCraft, CRAFT } from './craft.js?v=18';
+import { createAudio } from './audio.js?v=18';
+import { createEffects } from './effects.js?v=18';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -154,11 +154,11 @@ const bullets = [];
 // Long and thin, so a round in flight reads as a streak rather than a pea.
 const bulletGeo = new THREE.CapsuleGeometry(0.28, 5.6, 4, 6);
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFE9A0 });
-// Every fifth round is a tracer, which is how belts were actually loaded:
+// Every tenth round is a tracer, which is how belts were actually loaded:
 // enough to see where the stream is going, not so many that the stream is
-// all you can see. Ricochets are drawn hot too, since a round that has just
-// come off a hillside is the one you want to be able to follow.
+// all you can see.
 const bulletHotMat = new THREE.MeshBasicMaterial({ color: 0xFF4A32 });
+const TRACER_ROUND = 10;
 let shots = 0;
 let fireCooldown = 0;
 let gunToggle = 0;
@@ -198,7 +198,7 @@ function fire() {
   _muzzleAt.copy(mount).multiplyScalar(cs).applyQuaternion(q).add(plane.pos);
 
   shots++;
-  const hot = shots % 5 === 0;
+  const hot = shots % TRACER_ROUND === 0;
 
   const m = new THREE.Mesh(bulletGeo, hot ? bulletHotMat : bulletMat);
   m.position.copy(_muzzleAt);
@@ -246,32 +246,42 @@ function segmentDistance(from, to, c) {
 
 /* A round coming back off something hard.
 
-   It keeps the direction it arrived on, which is the part that makes a
-   ricochet read as a ricochet rather than as a firework: they spray
-   forward along the line of fire, not back at the shooter. What changes is
-   that it is now climbing, has lost most of its speed, and has picked up a
-   random twist. One in three, and never twice, or a firing pass at a
-   hillside turns into a swarm. */
+   It carries on along the line it arrived on and climbs away: the
+   horizontal heading is kept exactly as it was and only the vertical is
+   replaced, which is what makes a ricochet read as a ricochet rather than
+   as a firework. They spray forward along the line of fire, not away from
+   it, and a stream of them stays a stream. The twist on top is small,
+   enough to fan them a little and no more.
+
+   One round in eight, and never twice. At a third of them a firing pass at
+   a hillside threw up more rounds than it fired. */
+const RICOCHET_CHANCE = 0.12;
+
 function ricochet(b, surfaceY) {
-  if (b.bounced || Math.random() > 0.34) return;
+  if (b.bounced || Math.random() > RICOCHET_CHANCE) return;
 
   const speed = b.vel.length();
   _ric.copy(b.vel).normalize();
-  // Up and away. The floor on the vertical is what stops one skidding
-  // along the ground looking like it is stuck to it.
-  _ric.y = Math.abs(_ric.y) * 0.3 + 0.34 + Math.random() * 0.4;
-  _ric.x += (Math.random() - 0.5) * 0.5;
-  _ric.z += (Math.random() - 0.5) * 0.5;
-  _ric.normalize().multiplyScalar(speed * (0.33 + Math.random() * 0.26));
+  // The heading it came in on, kept. Only the vertical is thrown away and
+  // replaced with climb, so what leaves is what arrived, going up.
+  _ric.y = 0.34 + Math.random() * 0.24;
+  _ric.x += (Math.random() - 0.5) * 0.07;
+  _ric.z += (Math.random() - 0.5) * 0.07;
+  _ric.normalize().multiplyScalar(speed * (0.66 + Math.random() * 0.5));
 
-  const m = new THREE.Mesh(bulletGeo, bulletHotMat);
+  // Yellow, like the round it was a moment ago. Painting them red made
+  // every bounce look like a tracer, and there were a great many of them.
+  const m = new THREE.Mesh(bulletGeo, bulletMat);
   // Clear of the surface, or the ground check catches it again on the very
   // next frame and it dies where it was born.
   m.position.set(b.mesh.position.x, surfaceY + 1.6, b.mesh.position.z);
   scene.add(m);
   bullets.push({
-    mesh: m, vel: _ric.clone(), life: 0.8 + Math.random() * 0.7,
-    trail: 0.02, hot: true, bounced: true,
+    // Long enough to watch one go. At under a second and a half they were
+    // winking out mid air while still climbing, which reads as a bug
+    // rather than as a round running out of energy.
+    mesh: m, vel: _ric.clone(), life: 2.2 + Math.random() * 1.3,
+    trail: 0.02, bounced: true,
   });
   audio.ricochet(m.position.distanceTo(plane.pos));
 }
@@ -294,7 +304,12 @@ function stepBullets(dt) {
     b.mesh.quaternion.copy(_bq);
 
     b.trail -= dt;
-    if (b.trail <= 0) { b.trail = TRACER_EVERY; effects.tracer(b.mesh.position, b.hot ? 0xFF6A44 : 0); }
+    if (b.trail <= 0) {
+      // Tracers leave their dots closer together as well as bigger, so the
+      // streak is denser and longer rather than merely longer.
+      b.trail = b.hot ? TRACER_EVERY * 0.5 : TRACER_EVERY;
+      effects.tracer(b.mesh.position, b.hot ? 0xFF6A44 : 0, b.hot);
+    }
 
     let hit = false;
     for (const balloon of world.balloons) {
@@ -689,6 +704,34 @@ function flight(dt) {
   });
 }
 
+/* Air off the wingtips.
+
+   Spawned here rather than in the model, because it belongs to the world:
+   made at the tip and then left there, so the aircraft flies out of its
+   own wake instead of dragging it round. The rate follows how hard the
+   wing is working, so a level cruise leaves almost nothing and a hard turn
+   lays two threads of it behind the tips. */
+let wakeClock = 0;
+const _wakeAt = new THREE.Vector3();
+
+function wingWake(dt) {
+  const wake = craft.wake;
+  if (!wake || state.dead) return;
+  const load = wake.load;
+  if (load < 0.05) return;
+
+  wakeClock -= dt;
+  if (wakeClock > 0) return;
+  wakeClock = 0.062 - load * 0.03;
+
+  const cs = craft.group.scale.x;
+  for (const tip of wake.tips) {
+    _wakeAt.copy(tip).multiplyScalar(cs)
+      .applyQuaternion(craft.group.quaternion).add(plane.pos);
+    effects.vortex(_wakeAt, load);
+  }
+}
+
 /* ===== Camera ===== */
 
 const _camWant = new THREE.Vector3();
@@ -711,17 +754,42 @@ const _camUpQ = new THREE.Quaternion();
    what makes handing over control invisible: at the end of the path the
    camera is already exactly where the game was going to put it. */
 const INTRO_TIME = 5;
-const INTRO_PATH = [
-  { t: 0,    p: [17.0, -1.8, -20.0], l: [0, 0.9, -3.4] },
-  { t: 0.26, p: [13.0,  0.3,  -6.0], l: [0, 1.0, -2.0] },
-  { t: 0.52, p: [ 8.5,  2.0,   3.5], l: [0, 1.2,  0.2] },
-  { t: 0.74, p: [ 3.6,  3.3,   8.0], l: [0, 1.1, -0.6] },
-  { t: 1,    p: [ 0.0,  3.4,  11.6], l: [0, 0.8, -4.0] },
-];
+
+/* Two splines rather than a list of legs.
+
+   Straight legs with an ease on each one meant the camera arrived at every
+   waypoint, stopped, and set off again: five separate moves rather than
+   one. A centripetal Catmull-Rom through the same points is continuous in
+   direction as well as position, so there are no corners to slow down for,
+   and sampling it by arc length rather than by parameter keeps the speed
+   even where the control points are bunched up.
+
+   One ease over the whole path, not one per leg, and a fifth order one:
+   smoothstep is continuous in velocity but not in acceleration, and at
+   this length that shows up as a nudge at each end. */
+const introPath = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(17.5, -2.0, -21.0),
+  new THREE.Vector3(14.5, -0.6, -12.0),
+  new THREE.Vector3(11.5,  0.9,  -2.0),
+  new THREE.Vector3( 8.0,  2.1,   4.0),
+  new THREE.Vector3( 4.2,  3.0,   8.2),
+  new THREE.Vector3( 0.0,  3.4,  11.6),
+], false, 'centripetal', 0.5);
+
+const introAim = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 0.9, -3.6),
+  new THREE.Vector3(0, 1.0, -3.0),
+  new THREE.Vector3(0, 1.1, -1.6),
+  new THREE.Vector3(0, 1.2,  0.0),
+  new THREE.Vector3(0, 1.0, -1.4),
+  new THREE.Vector3(0, 0.8, -4.0),
+], false, 'centripetal', 0.5);
 
 const _ip = new THREE.Vector3();
 const _il = new THREE.Vector3();
 const smoothStep = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+// Zero velocity and zero acceleration at both ends.
+const glide = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * u * (u * (u * 6 - 15) + 10));
 
 // How far back the camera sits, eased. Held outside the function so it
 // follows speed smoothly rather than snapping on every throttle twitch.
@@ -729,22 +797,14 @@ let camPull = 11.6;
 let camRise = 3.5;
 
 function introCamera() {
-  const u = Math.min(1, state.introT / INTRO_TIME);
-  let a = INTRO_PATH[0], b = INTRO_PATH[1];
-  for (let i = 0; i < INTRO_PATH.length - 1; i++) {
-    if (u >= INTRO_PATH[i].t && u <= INTRO_PATH[i + 1].t) {
-      a = INTRO_PATH[i]; b = INTRO_PATH[i + 1]; break;
-    }
-  }
-  const k = smoothStep((u - a.t) / Math.max(1e-4, b.t - a.t));
-  _ip.set(a.p[0] + (b.p[0] - a.p[0]) * k,
-          a.p[1] + (b.p[1] - a.p[1]) * k,
-          a.p[2] + (b.p[2] - a.p[2]) * k).applyQuaternion(plane.orient).add(plane.pos);
-  _il.set(a.l[0] + (b.l[0] - a.l[0]) * k,
-          a.l[1] + (b.l[1] - a.l[1]) * k,
-          a.l[2] + (b.l[2] - a.l[2]) * k).applyQuaternion(plane.orient).add(plane.pos);
+  const u = glide(Math.min(1, state.introT / INTRO_TIME));
 
-  const hand = smoothStep((u - 0.7) / 0.3);
+  introPath.getPointAt(u, _ip).applyQuaternion(plane.orient).add(plane.pos);
+  introAim.getPointAt(u, _il).applyQuaternion(plane.orient).add(plane.pos);
+
+  // Hand over across the last stretch, so control arrives with the view
+  // already where the chase camera was going to put it and nothing jumps.
+  const hand = smoothStep((u - 0.62) / 0.38);
   _ip.lerp(_camWant, hand);
   _il.lerp(_look, hand);
 
@@ -842,49 +902,91 @@ function show(name) {
   audio.music(name === 'fly' ? 'island' : 'menu');
 }
 
-/* The threat arrow.
+/* Threat markers.
 
-   Only for a hostile that is actually shooting at you: a marker on every
-   warship on the horizon would be a map, not a warning. It rides an ellipse
-   inset from the edge of the frame and turns to face outward while the ship
-   is off screen or behind, and sits still over the ship once it is in view,
-   so one element covers both without ever being in two places. */
+   One per hostile that is actually shooting at you: a marker on every
+   warship on the horizon would be a map, not a warning, but stopping at
+   one meant a second ship could be walking flak into you unannounced.
+
+   In view, the marker hangs above the ship and points down at it. It is
+   aimed at a point twenty six units over the hull rather than at the hull
+   itself, so the clearance holds at any range instead of being a pixel
+   offset that swallows the ship when you get close. Off screen or behind,
+   it rides an ellipse inset from the frame edge and turns to face outward.
+
+   The element in the markup is the template; the rest are clones of it,
+   made once and then hidden and shown. */
+const THREAT_MAX = 6;
+const threatPool = [];
+const threatLive = [];
 const _threat = new THREE.Vector3();
 
+function threatMarker(i) {
+  if (!threatPool[i]) {
+    const el = threatEl.cloneNode(true);
+    el.removeAttribute('id');
+    el.hidden = true;
+    threatEl.parentElement.appendChild(el);
+    threatPool[i] = el;
+  }
+  return threatPool[i];
+}
+
 function updateThreat() {
-  let best = null, bd = Infinity;
+  threatLive.length = 0;
   if (!state.dead && !state.intro) {
     for (const t of world.targets) {
       if (!t.alive || !t.hostile || !(t.engaging > 0)) continue;
-      const d = t.mesh.position.distanceTo(plane.pos);
-      if (d < bd) { bd = d; best = t; }
+      threatLive.push(t);
+    }
+    // Nearest first, so when there are more of them than markers the ones
+    // you can actually do something about get one.
+    if (threatLive.length > 1) {
+      threatLive.sort((a, b) =>
+        a.mesh.position.distanceToSquared(plane.pos) -
+        b.mesh.position.distanceToSquared(plane.pos));
     }
   }
-  if (!best) { if (!threatEl.hidden) threatEl.hidden = true; return; }
-  threatEl.hidden = false;
-
-  _threat.copy(best.mesh.position).project(camera);
-  // Behind the camera the projection comes back mirrored, so flip it and
-  // treat it as off screen, which it is.
-  const behind = _threat.z > 1;
-  const nx = behind ? -_threat.x : _threat.x;
-  const ny = behind ? -_threat.y : _threat.y;
 
   const r = wrap.getBoundingClientRect();
   const halfW = r.width / 2, halfH = r.height / 2;
-  let px = nx * halfW, py = -ny * halfH;
+  const shown = Math.min(THREAT_MAX, threatLive.length);
 
-  const inView = !behind && Math.abs(nx) < 0.94 && Math.abs(ny) < 0.94;
-  let turn = 0;
-  if (!inView) {
-    const limX = Math.max(40, halfW - 46);
-    const limY = Math.max(40, halfH - 46);
-    const over = Math.max(Math.abs(px) / limX, Math.abs(py) / limY, 1e-4);
-    px /= over; py /= over;
-    turn = Math.atan2(py, px) + Math.PI / 2;   // the arrow is drawn pointing up
+  for (let i = 0; i < shown; i++) {
+    const t = threatLive[i];
+    const el = threatMarker(i);
+
+    // Above the masthead, not on the hull.
+    _threat.copy(t.mesh.position);
+    _threat.y += 26;
+    _threat.project(camera);
+
+    // Behind the camera the projection comes back mirrored, so flip it and
+    // treat it as off screen, which it is.
+    const behind = _threat.z > 1;
+    const nx = behind ? -_threat.x : _threat.x;
+    const ny = behind ? -_threat.y : _threat.y;
+
+    let px = nx * halfW, py = -ny * halfH;
+    const inView = !behind && Math.abs(nx) < 0.94 && Math.abs(ny) < 0.94;
+    let turn = 0;
+    if (!inView) {
+      const limX = Math.max(40, halfW - 34);
+      const limY = Math.max(40, halfH - 34);
+      const over = Math.max(Math.abs(px) / limX, Math.abs(py) / limY, 1e-4);
+      px /= over; py /= over;
+      // Drawn pointing down, so this is the turn that takes down to the
+      // direction the ship lies in.
+      turn = Math.atan2(-px, py);
+    }
+    el.style.transform =
+      'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) rotate(' + turn.toFixed(3) + 'rad)';
+    if (el.hidden) el.hidden = false;
   }
-  threatEl.style.transform =
-    'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) rotate(' + turn.toFixed(3) + 'rad)';
+
+  for (let i = shown; i < threatPool.length; i++) {
+    if (!threatPool[i].hidden) threatPool[i].hidden = true;
+  }
 }
 
 function startFlight() {
@@ -914,7 +1016,7 @@ function startFlight() {
   introSub.textContent = currentMap.flyer;
   introEl.classList.remove('is-out');
   introEl.hidden = false;
-  threatEl.hidden = true;
+  for (const el of threatPool) el.hidden = true;
 
   show('fly');
 }
@@ -1052,6 +1154,7 @@ function loop() {
     // These keep running through a crash: the debris has to fall somewhere
     // and the camera has to stay pointed at it.
     world.update(plane.pos, dt);
+    wingWake(dt);
     enemyGuns(dt);
     stepFlak(dt);
     stepBullets(dt);

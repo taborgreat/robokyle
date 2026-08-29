@@ -435,46 +435,24 @@ function buildPlane() {
   pitot.position.set(2.7, -0.34, -2.5);
   g.add(pitot);
 
-  /* Wingtip vortices.
+  /* Wingtip wake.
 
      Air spilling round the end of a wing rolls into a corkscrew and trails
-     behind it, tight at the tip and spreading as it goes, which is why
-     these are cones with the narrow end forward rather than tubes. Two per
-     side: a bright core and a wider, fainter sheath around it.
+     behind it. There is no geometry for it here: a cone welded to the
+     wingtip turns with the aeroplane, which is exactly what trailing air
+     does not do, and a transparent cone at any size reads as a transparent
+     cone. What is here is the two places it comes off and how hard, and
+     the flight code spawns particles into the world at those points, where
+     they stay put and the aircraft leaves them behind.
 
-     They come and go with load, not with speed, which is the real
-     behaviour and also the more useful one: they are barely there in
-     cruise and they stream off both tips in a hard turn, so the aircraft
-     tells you how hard you are pulling without a gauge. */
-  const vortexMat = new THREE.MeshBasicMaterial({
-    color: 0xFFFFFF, transparent: true, opacity: 0, depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const coreMat = new THREE.MeshBasicMaterial({
-    color: 0xEAF4FF, transparent: true, opacity: 0, depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const streams = [];
-  for (const sx of [-4.28, 4.28]) {
-    const trail = new THREE.Group();
-    trail.position.set(sx, -0.2, -1.35);
-
-    const sheath = new THREE.Mesh(new THREE.ConeGeometry(0.5, 7.4, 7, 1, true), vortexMat);
-    // A cone points along +Y; a quarter turn about X lays it down the
-    // fuselage, tip forward at the wingtip and mouth trailing aft.
-    sheath.rotation.x = -Math.PI / 2;
-    sheath.position.z = 3.7;
-    trail.add(sheath);
-
-    const core = new THREE.Mesh(new THREE.ConeGeometry(0.17, 5.4, 6, 1, true), coreMat);
-    core.rotation.x = -Math.PI / 2;
-    core.position.z = 2.7;
-    trail.add(core);
-
-    trail.userData.side = Math.sign(sx);
-    g.add(trail);
-    streams.push(trail);
-  }
+     Strength follows load rather than speed, which is both the real
+     behaviour and the more useful one: nothing much in cruise, streaming
+     off both tips in a hard turn, so the aircraft tells you how hard you
+     are pulling without a gauge. */
+  const wake = {
+    tips: [new THREE.Vector3(-4.28, -0.22, -1.3), new THREE.Vector3(4.28, -0.22, -1.3)],
+    load: 0,
+  };
 
   /* --- Front office.
 
@@ -588,6 +566,7 @@ function buildPlane() {
     muzzle: gunMuzzles[0],
     guns: gunMuzzles,
     eject: ejectAt,
+    wake,
     update(dt, s) {
       prop.rotation.z += (16 + s.throttle * 40) * dt;
       disc.material.opacity = 0.1 + s.throttle * 0.22;
@@ -607,21 +586,13 @@ function buildPlane() {
       ailerons[0].rotation.x = -surf.yaw * 0.4;    // port, down in a right turn
       ailerons[1].rotation.x = surf.yaw * 0.4;     // starboard, up in one
 
-      // Vortices. Load is what draws them, with a floor that comes up a
-      // little with speed so they never vanish outright at pace.
+      // How hard the tips are working, for whoever is drawing the wake.
+      // A floor that comes up a little with speed, so there is always a
+      // thread of it at pace rather than nothing at all.
       const fast = Math.min(1, (s.speed || 0) / 150);
       const load = Math.min(1, Math.abs(surf.pitch) * 0.85 + Math.abs(surf.yaw) * 0.95);
       surf.pull += (load - surf.pull) * Math.min(1, 5 * dt);
-      const show = Math.min(0.5, 0.015 + fast * 0.05 + surf.pull * 0.42);
-      vortexMat.opacity = show;
-      coreMat.opacity = show * 1.5;
-      for (const trail of streams) {
-        trail.scale.z = 0.6 + fast * 0.5 + surf.pull * 0.5;
-        // A trail cannot turn as fast as the wing it came off, so it hangs
-        // back a little on the outside of a turn.
-        trail.rotation.y = surf.yaw * 0.1;
-        trail.rotation.x = -surf.pitch * 0.07;
-      }
+      wake.load = Math.min(1, fast * 0.12 + surf.pull * 0.95);
 
       // The guns go where the cursor is. s.aim arrives already in the
       // aircraft's own frame, so this is two angles and no projection:

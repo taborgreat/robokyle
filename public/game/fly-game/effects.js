@@ -391,11 +391,34 @@ export function createEffects(scene) {
     /* A dot of light left behind a round in flight. Spawned every few
        metres rather than every frame, so the trail is a dashed streak with
        a readable length instead of a solid tube. */
-    tracer(pos, color) {
+    tracer(pos, color, long) {
+      // A tracer round is drawn with a fatter dot that hangs about two and
+      // a half times as long, so the streak behind it is that much longer.
+      // There is one every tenth round, so it can afford to be.
       spawn('sphere', {
         pos, color: color || 0xFFDE8A,
-        from: 0.4, to: 0.05,
-        life: 0.22, opacity: 0.9, fadePow: 1.5,
+        from: long ? 0.66 : 0.4, to: long ? 0.12 : 0.05,
+        life: long ? 0.55 : 0.22, opacity: long ? 0.95 : 0.9, fadePow: 1.5,
+      });
+    },
+
+    /* Air off a wingtip.
+
+       Barely there on purpose. This is a hint that the air is doing
+       something at the end of the wing, not a smoke trail: thin where it
+       leaves, spreading and gone within a second, and never opaque enough
+       to be a shape. Left in the world rather than carried on the model,
+       so the aircraft flies away from it, which is the entire difference
+       between a trail and a decoration. */
+    vortex(pos, strength) {
+      spawn('sphere', {
+        pos, color: 0xFFFFFF,
+        vel: dir(rand(0.5, 1.8)),
+        drag: 0.7,
+        from: rand(0.1, 0.26), to: rand(0.9, 1.9),
+        life: rand(0.45, 0.9),
+        opacity: 0.045 + strength * 0.15,
+        fadePow: 1.9,
       });
     },
 
