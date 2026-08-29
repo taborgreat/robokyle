@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=21';
-import { buildCraft, CRAFT } from './craft.js?v=21';
-import { createAudio } from './audio.js?v=21';
-import { createEffects } from './effects.js?v=21';
+import { createWorld, ENEMY_GUNS } from './world.js?v=22';
+import { buildCraft, CRAFT } from './craft.js?v=22';
+import { createAudio } from './audio.js?v=22';
+import { createEffects } from './effects.js?v=22';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -276,7 +276,9 @@ function ricochet(b, surfaceY) {
   _ric.y = 0.34 + Math.random() * 0.24;
   _ric.x += (Math.random() - 0.5) * 0.07;
   _ric.z += (Math.random() - 0.5) * 0.07;
-  _ric.normalize().multiplyScalar(speed * (0.66 + Math.random() * 0.5));
+  // A fifth slower than it was: enough to still carry, not so much that a
+  // bounce outruns the round that made it.
+  _ric.normalize().multiplyScalar(speed * (0.53 + Math.random() * 0.4));
 
   // Yellow, like the round it was a moment ago. Painting them red made
   // every bounce look like a tracer, and there were a great many of them.
@@ -314,12 +316,14 @@ function stepBullets(dt) {
 
     b.trail -= dt;
     if (b.trail <= 0) {
-      // The same interval for every round. Laying a tracer's dots twice as
-      // close together made it look like a different, slower projectile,
-      // which it is not: it leaves the muzzle on the same line at the same
-      // speed and falls at the same rate. Only the colour differs.
+      // The same interval, the same dot, the same everything. A tracer is
+      // an ordinary round in a different colour and nothing else: it
+      // leaves the same barrel on the same line at the same speed, falls
+      // at the same rate, and now leaves a streak of the same length in
+      // the same place. Every time one of those stopped being true it
+      // looked like a round coming from somewhere it was not.
       b.trail = TRACER_EVERY;
-      effects.tracer(b.mesh.position, b.hot ? 0xFF6A44 : 0, b.hot);
+      effects.tracer(b.mesh.position, b.hot ? 0xFF6A44 : 0);
     }
 
     let hit = false;

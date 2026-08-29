@@ -391,15 +391,25 @@ export function createEffects(scene) {
     /* A dot of light left behind a round in flight. Spawned every few
        metres rather than every frame, so the trail is a dashed streak with
        a readable length instead of a solid tube. */
-    tracer(pos, color, long) {
-      // A tracer round leaves the same dot as any other, barely wider, and
-      // hangs about half as long again. That is the whole difference, and
-      // it is enough: a round that draws a fat streak reads as a slower,
-      // heavier thing than the rounds around it, which it is not.
+    tracer(pos, color) {
+      /* The same dot for every round, and only the colour changes.
+
+         The last thing separating a tracer from an ordinary round was how
+         long this dot lived, and it turned out to be the thing that made
+         one look like it came from somewhere else. A dot lives for a fixed
+         time while the aircraft keeps flying forward, so the oldest dot
+         still on screen sits a fixed distance behind where the round was
+         when it left it. Give a tracer half again the life and its streak
+         reaches back that much closer to the aircraft, and in a chase view
+         with the aeroplane in the middle of the frame, a streak whose tail
+         starts at the aeroplane reads as a round coming out of the camera.
+
+         So: the same size and the same life as every other round, which is
+         the only way to be certain a tracer traces where the rest went. */
       spawn('sphere', {
         pos, color: color || 0xFFDE8A,
-        from: long ? 0.46 : 0.4, to: long ? 0.06 : 0.05,
-        life: long ? 0.34 : 0.22, opacity: long ? 0.95 : 0.9, fadePow: 1.5,
+        from: 0.4, to: 0.05,
+        life: 0.22, opacity: 0.9, fadePow: 1.5,
       });
     },
 
