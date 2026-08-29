@@ -97,7 +97,7 @@
         controls.enableDamping = true;
         controls.target.set(0, .8, 0);
 
-        // --- lights: one warm key, one cool fill, so the cube reads as solid ---
+        // Lights: one warm key, one cool fill, so the cube reads as solid.
         scene.add(new THREE.HemisphereLight(0x8899ff, 0x1a0f0c, .55));
 
         const key = new THREE.DirectionalLight(0xffb98a, 2.4);
@@ -112,7 +112,7 @@
         rim.position.set(-4, 2, -3);
         scene.add(rim);
 
-        // --- the scene itself ---
+        // The scene itself.
         const cube = new THREE.Mesh(
             new THREE.BoxGeometry(1.6, 1.6, 1.6),
             new THREE.MeshStandardMaterial({ color: 0xE3552B, roughness: .38, metalness: .25 })
