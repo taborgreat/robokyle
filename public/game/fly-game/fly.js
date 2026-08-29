@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=24';
-import { buildCraft, CRAFT } from './craft.js?v=24';
-import { createAudio } from './audio.js?v=24';
-import { createEffects } from './effects.js?v=24';
+import { createWorld, ENEMY_GUNS } from './world.js?v=25';
+import { buildCraft, CRAFT } from './craft.js?v=25';
+import { createAudio } from './audio.js?v=25';
+import { createEffects } from './effects.js?v=25';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -170,8 +170,10 @@ const _muzzleAt = new THREE.Vector3();
 const _ejectAt = new THREE.Vector3();
 const _ejectVel = new THREE.Vector3();
 
-const _ndc = new THREE.Vector3();
+const _ndcNear = new THREE.Vector3();
+const _ndcFar = new THREE.Vector3();
 const _aim = new THREE.Vector3();
+const AIM_RANGE = 1400;        // where the sight line and the gun line meet
 
 // Where the crosshair is actually pointing, in the world.
 //
@@ -180,10 +182,32 @@ const _aim = new THREE.Vector3();
 // centre no matter where the cursor sat. Unprojecting the cursor gives the
 // ray the player is actually aiming down.
 function aimDirection(from) {
-  _ndc.set(cursor.seen ? cursor.x : 0, cursor.seen ? cursor.y : 0, 0.5);
-  _ndc.unproject(camera);
-  _aim.copy(_ndc).sub(camera.position).normalize().multiplyScalar(1400).add(camera.position);
-  return _aim.sub(from).normalize();
+  const cx = cursor.seen ? cursor.x : 0;
+  const cy = cursor.seen ? cursor.y : 0;
+
+  /* Two points on the cursor's ray, one on each clipping plane, and the
+     line between them.
+
+     Emphatically not "unproject one point and subtract the camera
+     position", which is what this used to be. Unprojecting at the middle
+     of the depth range does not land halfway down the view: with a near
+     plane of 0.6 and a far plane of 9000 it lands 2.4 units in front of
+     the camera. Subtracting the camera position from a point 2.4 units
+     away is a subtraction between two things almost on top of each other,
+     and if the camera has moved at all since its matrices were last built
+     the answer is not slightly wrong, it is anywhere. One unit of camera
+     movement swung it 22 degrees, which is 249 pixels, which is why the
+     gun ring was nowhere near the rounds.
+
+     Taking the difference of two unprojections never touches
+     camera.position at all, so there is nothing left to disagree. */
+  _ndcNear.set(cx, cy, -1).unproject(camera);
+  _ndcFar.set(cx, cy, 1).unproject(camera);
+  _aim.copy(_ndcFar).sub(_ndcNear).normalize();
+
+  // Out to where the two lines are meant to meet, then back to whichever
+  // gun is actually doing the firing.
+  return _aim.multiplyScalar(AIM_RANGE).add(_ndcNear).sub(from).normalize();
 }
 
 function fire() {
@@ -1278,8 +1302,15 @@ function loop() {
     stepBullets(dt);
     effects.update(dt);
     chase(dt);
-    // Both of these project into the frame, so they run after the camera
-    // has been put where it belongs for this frame rather than before.
+
+    // chase() has just moved the camera, and nothing has rebuilt its
+    // matrices: the renderer does that at the end of the frame, after
+    // this. So anything projecting or unprojecting here would otherwise
+    // be working from the pose the camera was in a frame ago while using
+    // the position it is in now, which is a mismatch the maths does not
+    // survive. One line, and both marks below are honest.
+    camera.updateMatrixWorld(true);
+
     updatePipper();
     updateThreat();
   }
