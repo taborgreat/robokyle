@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=13';
-import { buildCraft, CRAFT } from './craft.js?v=13';
-import { createAudio } from './audio.js?v=13';
-import { createEffects } from './effects.js?v=13';
+import { createWorld, ENEMY_GUNS } from './world.js?v=14';
+import { buildCraft, CRAFT } from './craft.js?v=14';
+import { createAudio } from './audio.js?v=14';
+import { createEffects } from './effects.js?v=14';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -608,7 +608,12 @@ function flight(dt) {
   _rollQ.setFromAxisAngle(AXIS_Z, plane.roll);
   craft.group.quaternion.copy(plane.orient).multiply(_rollQ);
   craft.group.position.copy(plane.pos);
-  craft.update(dt, { throttle: plane.throttle, speed: plane.speed });
+  // roll and the trigger go through too: the crew lean into the turn and
+  // duck over the sights, and that is decided by the craft, not here.
+  craft.update(dt, {
+    throttle: plane.throttle, speed: plane.speed,
+    roll: plane.roll, firing: cursor.down,
+  });
 }
 
 /* ===== Camera ===== */
