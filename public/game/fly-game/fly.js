@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=20';
-import { buildCraft, CRAFT } from './craft.js?v=20';
-import { createAudio } from './audio.js?v=20';
-import { createEffects } from './effects.js?v=20';
+import { createWorld, ENEMY_GUNS } from './world.js?v=21';
+import { buildCraft, CRAFT } from './craft.js?v=21';
+import { createAudio } from './audio.js?v=21';
+import { createEffects } from './effects.js?v=21';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -188,17 +188,26 @@ function aimDirection(from) {
 function fire() {
   const q = craft.group.quaternion;
 
-  // Alternate between the two guns where a craft has two, which is both how
-  // it is done and half the fire rate through each barrel.
+  shots++;
+  const hot = shots % TRACER_ROUND === 0;
+
+  /* Alternate between the two guns where a craft has two, which is both
+     how it is done and half the fire rate through each barrel.
+
+     The tracer needs an extra step here. Ten is an even number and there
+     are two barrels, so with the two counters running in lock step every
+     tracer came out of the same gun, every time. That barrel is a fifth of
+     a unit off the centreline and the tracer is the only round anyone can
+     see, so the stream you could see sat visibly to one side of the stream
+     you were actually firing. Standing the count on by one whenever a
+     tracer goes puts the next one down the other barrel, and both streams
+     average out where the guns are pointing. */
   const mounts = craft.guns || [craft.muzzle];
   const mount = mounts[gunToggle % mounts.length];
-  gunToggle++;
+  gunToggle += hot ? 2 : 1;
 
   const cs = craft.group.scale.x;
   _muzzleAt.copy(mount).multiplyScalar(cs).applyQuaternion(q).add(plane.pos);
-
-  shots++;
-  const hot = shots % TRACER_ROUND === 0;
 
   const m = new THREE.Mesh(bulletGeo, hot ? bulletHotMat : bulletMat);
   m.position.copy(_muzzleAt);
@@ -916,11 +925,15 @@ function show(name) {
    warship on the horizon would be a map, not a warning, but stopping at
    one meant a second ship could be walking flak into you unannounced.
 
-   In view, the marker hangs above the ship and points down at it. It is
-   aimed at a point twenty six units over the hull rather than at the hull
-   itself, so the clearance holds at any range instead of being a pixel
-   offset that swallows the ship when you get close. Off screen or behind,
-   it rides an ellipse inset from the frame edge and turns to face outward.
+   In view, the marker hangs well above the ship and points down at it. It
+   is aimed at a point fifty five units over the hull rather than at the
+   hull itself, so the clearance holds at any range instead of being a
+   pixel offset that swallows the ship when you get close, and it is high
+   enough to leave the masthead alone. Off screen or behind, it rides an
+   ellipse inset from the frame edge, turns to face outward, and grows:
+   out at the edge it is in the corner of your eye rather than in front of
+   it, and at the size that suits it hanging over a ship in the middle of
+   the frame it was easy to miss entirely.
 
    The element in the markup is the template; the rest are clones of it,
    made once and then hidden and shown. */
@@ -964,9 +977,9 @@ function updateThreat() {
     const t = threatLive[i];
     const el = threatMarker(i);
 
-    // Above the masthead, not on the hull.
+    // Well above the masthead, not on the hull.
     _threat.copy(t.mesh.position);
-    _threat.y += 26;
+    _threat.y += 55;
     _threat.project(camera);
 
     // Behind the camera the projection comes back mirrored, so flip it and
@@ -978,17 +991,25 @@ function updateThreat() {
     let px = nx * halfW, py = -ny * halfH;
     const inView = !behind && Math.abs(nx) < 0.94 && Math.abs(ny) < 0.94;
     let turn = 0;
-    if (!inView) {
-      const limX = Math.max(40, halfW - 34);
-      const limY = Math.max(40, halfH - 34);
+    let size = 1;
+    if (inView) {
+      // A little clearance on top of the world space offset, so it still
+      // sits clear when you are almost directly over the ship and the
+      // perspective has flattened that offset to nothing.
+      py -= 16;
+    } else {
+      const limX = Math.max(40, halfW - 48);
+      const limY = Math.max(40, halfH - 48);
       const over = Math.max(Math.abs(px) / limX, Math.abs(py) / limY, 1e-4);
       px /= over; py /= over;
       // Drawn pointing down, so this is the turn that takes down to the
       // direction the ship lies in.
       turn = Math.atan2(-px, py);
+      size = 1.9;
     }
     el.style.transform =
-      'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) rotate(' + turn.toFixed(3) + 'rad)';
+      'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) rotate(' + turn.toFixed(3) +
+      'rad) scale(' + size + ')';
     if (el.hidden) el.hidden = false;
   }
 
