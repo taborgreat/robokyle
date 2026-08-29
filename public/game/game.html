@@ -15,6 +15,22 @@
 
     <a class="skip-link" href="#games">Skip to games</a>
 
+    <div class="stage" aria-hidden="true">
+        <div class="stage-haze"></div>
+        <div class="stage-floor"><div class="stage-grid"></div></div>
+        <div class="stage-horizon"></div>
+        <div class="stage-dust">
+            <i style="--x:7%;--y:14%;--s:1.6;--d:0"></i><i style="--x:19%;--y:31%;--s:1;--d:5"></i>
+            <i style="--x:28%;--y:9%;--s:1.2;--d:11"></i><i style="--x:41%;--y:25%;--s:.8;--d:3"></i>
+            <i style="--x:53%;--y:12%;--s:1.4;--d:8"></i><i style="--x:64%;--y:33%;--s:1;--d:14"></i>
+            <i style="--x:72%;--y:7%;--s:1.1;--d:2"></i><i style="--x:81%;--y:27%;--s:1.5;--d:9"></i>
+            <i style="--x:88%;--y:17%;--s:.9;--d:6"></i><i style="--x:95%;--y:36%;--s:1.2;--d:12"></i>
+        </div>
+        <div class="stage-cursor"></div>
+    </div>
+
+    <div class="crt-roll" aria-hidden="true"></div>
+
     <div class="hub-shell">
 
         <header class="hub-head">
@@ -33,7 +49,7 @@
             <ul class="game-list">
 
                 <!-- ==================== UNDEAD NIGHTMARE ==================== -->
-                <li>
+                <li class="game-item" style="--i:0">
                     <a class="game-card card-undead" href="undead-nightmare/index.html">
                         <div class="card-thumb">
                             <div class="thumb-art">
@@ -228,15 +244,18 @@
 
                         <div class="card-body">
                             <p class="card-desc">
-                                Top-down wave survival. Four weapons, three arenas, and a horde
-                                that gets meaner every wave.
+                                A top-down survival shooter about running out of room. Every few
+                                waves the horde adds a new problem, from sprinters that flank to
+                                brutes that soak two hundred damage, and your pistol is the only
+                                gun that never runs dry.
                             </p>
                         </div>
+                        <span class="card-sheen" aria-hidden="true"></span>
                     </a>
                 </li>
 
                 <!-- ==================== GRAND HEIST ==================== -->
-                <li>
+                <li class="game-item" style="--i:1">
                     <a class="game-card card-heist" href="grand-heist/index.html">
                         <div class="card-thumb">
                             <div class="thumb-art">
@@ -426,10 +445,13 @@
 
                         <div class="card-body">
                             <p class="card-desc">
-                                Arcade heist shooter. Build a crew, rob 20 banks, and spend
-                                the haul on everything from a knife to a plasma cannon.
+                                A heist run where the crew is the build. Traits decide how fast
+                                someone cracks a vault and how much pressure they take, and twenty
+                                banks between a pawn shop and the Treasury pay for a ladder of gear
+                                that ends in a singularity cannon.
                             </p>
                         </div>
+                        <span class="card-sheen" aria-hidden="true"></span>
                     </a>
                 </li>
 
@@ -445,5 +467,6 @@
     </div>
 
     <script src="/public/site.js"></script>
+    <script src="hub.js"></script>
 </body>
 </html>

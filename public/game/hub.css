@@ -1,30 +1,38 @@
 /* ============================================================
-   RoboKyle Arcade - hub / game index stylesheet
-   Self-contained: this page does not load index.css, so the
-   shared bits (palette, skip link, focus ring) are repeated
-   here on purpose. Palette matches the games' dark shell.
+   RoboKyle Arcade, hub stylesheet.
 
-   Each card carries its own --accent, so its border, glow and
-   Play button all pick up that game's colour without a second
-   block of per-game rules.
+   The page is one idea: a dark room, and the games are the only
+   things lit in it. Everything in the environment is cool and
+   dim, every warm colour comes from a cabinet, and each card
+   throws its own light onto the floor. That is why the palette
+   splits into a cold half and a per card --accent rather than
+   one page wide tint.
+
+   Self contained: this page does not load index.css, so the
+   shared bits (skip link, focus ring, sr-only) are repeated
+   here on purpose.
    ============================================================ */
 
 :root {
-    /* Chrome is cool and neutral. The page used to wash everything in red,
-       which fought Grand Heist's steel and gold; now the only warm colour
-       on the page comes from the cards themselves. */
-    --gm-bg:        #07080C;
-    --gm-bg-2:      #0B0C12;
-    --gm-panel:     #0E1017;
-    --gm-line:      #262A38;
-    --gm-line-soft: #1A1D27;
-    --gm-ink:       #F1E4D2;
-    --gm-ink-soft:  #AEB4C2;
-    --gm-ink-mute:  #6E7482;
-    --gm-orange:    #E3552B;
-    --gm-orange-hot:#FF7A3D;
-    --gm-gold:      #E0B44C;
-    --gm-green:     #7BC59A;
+    /* the room */
+    --void:      #04050A;
+    --void-2:    #070A12;
+    --panel:     #0C1018;
+    --line:      #202839;
+    --line-soft: #161C29;
+    --grid:      rgba(122,172,238,.32);
+    --grid-hot:  rgba(168,212,255,.8);
+
+    /* type */
+    --ink:       #F1E4D2;
+    --ink-soft:  #A8B2C4;
+    --ink-mute:  #67717F;
+
+    /* the cabinets */
+    --orange:     #E3552B;
+    --orange-hot: #FF7A3D;
+    --gold:       #E0B44C;
+    --green:      #7BC59A;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -32,17 +40,8 @@
 body.hub-body {
     margin: 0;
     min-height: 100vh;
-    background-color: var(--gm-bg);
-    background-image:
-        /* lit from above, like a cabinet in an otherwise dark room */
-        radial-gradient(112% 62% at 50% -12%, rgba(128,152,208,.15) 0%, transparent 66%),
-        /* a little bounce back off the floor */
-        radial-gradient(78% 44% at 50% 108%, rgba(108,130,180,.07) 0%, transparent 72%),
-        /* and the edges fall away */
-        radial-gradient(132% 96% at 50% 42%, transparent 50%, rgba(0,0,0,.82) 100%);
-    background-attachment: fixed;
-    background-repeat: no-repeat;
-    color: var(--gm-ink);
+    background: var(--void);
+    color: var(--ink);
     font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     position: relative;
@@ -51,39 +50,165 @@ body.hub-body {
     flex-direction: column;
 }
 
-/* A dot matrix that thins out as it falls: texture with a machine-shop
-   feel, and no stripes to moire against the card art. */
-body.hub-body::before {
-    content: "";
+/* ===== The room ===================================================== */
+
+.stage {
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background-image: radial-gradient(rgba(176,196,232,.22) .9px, transparent 1px);
-    background-size: 24px 24px;
-    mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.4) 44%, transparent 80%);
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.4) 44%, transparent 80%);
+    overflow: hidden;
 }
 
-/* Grain, over everything. This is the layer that stops a CSS gradient from
-   looking like a CSS gradient - without it the page reads as flat bands. */
+/* Air above the floor. Cool and almost empty, so the cards read as
+   the only source of warmth on the page. */
+.stage-haze {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(100% 62% at 50% 4%, rgba(74,116,186,.16) 0%, transparent 64%),
+        radial-gradient(72% 46% at 50% 58%, rgba(58,92,152,.14) 0%, transparent 70%),
+        linear-gradient(to bottom, var(--void) 0%, var(--void-2) 48%, var(--void) 100%);
+}
+
+/* A tiled floor running back to a vanishing point.
+
+   The origin has to be the BOTTOM edge. Tipping from the top rotates the
+   near end away from the viewer and the plane reads as streaks in the
+   corners rather than a floor. Pinned at the bottom, the far end lays
+   down toward the horizon, which is what we want. */
+.stage-floor {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 68%;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 88%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 88%, transparent 100%);
+}
+.stage-grid {
+    position: absolute;
+    left: -60%;
+    right: -60%;
+    bottom: 0;
+    height: 200%;
+    transform: perspective(440px) rotateX(64deg);
+    transform-origin: 50% 100%;
+    background-image:
+        linear-gradient(to right,  var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 94px 94px;
+    animation: gridRun 6s linear infinite;
+}
+@keyframes gridRun { to { background-position: 0 94px; } }
+
+/* The line where the floor meets the dark, plus its bloom. */
+.stage-horizon {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 68%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--grid-hot) 26%, var(--grid-hot) 74%, transparent);
+    opacity: .55;
+}
+.stage-horizon::before {
+    content: "";
+    position: absolute;
+    left: -20%;
+    right: -20%;
+    top: -120px;
+    height: 260px;
+    background: radial-gradient(46% 100% at 50% 50%, rgba(132,184,250,.26) 0%, transparent 76%);
+}
+
+/* Dust in the air. */
+.stage-dust { position: absolute; inset: 0; }
+.stage-dust i {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: calc(var(--s) * 2px);
+    height: calc(var(--s) * 2px);
+    border-radius: 50%;
+    background: rgba(178,208,255,.7);
+    opacity: 0;
+    animation: dustDrift 19s ease-in-out infinite;
+    animation-delay: calc(var(--d) * -1.9s);
+}
+@keyframes dustDrift {
+    0%   { opacity: 0;   transform: translate3d(0, 14px, 0); }
+    18%  { opacity: .55; }
+    72%  { opacity: .3; }
+    100% { opacity: 0;   transform: translate3d(18px, -52px, 0); }
+}
+
+/* A soft light that follows the pointer. hub.js sets --mx / --my; with no
+   script the light simply sits in the middle and nothing looks broken. */
+.stage-cursor {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        320px 320px at var(--mx, 50%) var(--my, 38%),
+        rgba(126,172,240,.11) 0%,
+        transparent 70%);
+    transition: opacity .4s ease;
+}
+
+/* ===== Overlays, above the content ================================== */
+
+/* Scanlines and a vignette. Both very light: enough to suggest a screen,
+   not enough to fight the card art underneath. */
+body.hub-body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(to bottom,
+            rgba(0,0,0,.16) 0 1px, transparent 1px 3px),
+        radial-gradient(130% 96% at 50% 42%, transparent 48%, rgba(0,0,0,.86) 100%);
+}
+
+.crt-roll {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 44vh;
+    z-index: 5;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+        transparent 0%, rgba(184,216,255,.05) 48%, transparent 100%);
+    animation: crtRoll 8.5s linear infinite;
+}
+@keyframes crtRoll {
+    from { transform: translateY(-56vh); }
+    to   { transform: translateY(152vh); }
+}
+
+/* Grain. This is the layer that stops a CSS gradient reading as one. */
 body.hub-body::after {
     content: "";
     position: fixed;
     inset: 0;
-    z-index: 2;
+    z-index: 4;
     pointer-events: none;
-    opacity: .05;
+    opacity: .055;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
 }
+
+/* ===== Furniture ==================================================== */
 
 .skip-link {
     position: absolute;
     top: -100px;
     left: 12px;
     z-index: 100;
-    background: var(--gm-ink);
-    color: var(--gm-bg);
+    background: var(--ink);
+    color: var(--void);
     padding: .6rem .9rem;
     border-radius: 8px;
     text-decoration: none;
@@ -92,7 +217,7 @@ body.hub-body::after {
 .skip-link:focus { top: 12px; }
 
 .hub-body :focus-visible {
-    outline: 3px solid var(--gm-orange);
+    outline: 3px solid var(--orange);
     outline-offset: 3px;
     border-radius: 4px;
 }
@@ -111,7 +236,7 @@ body.hub-body::after {
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: 1120px;
+    max-width: 1180px;
     margin: 0 auto;
     padding: clamp(2rem, 5vw, 4rem) clamp(1.1rem, 4vw, 2.5rem) 3rem;
     flex: 1;
@@ -120,122 +245,173 @@ body.hub-body::after {
     justify-content: center;
 }
 
-/* ---------- Masthead ---------- */
+/* ===== Marquee ====================================================== */
+
 .hub-head {
-    margin-bottom: clamp(2rem, 4.5vw, 3rem);
-    padding-bottom: clamp(1.4rem, 3vw, 2rem);
-    border-bottom: 1px solid var(--gm-line-soft);
+    margin-bottom: clamp(2.2rem, 5vw, 3.4rem);
+    text-align: center;
 }
-.hub-head .hub-logo { margin-bottom: 0; }
 
 .hub-logo {
     font-family: 'Black Ops One', 'Fraunces', Impact, sans-serif;
-    font-size: clamp(2.5rem, 8.5vw, 5rem);
+    font-size: clamp(2.05rem, 8.6vw, 5.6rem);
     line-height: .92;
     letter-spacing: .01em;
-    margin: 0 0 .55rem;
+    margin: 0;
     text-transform: uppercase;
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: .1em;
-    filter: drop-shadow(0 6px 14px rgba(0,0,0,.6));
+    justify-content: center;
+    gap: .08em;
 }
+.hub-logo .robo,
+.hub-logo .kyle { transform: skew(-6deg); }
+
 .hub-logo .robo {
-    color: #F4EADA;
+    color: #FBF3E6;
     -webkit-text-stroke: 1.5px #000;
-    text-shadow: 0 3px 0 #000;
-    transform: skew(-6deg);
+    text-shadow:
+        0 3px 0 #000,
+        0 0 18px rgba(214,232,255,.35),
+        0 0 46px rgba(120,170,240,.22);
 }
+
+/* The one thing on the page that behaves like a neon tube. */
 .hub-logo .kyle {
-    color: var(--gm-orange);
+    color: var(--orange-hot);
     -webkit-text-stroke: 1.5px #000;
-    text-shadow: 0 3px 0 #000, 0 0 28px rgba(227,85,43,.6);
-    transform: skew(-6deg);
-    animation: emberFlicker 3.5s ease-in-out infinite;
+    text-shadow:
+        0 3px 0 #000,
+        0 0 10px rgba(255,122,61,.85),
+        0 0 30px rgba(227,85,43,.7),
+        0 0 70px rgba(227,85,43,.45),
+        0 0 120px rgba(180,35,28,.35);
+    animation: neonStrike .95s steps(1, end) both,
+               tubeHum 5.5s ease-in-out .95s infinite;
 }
-@keyframes emberFlicker {
-    0%, 100% { filter: brightness(1); }
-    45%      { filter: brightness(1.14); }
-    55%      { filter: brightness(.94); }
+@keyframes neonStrike {
+    0%, 16%   { opacity: .5; filter: brightness(.55); }
+    19%, 26%  { opacity: 1;  filter: brightness(1.35); }
+    29%, 38%  { opacity: .6; filter: brightness(.62); }
+    41%, 49%  { opacity: 1;  filter: brightness(1.22); }
+    52%, 58%  { opacity: .7; filter: brightness(.75); }
+    61%, 100% { opacity: 1;  filter: brightness(1); }
 }
-/* "Arcade" drops to a quieter weight so the wordmark stays the wordmark. */
+@keyframes tubeHum {
+    0%, 100%      { filter: brightness(1); }
+    42%           { filter: brightness(1.12); }
+    46%           { filter: brightness(.9); }
+    49%           { filter: brightness(1.14); }
+    54%           { filter: brightness(.97); }
+}
+
 .hub-logo .arcade {
-    font-size: .42em;
-    letter-spacing: .3em;
-    color: var(--gm-ink-mute);
+    font-size: .3em;
+    letter-spacing: .52em;
+    text-indent: .52em;
+    color: var(--ink-mute);
     -webkit-text-stroke: 0;
     text-shadow: none;
     transform: skew(-6deg);
-    margin-left: .35em;
+    align-self: center;
+    margin-left: .5em;
 }
 
-/* ---------- Card grid ---------- */
+/* A thin rule with a lit centre, like light spilling under a door. */
+.hub-head::after {
+    content: "";
+    display: block;
+    height: 1px;
+    margin: clamp(1.2rem, 3vw, 1.9rem) auto 0;
+    max-width: 640px;
+    background: linear-gradient(to right,
+        transparent, var(--line), rgba(160,200,255,.45), var(--line), transparent);
+}
+
+/* ===== The lineup =================================================== */
+
 .game-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-    gap: clamp(1rem, 2.4vw, 1.6rem);
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: clamp(1.1rem, 2.6vw, 1.9rem);
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
+.game-item {
+    perspective: 1200px;
+    animation: cabinetIn .7s cubic-bezier(.2,.7,.3,1) backwards;
+    animation-delay: calc(var(--i, 0) * 130ms + 120ms);
+}
+@keyframes cabinetIn {
+    from { opacity: 0; transform: translateY(26px); }
+    to   { opacity: 1; transform: none; }
+}
+
 .game-card {
-    --accent: var(--gm-orange);
+    --accent: var(--orange);
+    --lift: 0px;
+    --rx: 0deg;
+    --ry: 0deg;
     position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: linear-gradient(var(--gm-panel), var(--gm-bg-2));
-    border: 1px solid var(--gm-line-soft);
-    border-radius: 16px;
+    background: linear-gradient(var(--panel), var(--void-2));
+    border: 1px solid var(--line-soft);
+    border-radius: 18px;
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 26px rgba(0,0,0,.55);
+    transform: translateY(var(--lift)) rotateX(var(--rx)) rotateY(var(--ry));
+    transform-style: preserve-3d;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 12px 30px rgba(0,0,0,.6);
     box-shadow:
         inset 0 1px 0 rgba(255,255,255,.05),
-        0 24px 48px -28px color-mix(in srgb, var(--accent) 60%, transparent),
-        0 10px 26px rgba(0,0,0,.55);
-    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+        0 26px 52px -28px color-mix(in srgb, var(--accent) 62%, transparent),
+        0 12px 30px rgba(0,0,0,.6);
+    transition: transform .25s cubic-bezier(.2,.7,.3,1),
+                border-color .25s ease, box-shadow .25s ease;
 }
-.game-card.card-undead { --accent: var(--gm-orange); }
-.game-card.card-heist  { --accent: var(--gm-gold); }
+.game-card.card-undead { --accent: var(--orange); }
+.game-card.card-heist  { --accent: var(--gold); }
 
 a.game-card:hover,
 a.game-card:focus-visible {
-    transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    --lift: -6px;
+    border-color: color-mix(in srgb, var(--accent) 58%, transparent);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.09),
-        0 34px 62px -26px color-mix(in srgb, var(--accent) 78%, transparent),
-        0 16px 34px rgba(0,0,0,.6);
+        inset 0 1px 0 rgba(255,255,255,.1),
+        0 40px 74px -26px color-mix(in srgb, var(--accent) 82%, transparent),
+        0 18px 38px rgba(0,0,0,.66);
 }
+/* While the pointer is steering a card, drop the easing so it tracks. */
+.game-card.is-tilting { transition: border-color .25s ease, box-shadow .25s ease; }
 
-/* ---------- Thumbnail ---------- */
+/* ===== Thumbnail ==================================================== */
+
 .card-thumb {
     position: relative;
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #06050A;
-    border-bottom: 1px solid var(--gm-line-soft);
+    border-bottom: 1px solid var(--line-soft);
 }
 
 .thumb-art {
     position: absolute;
     inset: 0;
-    transition: transform .45s cubic-bezier(.2,.7,.3,1);
+    transition: transform .5s cubic-bezier(.2,.7,.3,1);
     will-change: transform;
 }
-.thumb-art .art {
-    display: block;
-    width: 100%;
-    height: 100%;
-}
-a.game-card:hover .thumb-art,
-a.game-card:focus-visible .thumb-art { transform: scale(1.055); }
+.thumb-art .art { display: block; width: 100%; height: 100%; }
 
-/* Darkens the bottom-left so the wordmark always has something to sit on,
+a.game-card:hover .thumb-art,
+a.game-card:focus-visible .thumb-art { transform: scale(1.06); }
+
+/* Darkens the bottom left so the wordmark always has something to sit on,
    which is why the busy half of both scenes is drawn to the right. */
 .thumb-scrim {
     position: absolute;
@@ -244,7 +420,6 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.055); }
     background:
         linear-gradient(to top, rgba(4,3,8,.92) 0%, rgba(4,3,8,.62) 14%, rgba(4,3,8,.18) 32%, rgba(4,3,8,0) 46%),
         linear-gradient(to right, rgba(4,3,8,.58) 0%, rgba(4,3,8,0) 48%);
-    transition: opacity .2s ease;
 }
 
 .thumb-mark {
@@ -270,14 +445,14 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.055); }
     transform: skew(-6deg);
 }
 .mark-brand .kyle {
-    color: var(--gm-orange-hot);
+    color: var(--orange-hot);
     text-shadow: 0 1.5px 0 #000, 0 0 8px rgba(0,0,0,.9), 0 0 16px rgba(227,85,43,.7);
     transform: skew(-6deg);
 }
 .mark-name {
     display: block;
     font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: clamp(1.15rem, 4.4vw, 1.62rem);
+    font-size: clamp(1.2rem, 4.6vw, 1.72rem);
     line-height: 1.02;
     letter-spacing: .015em;
     text-transform: uppercase;
@@ -292,7 +467,7 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.055); }
     text-shadow: 0 2px 0 #000, 0 0 20px rgba(224,180,76,.6);
 }
 
-/* Play button. Sits bottom-right, quiet until the card is hovered. */
+/* Play button, quiet until the cabinet is hovered. */
 .card-cta {
     position: absolute;
     right: clamp(.7rem, 3%, 1rem);
@@ -306,7 +481,7 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.055); }
     text-transform: uppercase;
     padding: .48rem .78rem;
     border-radius: 8px;
-    color: var(--gm-ink);
+    color: var(--ink);
     background: rgba(9,7,12,.72);
     border: 1px solid rgba(241,228,210,.22);
     backdrop-filter: blur(3px);
@@ -323,7 +498,25 @@ a.game-card:focus-visible .card-cta {
     transform: translateX(-2px);
 }
 
-/* Status flag. Not used while everything on the page is playable - kept for
+/* Glass. A specular highlight that tracks the pointer across the cabinet,
+   which is what sells the tilt as a physical object rather than a skew. */
+.card-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity .3s ease;
+    background: radial-gradient(
+        380px 380px at var(--px, 50%) var(--py, 0%),
+        rgba(255,255,255,.1) 0%,
+        rgba(255,255,255,.03) 34%,
+        transparent 62%);
+}
+a.game-card:hover .card-sheen { opacity: 1; }
+
+/* Status flag. Not used while everything on the page is playable, kept for
    the first game that ships unfinished. */
 .card-flag {
     position: absolute;
@@ -342,43 +535,38 @@ a.game-card:focus-visible .card-cta {
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
 }
-.card-flag i {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
-}
+.card-flag i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .card-flag.is-live {
-    color: var(--gm-green);
+    color: var(--green);
     background: rgba(9,24,17,.8);
     border: 1px solid rgba(123,197,154,.38);
 }
 .card-flag.is-soon {
-    color: var(--gm-ink-mute);
+    color: var(--ink-mute);
     background: rgba(20,15,16,.85);
-    border: 1px solid var(--gm-line);
+    border: 1px solid var(--line);
 }
 
-/* ---------- Card text ---------- */
+/* ===== Card text ==================================================== */
+
 .card-body {
-    padding: .9rem 1.05rem 1.05rem;
+    padding: 1rem 1.15rem 1.15rem;
     flex: 1;
 }
 
 .card-desc {
-    color: var(--gm-ink-soft);
-    font-size: .84rem;
-    line-height: 1.55;
+    color: var(--ink-soft);
+    font-size: .87rem;
+    line-height: 1.6;
     margin: 0;
 }
 
-/* ---------- Placeholder card, for a title that is not playable yet ---------- */
 .game-card.is-placeholder {
     border-style: dashed;
     opacity: .7;
     pointer-events: none;
 }
-.game-card.is-placeholder .mark-name { color: var(--gm-ink-mute); }
+.game-card.is-placeholder .mark-name { color: var(--ink-mute); }
 
 /* ============================================================
    Thumbnail art animation
@@ -390,7 +578,7 @@ a.game-card:focus-visible .card-cta {
    transform-box says which coordinate system the origin is in.
    ============================================================ */
 
-/* -- Undead Nightmare: embers rising off the street -- */
+/* Undead Nightmare: embers rising off the street */
 .un-ember {
     transform-box: fill-box;
     transform-origin: center;
@@ -420,7 +608,7 @@ a.game-card:focus-visible .card-cta {
     30%, 100%   { opacity: .62; transform: scale(.94); }
 }
 
-/* -- Grand Heist: the door works, the torch sweeps, the gold winks -- */
+/* Grand Heist: the door works, the torch sweeps, the gold winks */
 .gh-ring {
     transform-box: view-box;
     transform-origin: 312px 100px;
@@ -454,13 +642,14 @@ a.game-card:focus-visible .card-cta {
     50%      { opacity: 1;   transform: scale(1); }
 }
 
-/* Hovering a card spins its vault up - the one bit of art that reacts. */
+/* Hovering a card spins its vault up, the one bit of art that reacts. */
 a.game-card:hover .gh-ring,
 a.game-card:focus-visible .gh-ring { animation-duration: 9s; }
 a.game-card:hover .gh-dial,
 a.game-card:focus-visible .gh-dial { animation-duration: 6s; }
 
-/* ---------- Footer nav ---------- */
+/* ===== Footer ======================================================= */
+
 .back-strip {
     display: flex;
     flex-wrap: wrap;
@@ -468,31 +657,35 @@ a.game-card:focus-visible .gh-dial { animation-duration: 6s; }
     gap: clamp(1rem, 4vw, 2.2rem);
     margin-top: clamp(2.4rem, 5vw, 3.4rem);
     padding-top: 1.6rem;
-    border-top: 1px solid var(--gm-line-soft);
+    border-top: 1px solid var(--line-soft);
 }
 .back-strip a {
-    color: var(--gm-ink-soft);
+    color: var(--ink-soft);
     text-decoration: none;
     font-size: .85rem;
     transition: color .15s ease;
 }
-.back-strip a:hover { color: var(--gm-orange); }
+.back-strip a:hover { color: var(--orange); }
 
-/* ---------- Narrow screens ---------- */
-@media (max-width: 420px) {
+/* ===== Narrow screens =============================================== */
+
+@media (max-width: 460px) {
     .game-list { grid-template-columns: 1fr; }
     .thumb-mark { right: 4.6rem; }
     .card-cta { font-size: .66rem; padding: .42rem .62rem; }
+    .hub-logo .arcade { letter-spacing: .34em; text-indent: .34em; }
+    .stage-floor { height: 54%; }
+    .stage-horizon { bottom: 54%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .game-card, .thumb-art, .card-cta, .thumb-scrim { transition: none; }
-    a.game-card:hover, a.game-card:focus-visible { transform: none; }
+    .game-card, .thumb-art, .card-cta, .card-sheen { transition: none; }
     a.game-card:hover .thumb-art,
     a.game-card:focus-visible .thumb-art { transform: none; }
-    .hub-logo .kyle,
+    .game-item, .stage-grid, .stage-dust i, .hub-logo .kyle, .crt-roll,
     .un-ember, .un-shot,
     .gh-ring, .gh-dial, .gh-beam, .gh-glint { animation: none; }
+    .stage-dust i { opacity: .4; }
     .un-ember { opacity: .8; }
     .gh-glint { opacity: .85; }
 }
