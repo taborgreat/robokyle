@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=14';
-import { buildCraft, CRAFT } from './craft.js?v=14';
-import { createAudio } from './audio.js?v=14';
-import { createEffects } from './effects.js?v=14';
+import { createWorld, ENEMY_GUNS } from './world.js?v=15';
+import { buildCraft, CRAFT } from './craft.js?v=15';
+import { createAudio } from './audio.js?v=15';
+import { createEffects } from './effects.js?v=15';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -38,7 +38,7 @@ const MAPS = [
     id: 'islands',
     name: 'The Islands',
     craft: 'plane',
-    flyer: 'Sport plane',
+    flyer: 'Fighter',
     blurb: 'Open water, scattered islands, and everything that floats over them.',
     ready: true,
     art: `<svg viewBox="0 0 132 84" aria-hidden="true" focusable="false">

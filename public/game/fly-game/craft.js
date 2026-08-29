@@ -182,210 +182,318 @@ function buildCat({ scarf = null, jacket = PAINT.brown } = {}) {
   };
 }
 
-/* ===== A sport plane, the default ===== */
+/* ==================================================================
+   The fighter, and the default.
+
+   A single engine low wing monoplane with a crew of two, which is the
+   shape that lets both of them be seen: the wing passes under the
+   fuselage rather than across the top of it, so the cockpits sit on the
+   spine with nothing over them, and the pilot sits over the wing rather
+   than out in front of it. The front seat is set higher than the back
+   one on purpose. From a chase camera the gunner is the nearer of the
+   two, and level seats would put his ears through the pilot's face.
+   ================================================================== */
 
 function buildPlane() {
   const g = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.62, 2.5, 6, 14), mat(PAINT.red));
+  const redMat   = mat(PAINT.red);
+  const creamMat = mat(PAINT.cream);
+  const darkMat  = mat(PAINT.dark);
+  const steelMat = mat(PAINT.steel);
+
+  /* --- Fuselage: a barrel, a long taper aft, a cowl and a spinner. --- */
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.72, 3.4, 6, 16), redMat);
   body.rotation.x = Math.PI / 2;
   g.add(body);
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.1, 14), mat(PAINT.red));
-  nose.rotation.x = -Math.PI / 2;
-  nose.position.z = -2.1;
-  g.add(nose);
+  // Rear fuselage. A cylinder with two radii is the cheapest taper there
+  // is, and the taper is most of what makes this read as a fighter rather
+  // than as a tube with wings.
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.72, 1.9, 14), redMat);
+  boom.rotation.x = Math.PI / 2;
+  boom.position.z = 2.55;
+  g.add(boom);
 
-  // Open cockpit, moved forward of the wing. A dome here hid the pilot
-  // twice over: the glass is opaque, and the wing crosses the top of the
-  // fuselage at exactly head height, so anything sitting under a canopy is
-  // buried inside the wing. Cut the roof off and put the seat ahead of the
-  // leading edge and the cat is the thing you actually look at.
-  const coaming = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.065, 6, 16), mat(PAINT.brown));
-  coaming.rotation.x = Math.PI / 2;
-  coaming.position.set(0, 0.52, -1.05);
-  g.add(coaming);
+  const cowl = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.60, 1.5, 16), redMat);
+  cowl.rotation.x = Math.PI / 2;
+  cowl.position.z = -2.35;
+  g.add(cowl);
 
-  const screen = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.3, 0.05),
-    mat(PAINT.glass, { transparent: true, opacity: 0.55 })
-  );
-  screen.position.set(0, 0.72, -1.42);
-  screen.rotation.x = 0.35;
-  g.add(screen);
+  const cowlLip = new THREE.Mesh(new THREE.TorusGeometry(0.60, 0.075, 8, 20), creamMat);
+  cowlLip.position.z = -3.08;
+  g.add(cowlLip);
 
-  // High wing, the shape that reads most clearly as a friendly aeroplane.
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.18, 1.5), mat(PAINT.cream));
-  wing.position.set(0, 0.5, -0.1);
-  g.add(wing);
+  const spinner = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.95, 16), creamMat);
+  spinner.rotation.x = -Math.PI / 2;
+  spinner.position.z = -3.55;
+  g.add(spinner);
 
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.06, 0.34), mat(PAINT.red));
-  stripe.position.set(0, 0.61, -0.5);
-  g.add(stripe);
+  // Exhaust stacks down both sides of the cowl. Six a side, which is what
+  // twelve cylinders gives you, and they say engine louder than the cowl
+  // they are stuck to does.
+  const stackGeo = new THREE.BoxGeometry(0.12, 0.11, 0.16);
+  for (const sx of [-0.58, 0.58]) {
+    for (let i = 0; i < 6; i++) {
+      const st = new THREE.Mesh(stackGeo, darkMat);
+      st.position.set(sx, 0.24, -2.85 + i * 0.24);
+      g.add(st);
+    }
+  }
 
-  const strutL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.14), mat(PAINT.cream));
-  strutL.position.set(-1.5, 0.24, 0);
-  g.add(strutL);
-  const strutR = strutL.clone(); strutR.position.x = 1.5; g.add(strutR);
+  // Oil cooler under the nose and the radiator bath behind the wing, both
+  // of which every liquid cooled fighter of the period wore somewhere.
+  const oilCooler = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.30, 0.55), darkMat);
+  oilCooler.position.set(0, -0.62, -2.3);
+  g.add(oilCooler);
 
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.16, 0.9), mat(PAINT.cream));
-  tail.position.set(0, 0.2, 1.85);
-  g.add(tail);
+  const radiator = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.44, 1.35), creamMat);
+  radiator.position.set(0, -0.70, 0.15);
+  g.add(radiator);
+  const radLip = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.46, 0.10), darkMat);
+  radLip.position.set(0, -0.70, -0.5);
+  g.add(radLip);
 
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.15, 1.0), mat(PAINT.red));
-  fin.position.set(0, 0.75, 2.0);
-  g.add(fin);
-
-  // Propeller: a blurred disc plus blades. The disc is what sells motion at
-  // speed, the blades are what stop it looking like a plate when slow.
-  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat(PAINT.navy));
-  hub.position.z = -2.7;
-  g.add(hub);
+  /* --- Propeller: three blades, because two reads as a trainer. --- */
 
   const prop = new THREE.Group();
-  prop.position.z = -2.72;
-  const bladeGeo = new THREE.BoxGeometry(0.16, 2.5, 0.06);
+  prop.position.z = -3.95;
+  const bladeGeo = new THREE.BoxGeometry(0.2, 3.1, 0.08);
   const bladeMat = mat(PAINT.navy);
-  const b1 = new THREE.Mesh(bladeGeo, bladeMat);
-  const b2 = new THREE.Mesh(bladeGeo, bladeMat);
-  b2.rotation.z = Math.PI / 2;
-  prop.add(b1, b2);
+  for (let i = 0; i < 3; i++) {
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.rotation.z = (i * Math.PI * 2) / 3;
+    prop.add(blade);
+  }
   g.add(prop);
 
   const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(1.3, 20),
+    new THREE.CircleGeometry(1.62, 24),
     new THREE.MeshBasicMaterial({ color: 0xDCE6EE, transparent: true, opacity: 0.16, side: THREE.DoubleSide })
   );
-  disc.position.z = -2.74;
+  disc.position.z = -3.98;
   g.add(disc);
 
-  // Engine cowling: a ring at the front so the nose is not just a smooth cone.
-  const cowl = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.11, 8, 18), mat(PAINT.cream));
-  cowl.position.z = -2.4;
-  g.add(cowl);
+  /* --- Wing.
 
-  const exhaustGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.6, 6);
-  const exhaustMat = mat(PAINT.dark);
-  for (const sx of [-0.42, 0.42]) {
-    const ex = new THREE.Mesh(exhaustGeo, exhaustMat);
-    ex.rotation.x = Math.PI / 2;
-    ex.position.set(sx, -0.22, -1.7);
-    g.add(ex);
+     One symmetric polygon across the whole span rather than a panel
+     mirrored twice: a mirrored mesh has its winding inverted and can
+     render inside out, and a single shape cannot. Tapered, with rounded
+     tips. Laid flat, the extrude depth becomes the thickness. --- */
+
+  const plan = new THREE.Shape();
+  plan.moveTo(-4.30, 1.50);
+  plan.lineTo(-4.25, 1.78);
+  plan.lineTo(-3.55, 2.02);
+  plan.lineTo(0, 2.30);
+  plan.lineTo(3.55, 2.02);
+  plan.lineTo(4.25, 1.78);
+  plan.lineTo(4.30, 1.50);
+  plan.lineTo(4.25, 1.28);
+  plan.lineTo(3.55, 1.04);
+  plan.lineTo(0, 0.30);
+  plan.lineTo(-3.55, 1.04);
+  plan.lineTo(-4.25, 1.28);
+  plan.closePath();
+
+  const wing = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(plan, { depth: 0.18, bevelEnabled: false }),
+    creamMat
+  );
+  wing.rotation.x = -Math.PI / 2;
+  wing.position.y = -0.30;
+  g.add(wing);
+
+  // Root fillet, blending the wing into the belly the way a fairing does.
+  const fillet = new THREE.Mesh(new THREE.SphereGeometry(0.92, 14, 10), redMat);
+  fillet.scale.set(1.05, 0.42, 1.5);
+  fillet.position.set(0, -0.28, -1.3);
+  g.add(fillet);
+
+  // Gear doors, closed. The wheels are up, because a fighter with its
+  // legs down in cruise is a fighter about to be shot at.
+  const doorGeo = new THREE.BoxGeometry(0.72, 0.06, 1.15);
+  for (const sx of [-1.15, 1.15]) {
+    const door = new THREE.Mesh(doorGeo, mat(0xE3DCC8));
+    door.position.set(sx, -0.33, -1.5);
+    g.add(door);
   }
 
-  // The pilot. Head and shoulders out of the coaming, paws up on the rim,
-  // scarf over the wing behind.
-  const pilot = buildCat({ scarf: PAINT.red });
-  pilot.group.position.set(0, 0.28, -1.05);
-  g.add(pilot.group);
+  /* --- Tail. --- */
 
-  /* The back seat.
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.16, 1.05), creamMat);
+  tail.position.set(0, 0.16, 2.85);
+  g.add(tail);
+  const elevator = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.10, 0.34), mat(0xE9E2D2));
+  elevator.position.set(0, 0.16, 3.28);
+  g.add(elevator);
 
-     The gun sits on a ring that the whole seat turns with, so the gunner
-     swings round with it and stays behind the sights, rather than facing
-     forward while the barrel tracks away on its own. Behind the trailing
-     edge, which is the only part of the deck the wing does not cross. */
-  const gunRing = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.065, 6, 16), mat(PAINT.brown));
-  gunRing.rotation.x = Math.PI / 2;
-  gunRing.position.set(0, 0.52, 0.95);
-  g.add(gunRing);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.15, 1.30), redMat);
+  fin.position.set(0, 0.75, 2.95);
+  g.add(fin);
+  const rudder = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.95, 0.42), creamMat);
+  rudder.position.set(0, 0.68, 3.5);
+  g.add(rudder);
 
-  const turret = new THREE.Group();      // yaw, the ring turning
-  turret.position.set(0, 0.28, 0.95);
-  g.add(turret);
+  const tailLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.28, 6), steelMat);
+  tailLeg.position.set(0, -0.46, 3.15);
+  g.add(tailLeg);
+  const tailWheel = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.06, 6, 10), darkMat);
+  tailWheel.position.set(0, -0.63, 3.15);
+  tailWheel.rotation.y = Math.PI / 2;
+  g.add(tailWheel);
 
-  const gunner = buildCat({ scarf: PAINT.gold, jacket: PAINT.navy });
-  turret.add(gunner.group);
+  /* --- Markings and seams. --- */
 
-  const gunMetal = mat(PAINT.dark);
-  const gunSteel = mat(PAINT.steel);
-
-  // The post the whole thing swings on, so the guns are standing on the
-  // ring rather than hanging in the air above it.
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.32, 6), gunMetal);
-  post.position.set(0, 0.28, -0.26);
-  turret.add(post);
-
-  const mount = new THREE.Group();       // pitch, the guns in the ring
-  mount.position.set(0, 0.42, -0.26);
-  turret.add(mount);
-
-  // A twin mount, the way the rear station on these actually was: two guns
-  // side by side on one yoke, firing alternately.
-  const bodyGeo   = new THREE.BoxGeometry(0.12, 0.13, 0.42);
-  const barrelGeo = new THREE.CylinderGeometry(0.042, 0.042, 1.0, 8);
-  const drumGeo   = new THREE.CylinderGeometry(0.115, 0.115, 0.065, 12);
-  for (const sx of [-0.11, 0.11]) {
-    const gunBody = new THREE.Mesh(bodyGeo, gunMetal);
-    gunBody.position.x = sx;
-    mount.add(gunBody);
-    const barrel = new THREE.Mesh(barrelGeo, gunMetal);
-    barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(sx, 0, -0.6);
-    mount.add(barrel);
-    const drum = new THREE.Mesh(drumGeo, gunSteel);
-    drum.position.set(sx, 0.13, 0.04);
-    mount.add(drum);
-  }
-
-  const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.07, 0.13), gunMetal);
-  mount.add(yoke);
-  const sight = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.014, 5, 12), gunSteel);
-  sight.rotation.x = Math.PI / 2;
-  sight.position.set(0, 0.11, -0.34);
-  mount.add(sight);
-  const grips = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.08), mat(PAINT.brown));
-  grips.position.set(0, -0.05, 0.24);
-  mount.add(grips);
-
-  // Navigation lights: red on the left wing, green on the right, which is
-  // the way round they actually go.
-  const lampGeo = new THREE.SphereGeometry(0.11, 8, 6);
-  const lampL = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0xFF4438 }));
-  lampL.position.set(-3.66, 0.5, -0.1); g.add(lampL);
-  const lampR = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0x46E06A }));
-  lampR.position.set(3.66, 0.5, -0.1); g.add(lampR);
-
-  // Panel seams down the fuselage.
   const seamMat = mat(0xC9553F);
-  for (const z of [-1.2, 0.1, 1.2]) {
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.63, 0.025, 5, 16), seamMat);
+  for (const z of [-1.15, 0.5, 1.6]) {
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.735, 0.03, 5, 18), seamMat);
     seam.position.z = z;
     g.add(seam);
   }
 
-  // A torus lies in the XY plane by default, which puts the wheel across the
-  // aircraft like a barrel. Turned a quarter about Y so the axle runs side to
-  // side and the wheel rolls the way the aircraft travels.
-  const wheelGeo = new THREE.TorusGeometry(0.24, 0.1, 6, 12);
-  const wheelMat = mat(PAINT.dark);
-  const wL = new THREE.Mesh(wheelGeo, wheelMat);
-  wL.position.set(-0.8, -0.72, -0.5); wL.rotation.y = Math.PI / 2; g.add(wL);
-  const wR = new THREE.Mesh(wheelGeo, wheelMat);
-  wR.position.set(0.8, -0.72, -0.5); wR.rotation.y = Math.PI / 2; g.add(wR);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.70, 0.07, 6, 18), creamMat);
+  band.position.z = 2.1;
+  g.add(band);
 
-  // Gear legs, so the wheels are attached to something.
-  const legGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 5);
-  for (const sx of [-0.8, 0.8]) {
-    const leg = new THREE.Mesh(legGeo, mat(PAINT.steel));
-    leg.position.set(sx, -0.42, -0.5);
-    leg.rotation.z = sx < 0 ? 0.25 : -0.25;
-    g.add(leg);
+  // Roundels: on top of both wings and on both flanks. The wing pair sit
+  // a hair proud of the surface so they cannot fight it for depth.
+  const roundelOuter = mat(PAINT.navy);
+  const roundelInner = mat(PAINT.red);
+  for (const sx of [-2.3, 2.3]) {
+    const outer = new THREE.Mesh(new THREE.CircleGeometry(0.44, 20), roundelOuter);
+    outer.rotation.x = -Math.PI / 2;
+    outer.position.set(sx, -0.105, -1.45);
+    g.add(outer);
+    const inner = new THREE.Mesh(new THREE.CircleGeometry(0.19, 16), roundelInner);
+    inner.rotation.x = -Math.PI / 2;
+    inner.position.set(sx, -0.10, -1.45);
+    g.add(inner);
+  }
+  for (const side of [-1, 1]) {
+    const flank = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.05, 18), roundelOuter);
+    flank.rotation.z = Math.PI / 2;
+    flank.position.set(side * 0.68, 0.02, 1.85);
+    g.add(flank);
+    const pip = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 14), creamMat);
+    pip.rotation.z = Math.PI / 2;
+    pip.position.set(side * 0.70, 0.02, 1.85);
+    g.add(pip);
   }
 
-  // Tail wheel.
-  const tailWheel = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.055, 5, 10), wheelMat);
-  tailWheel.position.set(0, -0.42, 2.0);
-  tailWheel.rotation.y = Math.PI / 2;
-  g.add(tailWheel);
+  // Navigation lights, red to port and green to starboard, and a pitot
+  // under the right wing.
+  const lampGeo = new THREE.SphereGeometry(0.13, 8, 6);
+  const lampL = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0xFF4438 }));
+  lampL.position.set(-4.3, -0.2, -1.55); g.add(lampL);
+  const lampR = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0x46E06A }));
+  lampR.position.set(4.3, -0.2, -1.55); g.add(lampR);
 
-  // Everything the aircraft fires now comes off this mount, and the mount
-  // moves, so these cannot be the constants the wing guns were. update()
-  // rewrites them from the two pivots each frame and fire() reads them back
-  // out, which is what keeps the tracer leaving the barrel that is pointing
-  // at the thing. They start where the guns sit level and forward.
-  const gunMuzzles = [new THREE.Vector3(-0.11, 0.7, -0.41), new THREE.Vector3(0.11, 0.7, -0.41)];
-  const ejectAt = new THREE.Vector3(0.2, 0.7, 0.79);
+  const pitot = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.6, 6), steelMat);
+  pitot.rotation.x = Math.PI / 2;
+  pitot.position.set(2.7, -0.34, -2.5);
+  g.add(pitot);
+
+  /* --- Front office.
+
+     Open, and sat over the wing rather than ahead of it. No glass roof
+     over either seat: on a model this size a closed canopy hides the
+     crew, and the crew is the point. --- */
+
+  const coaming = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.075, 6, 18), mat(PAINT.brown));
+  coaming.rotation.x = Math.PI / 2;
+  coaming.position.set(0, 0.58, -1.3);
+  g.add(coaming);
+
+  const screen = new THREE.Mesh(
+    new THREE.BoxGeometry(0.62, 0.44, 0.06),
+    mat(PAINT.glass, { transparent: true, opacity: 0.5 })
+  );
+  screen.position.set(0, 1.06, -1.82);
+  screen.rotation.x = 0.32;
+  g.add(screen);
+
+  const headrest = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.42, 0.14), mat(PAINT.brown));
+  headrest.position.set(0, 1.12, -0.94);
+  g.add(headrest);
+
+  // Turtledeck between the two cockpits, kept low enough to pass under
+  // the guns when they are level.
+  const deck = new THREE.Mesh(new THREE.SphereGeometry(0.44, 12, 8), redMat);
+  deck.scale.set(0.95, 0.45, 1.5);
+  deck.position.set(0, 0.52, -0.7);
+  g.add(deck);
+
+  const pilot = buildCat({ scarf: PAINT.red });
+  pilot.group.position.set(0, 0.52, -1.3);
+  pilot.group.scale.setScalar(1.35);
+  g.add(pilot.group);
+
+  /* --- Back office.
+
+     The guns ride a ring the whole seat turns with, so the gunner swings
+     round with them and stays behind the sights. The barrels are short
+     on purpose: long enough to read as guns, short enough that pointing
+     them straight ahead stops them well behind the pilot. --- */
+
+  const gunRing = new THREE.Mesh(new THREE.TorusGeometry(0.50, 0.07, 6, 18), mat(PAINT.brown));
+  gunRing.rotation.x = Math.PI / 2;
+  gunRing.position.set(0, 0.50, 1.0);
+  g.add(gunRing);
+
+  const turret = new THREE.Group();      // yaw, the ring turning
+  turret.position.set(0, 0.36, 1.0);
+  g.add(turret);
+
+  const gunner = buildCat({ scarf: PAINT.gold, jacket: PAINT.navy });
+  gunner.group.scale.setScalar(1.35);
+  turret.add(gunner.group);
+
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.58, 6), darkMat);
+  post.position.set(0, 0.41, -0.55);
+  turret.add(post);
+
+  const mount = new THREE.Group();       // pitch, the guns in the ring
+  mount.position.set(0, 0.68, -0.55);
+  turret.add(mount);
+
+  // A twin flexible mount, the way the rear station on these actually
+  // was: two guns side by side on one yoke, firing alternately.
+  const gunBodyGeo = new THREE.BoxGeometry(0.15, 0.16, 0.50);
+  const barrelGeo  = new THREE.CylinderGeometry(0.05, 0.05, 0.75, 8);
+  const drumGeo    = new THREE.CylinderGeometry(0.15, 0.15, 0.08, 12);
+  for (const sx of [-0.16, 0.16]) {
+    const gunBody = new THREE.Mesh(gunBodyGeo, darkMat);
+    gunBody.position.set(sx, 0, 0.02);
+    mount.add(gunBody);
+    const barrel = new THREE.Mesh(barrelGeo, darkMat);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(sx, 0, -0.45);
+    mount.add(barrel);
+    const drum = new THREE.Mesh(drumGeo, steelMat);
+    drum.position.set(sx, 0.17, 0.08);
+    mount.add(drum);
+  }
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.16), darkMat);
+  mount.add(yoke);
+  const sight = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.018, 5, 12), steelMat);
+  sight.rotation.x = Math.PI / 2;
+  sight.position.set(0, 0.15, -0.42);
+  mount.add(sight);
+  const grips = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.16, 0.09), mat(PAINT.brown));
+  grips.position.set(0, -0.13, 0.25);
+  mount.add(grips);
+
+  /* --- What fires, and from where. --- */
+
+  // Everything the aircraft fires comes off this mount, and the mount
+  // moves, so these cannot be the constants a wing gun would be.
+  // update() rewrites them from the two pivots each frame and fire()
+  // reads them back out, which is what keeps the tracer leaving the
+  // barrel that is pointing at the thing. They start level and forward.
+  const gunMuzzles = [new THREE.Vector3(-0.16, 1.04, -0.375), new THREE.Vector3(0.16, 1.04, -0.375)];
+  const ejectAt = new THREE.Vector3(0.3, 1.04, 0.63);
   const _tip = new THREE.Vector3();
   const _local = (x, y, z) => _tip.set(x, y, z)
     .applyQuaternion(mount.quaternion).add(mount.position)
@@ -402,24 +510,25 @@ function buildPlane() {
       pilot.update(dt, s);
       gunner.update(dt, s);
 
-      // The gun goes where the cursor is. s.aim arrives already in the
-      // aircraft's own frame, so this is two angles and no projection: yaw
-      // swings the ring, pitch lifts the gun inside it. Eased rather than
-      // snapped, because a gun on a pintle has weight, and stopped short of
-      // straight astern so the gunner never shoots through his own tail.
+      // The guns go where the cursor is. s.aim arrives already in the
+      // aircraft's own frame, so this is two angles and no projection:
+      // yaw swings the ring, pitch lifts the barrels inside it. Eased
+      // rather than snapped, because a gun on a pintle has weight. The
+      // limits are the two things it must not shoot: its own tail, and
+      // its own deck on the way down.
       if (s.aim) {
         const k = Math.min(1, 9 * dt);
         const wantYaw   = Math.atan2(-s.aim.x, -s.aim.z);
         const wantPitch = Math.asin(clamp(s.aim.y, -1, 1));
-        turret.rotation.y += (clamp(wantYaw, -1.3, 1.3) - turret.rotation.y) * k;
-        mount.rotation.x  += (clamp(wantPitch, -0.45, 1.0) - mount.rotation.x) * k;
+        turret.rotation.y += (clamp(wantYaw, -1.15, 1.15) - turret.rotation.y) * k;
+        mount.rotation.x  += (clamp(wantPitch, -0.32, 0.85) - mount.rotation.x) * k;
       }
 
-      // Both barrel tips and the ejection port, back through the two pivots
-      // into the aircraft's frame.
-      gunMuzzles[0].copy(_local(-0.11, 0, -1.1));
-      gunMuzzles[1].copy(_local(0.11, 0, -1.1));
-      ejectAt.copy(_local(0.22, 0, 0.12));
+      // Both barrel tips and the ejection port, back through the two
+      // pivots into the aircraft's frame.
+      gunMuzzles[0].copy(_local(-0.16, 0, -0.825));
+      gunMuzzles[1].copy(_local(0.16, 0, -0.825));
+      ejectAt.copy(_local(0.30, 0, 0.18));
     },
   };
 }
@@ -561,10 +670,10 @@ function buildJet() {
 
 export const CRAFT = {
   plane: {
-    name: 'Sport plane',
-    blurb: 'Steady and forgiving. Turns wide, holds a line.',
+    name: 'Fighter',
+    blurb: 'Two seats and a cat on the gun. Turns wide, holds a line.',
     build: buildPlane,
-    handling: { turn: 1.0, cruise: 71, top: 110, lift: 1.0, scale: 1.15 },
+    handling: { turn: 1.0, cruise: 71, top: 110, lift: 1.0, scale: 1.2 },
   },
   eagle: {
     name: 'Eagle',
