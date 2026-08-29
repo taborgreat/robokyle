@@ -31,6 +31,118 @@ const PAINT = {
   flame:  0xFFB13D,
 };
 
+/* ===== The crew =====
+
+   Two of them, and they are the same cat twice with different kit, which
+   is deliberate: building one animal well and reusing it keeps them
+   looking like they came off the same shelf. Same primitives as
+   everything else, so they sit in the world rather than on top of it.
+   ================================================================== */
+
+const FUR = {
+  coat:   0xF2913C,
+  light:  0xFFD9A8,   // muzzle, chest, paws
+  stripe: 0xD4762A,
+  inner:  0xF2A7A0,   // ears
+  nose:   0xE8756B,
+  eye:    0x2A2622,
+  lens:   0x9FD2E8,
+  strap:  0x4A3A2A,
+};
+
+// Origin at the seat, facing forward along -Z, about 0.8 tall.
+function buildCat({ scarf = null, jacket = PAINT.brown } = {}) {
+  const c = new THREE.Group();
+
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), mat(jacket));
+  chest.scale.set(1, 1.05, 0.86);
+  chest.position.y = 0.19;
+  c.add(chest);
+
+  // Paws up on whatever is in front of them, which reads as busy rather
+  // than as a passenger.
+  const pawGeo = new THREE.SphereGeometry(0.075, 8, 6);
+  for (const sx of [-0.15, 0.15]) {
+    const paw = new THREE.Mesh(pawGeo, mat(FUR.light));
+    paw.position.set(sx, 0.3, -0.21);
+    c.add(paw);
+  }
+
+  if (scarf) {
+    const s1 = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.055, 6, 14), mat(scarf));
+    s1.rotation.x = Math.PI / 2;
+    s1.position.y = 0.36;
+    c.add(s1);
+    // the trailing end, streaming back
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.06, 0.5), mat(scarf));
+    tail.position.set(0.05, 0.34, 0.3);
+    tail.rotation.x = -0.25;
+    c.add(tail);
+  }
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.215, 12, 10), mat(FUR.coat));
+  head.scale.set(1, 0.95, 0.95);
+  head.position.y = 0.55;
+  c.add(head);
+
+  // Cheeks, because a round head alone reads as a bear.
+  for (const sx of [-0.12, 0.12]) {
+    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6), mat(FUR.light));
+    cheek.position.set(sx, 0.48, -0.15);
+    c.add(cheek);
+  }
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), mat(FUR.light));
+  muzzle.position.set(0, 0.51, -0.19);
+  c.add(muzzle);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), mat(FUR.nose));
+  nose.position.set(0, 0.53, -0.235);
+  c.add(nose);
+
+  const eyeGeo = new THREE.SphereGeometry(0.042, 8, 6);
+  for (const sx of [-0.085, 0.085]) {
+    const eye = new THREE.Mesh(eyeGeo, mat(FUR.eye));
+    eye.position.set(sx, 0.59, -0.185);
+    c.add(eye);
+  }
+
+  // Ears: a cone for the ear and a smaller one inside it.
+  for (const sx of [-0.125, 0.125]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.16, 5), mat(FUR.coat));
+    ear.position.set(sx, 0.71, 0.02);
+    ear.rotation.z = sx < 0 ? 0.3 : -0.3;
+    c.add(ear);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.1, 5), mat(FUR.inner));
+    inner.position.set(sx * 0.94, 0.7, -0.015);
+    inner.rotation.z = ear.rotation.z;
+    c.add(inner);
+  }
+
+  // Tabby stripes over the crown.
+  for (const z of [0.0, 0.09]) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), mat(FUR.stripe));
+    stripe.position.set(0, 0.735, z);
+    c.add(stripe);
+  }
+
+  // Goggles, pushed up on the forehead. Both of them wear them.
+  const strapBand = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.07, 0.04), mat(FUR.strap));
+  strapBand.position.set(0, 0.655, -0.145);
+  strapBand.rotation.x = -0.2;
+  c.add(strapBand);
+  for (const sx of [-0.1, 0.1]) {
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.022, 6, 12), mat(FUR.strap));
+    rim.position.set(sx, 0.655, -0.175);
+    rim.rotation.x = -0.2;
+    c.add(rim);
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12), mat(FUR.lens));
+    lens.position.set(sx, 0.655, -0.183);
+    lens.rotation.x = -0.2;
+    c.add(lens);
+  }
+
+  return c;
+}
+
 /* ===== A sport plane, the default ===== */
 
 function buildPlane() {
