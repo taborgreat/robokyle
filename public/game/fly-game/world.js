@@ -542,19 +542,6 @@ function enemyShipGeo(rnd) {
     parts.push(piece(GEO.box, hull, -1.0, 5.2, sz, 37, 1.2, 0.3, 0));
   }
 
-  // A dirty plume standing over both stacks, built into the hull rather
-  // than thrown as particles. Particles fade with distance and cost budget;
-  // this is free and it is still there at two chunks, which is the point of
-  // it. Finding the ship that shoots back should not be a search.
-  for (const st of [{ x: -9.0, y: 13.2, s: 1 }, { x: -13.4, y: 11.6, s: 0.78 }]) {
-    for (let i = 0; i < 5; i++) {
-      const t = i / 4;
-      const w = (1.6 + t * 5.4) * st.s;
-      parts.push(piece(GEO.puff, [0x24242A, 0x2C2C32, 0x36363C, 0x404046, 0x4A4A50][i],
-        st.x - 1.2 - t * 9, st.y + t * 15, t * 1.5,
-        w, w * 0.86, w, 0));
-    }
-  }
   return { geo: mergeGeometries(parts), r: 20, hp: 14 };
 }
 
@@ -917,7 +904,11 @@ export function createWorld(scene) {
         mesh: m, kind: 'ship', hostile,
         r: def.r * BUILT_SCALE + 4,
         hp: def.hp, maxHp: def.hp,
-        alive: true, bob: rnd() * 6.28, baseY: 1.2, puff: rnd() * 0.6,
+        alive: true, bob: rnd() * 6.28, baseY: 1.2, puff: rnd() * 0.6, stack: false,
+        // Counts down from the last time it fired, so the threat arrow
+        // knows which hostiles are actually engaging rather than merely
+        // floating about.
+        engaging: 0,
         // Staggered so a group of ships does not fire as one volley.
         cool: 0.6 + rnd() * 2.4,
       };
@@ -1062,6 +1053,7 @@ export function createWorld(scene) {
         b.mesh.rotation.y += dt * 0.4;
       }
 
+      let smokers = 0;
       for (const t of targets) {
         if (!t.alive || t.kind !== 'ship') continue;
         t.bob += dt * 0.8;
@@ -1071,18 +1063,23 @@ export function createWorld(scene) {
         // Live smoke off a hostile's stacks, close in. The plume built into
         // the hull is what you spot from range; this is what it looks like
         // once you are near enough for the built one to look painted on.
-        if (!fx || !t.hostile) continue;
-        if (Math.abs(t.mesh.position.x - pos.x) > 1400 ||
-            Math.abs(t.mesh.position.z - pos.z) > 1400) continue;
+        if (!fx || !t.hostile || smokers > 6) continue;
+        if (Math.abs(t.mesh.position.x - pos.x) > 2300 ||
+            Math.abs(t.mesh.position.z - pos.z) > 2300) continue;
         t.puff -= dt;
         if (t.puff > 0) continue;
-        t.puff = 0.5;
+        // Alternating stacks rather than both at once: same plume, half the
+        // particles, and the two columns stay out of step the way real ones
+        // do. It has to do the whole job now that the hull carries none.
+        t.puff = 0.34;
+        t.stack = !t.stack;
+        smokers++;
         const ry = t.mesh.rotation.y;
-        const lx = -9.4 * BUILT_SCALE;
+        const lx = (t.stack ? -9.4 : -13.8) * BUILT_SCALE;
         _p.set(t.mesh.position.x + Math.cos(ry) * lx,
-               t.mesh.position.y + 13.5 * BUILT_SCALE,
+               t.mesh.position.y + (t.stack ? 13.2 : 11.8) * BUILT_SCALE,
                t.mesh.position.z - Math.sin(ry) * lx);
-        fx.smoke(_p, 3.4, 0x2A2A30, 13);
+        fx.smoke(_p, t.stack ? 4.4 : 3.6, 0x24242C, 14);
       }
 
       /* Wrecks that are still going.

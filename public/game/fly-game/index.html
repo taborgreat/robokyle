@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="fly-game.css?v=16">
+    <link rel="stylesheet" href="fly-game.css?v=17">
 
     <!-- three.js resolves from the copy vendored at /public/vendor/three.
          The import map has to come before any module script that needs it,
@@ -76,6 +76,10 @@
                     <h3 class="group-head">Sound</h3>
                     <label class="opt-row"><span>Volume</span>
                         <input type="range" id="opt-vol" min="0" max="10" value="7"></label>
+                    <label class="opt-row"><span>Engine drone</span>
+                        <input type="range" id="opt-drone" min="0" max="10" value="8"></label>
+                    <label class="opt-row"><span>Music</span>
+                        <input type="range" id="opt-music" min="0" max="10" value="6"></label>
                 </div>
             </section>
 
@@ -105,11 +109,40 @@
                         </div>
                     </div>
 
+                    <div class="threat" id="threat" hidden aria-hidden="true">
+                        <svg viewBox="0 0 44 44" focusable="false">
+                            <path d="M22 3 L33 25 L22 20 L11 25 Z" fill="currentColor"/>
+                            <circle cx="22" cy="33" r="3.2" fill="currentColor" opacity=".75"/>
+                        </svg>
+                    </div>
+
+                    <div class="intro-card" id="intro-card" hidden aria-hidden="true">
+                        <b id="intro-name"></b>
+                        <small id="intro-sub"></small>
+                    </div>
+
                     <div class="fly-flash" id="fly-flash" aria-hidden="true"></div>
 
                     <div class="fly-pause" id="fly-pause" hidden>
                         <div class="pause-card">
                             <h2>Paused</h2>
+
+                            <div class="pause-opts">
+                                <h3 class="group-head">Flying</h3>
+                                <label class="opt-row"><span>Steering sensitivity</span>
+                                    <input type="range" id="p-sens" min="1" max="10" value="5"></label>
+                                <label class="opt-check"><input type="checkbox" id="p-invert">
+                                    <span>Invert up and down</span></label>
+
+                                <h3 class="group-head">Sound</h3>
+                                <label class="opt-row"><span>Volume</span>
+                                    <input type="range" id="p-vol" min="0" max="10" value="7"></label>
+                                <label class="opt-row"><span>Engine drone</span>
+                                    <input type="range" id="p-drone" min="0" max="10" value="8"></label>
+                                <label class="opt-row"><span>Music</span>
+                                    <input type="range" id="p-music" min="0" max="10" value="6"></label>
+                            </div>
+
                             <ul class="menu-list">
                                 <li><button class="menu-btn is-primary" id="btn-resume" type="button">Keep flying</button></li>
                                 <li><button class="menu-btn" id="btn-quit" type="button">Menu</button></li>
@@ -131,6 +164,6 @@
 
     <script src="/public/site.js"></script>
     <script src="/public/game/fullscreen.js?v=33"></script>
-    <script type="module" src="fly.js?v=16"></script>
+    <script type="module" src="fly.js?v=17"></script>
 </body>
 </html>

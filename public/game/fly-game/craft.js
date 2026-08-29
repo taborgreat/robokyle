@@ -325,16 +325,56 @@ function buildPlane() {
   const tail = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.16, 1.05), creamMat);
   tail.position.set(0, 0.16, 2.85);
   g.add(tail);
-  const elevator = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.10, 0.34), mat(0xE9E2D2));
-  elevator.position.set(0, 0.16, 3.28);
-  g.add(elevator);
+
+  /* Control surfaces, hinged and worked the way the real ones are.
+
+     Each one hangs off a pivot sitting on its hinge line with the surface
+     itself set behind that pivot, so rotating the pivot swings the
+     trailing edge and leaves the leading edge where it is. Rotating the
+     box about its own middle instead would make it slide rather than
+     hinge, which is the tell that stops it looking mechanical.
+
+     Signs are the aerodynamics, not a preference. Elevator trailing edge
+     up pushes the tail down and the nose up, so a nose up command deflects
+     them up. Rudder trailing edge goes the way the nose is going. Ailerons
+     work in opposition, and the one on the inside of the turn goes up:
+     less lift that side, so that wing drops and the aircraft rolls into
+     the turn rather than out of it. */
+  const surfMat = mat(0xE9E2D2);
+  const elevators = [];
+  for (const sx of [-0.82, 0.82]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(sx, 0.16, 3.12);
+    const surf = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.1, 0.36), surfMat);
+    surf.position.z = 0.18;
+    pivot.add(surf);
+    g.add(pivot);
+    elevators.push(pivot);
+  }
 
   const fin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.15, 1.30), redMat);
   fin.position.set(0, 0.75, 2.95);
   g.add(fin);
-  const rudder = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.95, 0.42), creamMat);
-  rudder.position.set(0, 0.68, 3.5);
+
+  const rudder = new THREE.Group();
+  rudder.position.set(0, 0.68, 3.35);
+  const rudderSurf = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.95, 0.42), creamMat);
+  rudderSurf.position.z = 0.21;
+  rudder.add(rudderSurf);
   g.add(rudder);
+
+  // Ailerons, outboard on the trailing edge. The wing tapers, so the hinge
+  // line out here is further forward than it is at the root.
+  const ailerons = [];
+  for (const sx of [-2.85, 2.85]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(sx, -0.21, -0.92);
+    const surf = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.09, 0.34), surfMat);
+    surf.position.z = 0.17;
+    pivot.add(surf);
+    g.add(pivot);
+    ailerons.push(pivot);
+  }
 
   const tailLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.28, 6), steelMat);
   tailLeg.position.set(0, -0.46, 3.15);
@@ -394,6 +434,47 @@ function buildPlane() {
   pitot.rotation.x = Math.PI / 2;
   pitot.position.set(2.7, -0.34, -2.5);
   g.add(pitot);
+
+  /* Wingtip vortices.
+
+     Air spilling round the end of a wing rolls into a corkscrew and trails
+     behind it, tight at the tip and spreading as it goes, which is why
+     these are cones with the narrow end forward rather than tubes. Two per
+     side: a bright core and a wider, fainter sheath around it.
+
+     They come and go with load, not with speed, which is the real
+     behaviour and also the more useful one: they are barely there in
+     cruise and they stream off both tips in a hard turn, so the aircraft
+     tells you how hard you are pulling without a gauge. */
+  const vortexMat = new THREE.MeshBasicMaterial({
+    color: 0xFFFFFF, transparent: true, opacity: 0, depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: 0xEAF4FF, transparent: true, opacity: 0, depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const streams = [];
+  for (const sx of [-4.28, 4.28]) {
+    const trail = new THREE.Group();
+    trail.position.set(sx, -0.2, -1.35);
+
+    const sheath = new THREE.Mesh(new THREE.ConeGeometry(0.5, 7.4, 7, 1, true), vortexMat);
+    // A cone points along +Y; a quarter turn about X lays it down the
+    // fuselage, tip forward at the wingtip and mouth trailing aft.
+    sheath.rotation.x = -Math.PI / 2;
+    sheath.position.z = 3.7;
+    trail.add(sheath);
+
+    const core = new THREE.Mesh(new THREE.ConeGeometry(0.17, 5.4, 6, 1, true), coreMat);
+    core.rotation.x = -Math.PI / 2;
+    core.position.z = 2.7;
+    trail.add(core);
+
+    trail.userData.side = Math.sign(sx);
+    g.add(trail);
+    streams.push(trail);
+  }
 
   /* --- Front office.
 
@@ -492,6 +573,9 @@ function buildPlane() {
   // update() rewrites them from the two pivots each frame and fire()
   // reads them back out, which is what keeps the tracer leaving the
   // barrel that is pointing at the thing. They start level and forward.
+  // Eased control positions, and the eased load the vortices read.
+  const surf = { pitch: 0, yaw: 0, pull: 0 };
+
   const gunMuzzles = [new THREE.Vector3(-0.16, 1.04, -0.375), new THREE.Vector3(0.16, 1.04, -0.375)];
   const ejectAt = new THREE.Vector3(0.3, 1.04, 0.63);
   const _tip = new THREE.Vector3();
@@ -509,6 +593,35 @@ function buildPlane() {
       disc.material.opacity = 0.1 + s.throttle * 0.22;
       pilot.update(dt, s);
       gunner.update(dt, s);
+
+      /* The surfaces follow the stick. Eased, because a control surface
+         has a pilot on the end of it rather than a switch, and because
+         snapping to the input makes them flicker on a shaky cursor. */
+      const px = s.pitch || 0, yx = s.yaw || 0;
+      const ck = Math.min(1, 11 * dt);
+      surf.pitch += (px - surf.pitch) * ck;
+      surf.yaw += (yx - surf.yaw) * ck;
+
+      for (const e of elevators) e.rotation.x = -surf.pitch * 0.44;
+      rudder.rotation.y = surf.yaw * 0.4;
+      ailerons[0].rotation.x = -surf.yaw * 0.4;    // port, down in a right turn
+      ailerons[1].rotation.x = surf.yaw * 0.4;     // starboard, up in one
+
+      // Vortices. Load is what draws them, with a floor that comes up a
+      // little with speed so they never vanish outright at pace.
+      const fast = Math.min(1, (s.speed || 0) / 150);
+      const load = Math.min(1, Math.abs(surf.pitch) * 0.85 + Math.abs(surf.yaw) * 0.95);
+      surf.pull += (load - surf.pull) * Math.min(1, 5 * dt);
+      const show = Math.min(0.5, 0.015 + fast * 0.05 + surf.pull * 0.42);
+      vortexMat.opacity = show;
+      coreMat.opacity = show * 1.5;
+      for (const trail of streams) {
+        trail.scale.z = 0.6 + fast * 0.5 + surf.pull * 0.5;
+        // A trail cannot turn as fast as the wing it came off, so it hangs
+        // back a little on the outside of a turn.
+        trail.rotation.y = surf.yaw * 0.1;
+        trail.rotation.x = -surf.pitch * 0.07;
+      }
 
       // The guns go where the cursor is. s.aim arrives already in the
       // aircraft's own frame, so this is two angles and no projection:

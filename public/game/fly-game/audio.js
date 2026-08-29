@@ -21,6 +21,17 @@ export function createAudio() {
   let muted = false;
   let volume = 0.7;
 
+  // The engine and the wind have their own gain in front of the master, so
+  // the drone can be pulled down to nothing without taking the guns and the
+  // flak with it. It is the sound you hear for the whole flight, so it is
+  // the one worth being able to turn off on its own.
+  let drone = null;
+  let droneVol = 0.8;
+
+  // Music has its own too, for the same reason in reverse.
+  let musicBus = null;
+  let musicVol = 0.6;
+
   function ensure() {
     if (ctx) return ctx;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -29,6 +40,44 @@ export function createAudio() {
     master = ctx.createGain();
     master.gain.value = muted ? 0 : volume;
     master.connect(ctx.destination);
+
+    drone = ctx.createGain();
+    drone.gain.value = droneVol;
+    drone.connect(master);
+
+    /* The music bus.
+
+       A gentle lowpass, because nothing relaxing has much above 3k in it,
+       and a long feedback delay, because the space around a note is most
+       of what makes a sparse tune sound like music rather than like a
+       sequence of beeps. */
+    musicBus = ctx.createGain();
+    musicBus.gain.value = musicVol;
+
+    const musicTone = ctx.createBiquadFilter();
+    musicTone.type = 'lowpass';
+    musicTone.frequency.value = 2600;
+    musicTone.Q.value = 0.5;
+
+    const echo = ctx.createDelay(1.2);
+    echo.delayTime.value = 0.42;
+    const echoBack = ctx.createGain();
+    echoBack.gain.value = 0.34;
+    const echoTone = ctx.createBiquadFilter();
+    echoTone.type = 'lowpass';
+    echoTone.frequency.value = 1500;
+    const echoSend = ctx.createGain();
+    echoSend.gain.value = 0.45;
+
+    musicBus.connect(musicTone);
+    musicTone.connect(master);
+    musicTone.connect(echoSend);
+    echoSend.connect(echo);
+    echo.connect(echoTone);
+    echoTone.connect(echoBack);
+    echoBack.connect(echo);          // the tail
+    echoTone.connect(master);
+
     return ctx;
   }
 
@@ -84,7 +133,7 @@ export function createAudio() {
     oscA.connect(engFilter);
     oscB.connect(engFilter);
     engFilter.connect(engGain);
-    engGain.connect(master);
+    engGain.connect(drone);
     oscA.start();
     oscB.start();
 
@@ -105,7 +154,7 @@ export function createAudio() {
 
     src.connect(windFilter);
     windFilter.connect(windGain);
-    windGain.connect(master);
+    windGain.connect(drone);
     src.start();
 
     wind = { filter: windFilter, gain: windGain };
@@ -157,6 +206,109 @@ export function createAudio() {
               gain: sirenGain, chop, chopDepth };
   }
 
+  /* ===== Music =====
+
+     Generative rather than a fixed tune. A chord underneath, a bass note
+     on its root, and a bell picking notes out of a scale over the top at
+     places chosen fresh each bar. Nothing ever repeats exactly, which is
+     the whole point: a menu you sit on for ten minutes should not turn
+     into a nursery rhyme, and the surest way to make a loop irritating is
+     to let someone learn it.
+
+     Both tracks are slow, sparse and soft. The difference between them is
+     the mode and the register, which is more than enough to make arriving
+     on the island feel like somewhere else. */
+
+  const TRACKS = {
+    // Higher, brighter, a little quicker. Major sevenths all the way
+    // down, which is the friendliest sound there is.
+    menu: {
+      bpm: 74,
+      chords: [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 67]],
+      scale: [72, 74, 76, 79, 81, 84, 86],
+      bell: 'triangle', pad: 'sine',
+      bellLevel: 0.075, padLevel: 0.03, bassLevel: 0.05, density: 4,
+    },
+    // Lydian, which is the major scale with the fourth raised: the same
+    // warmth with one note in it that keeps wanting to float upward.
+    // Slower, lower, and thinner, to sit under an engine.
+    island: {
+      bpm: 58,
+      chords: [[53, 57, 60, 64], [55, 59, 62, 65], [57, 60, 64, 67], [50, 57, 60, 65]],
+      scale: [69, 71, 72, 76, 77, 81, 83],
+      bell: 'triangle', pad: 'sine',
+      bellLevel: 0.055, padLevel: 0.036, bassLevel: 0.045, density: 3,
+    },
+  };
+
+  let tune = null;        // { name, track, bar, next, timer, voices }
+  let wantTune = null;    // asked for before the context was allowed to start
+
+  const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+
+  function voice(note, at, dur, type, level) {
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.value = midi(note);
+    const g = ctx.createGain();
+    // Soft in, long out. A hard attack on a triangle is a beep.
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(level, at + Math.min(0.3, dur * 0.3));
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g);
+    g.connect(musicBus);
+    o.start(at);
+    o.stop(at + dur + 0.05);
+    if (tune) tune.voices.push({ o, g, until: at + dur + 0.1 });
+  }
+
+  function pump() {
+    if (!tune || !ctx) return;
+    // Drop voices that have finished, or the list grows for the whole
+    // session and a track switch has to walk all of it.
+    const now = ctx.currentTime;
+    tune.voices = tune.voices.filter(v => v.until > now);
+
+    const T = tune.track;
+    const beat = 60 / T.bpm;
+    const bar = beat * 4;
+    while (tune.next < now + 0.9) {
+      const at = tune.next;
+      const chord = T.chords[tune.bar % T.chords.length];
+
+      for (const n of chord) voice(n + 12, at, bar * 1.1, T.pad, T.padLevel);
+      voice(chord[0] - 12, at, bar * 0.85, 'triangle', T.bassLevel);
+
+      const count = T.density + (Math.random() < 0.4 ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        // Eighths, but never the first one every bar: a note on every
+        // downbeat is what makes a generative loop sound like a metronome.
+        const slot = 1 + Math.floor(Math.random() * 7);
+        const note = T.scale[Math.floor(Math.random() * T.scale.length)];
+        const st = at + slot * beat * 0.5;
+        voice(note, st, beat * 1.7, T.bell, T.bellLevel * (0.55 + Math.random() * 0.5));
+      }
+
+      tune.bar++;
+      tune.next += bar;
+    }
+  }
+
+  function stopTune(fade) {
+    if (!tune) return;
+    clearInterval(tune.timer);
+    const now = ctx ? ctx.currentTime : 0;
+    for (const v of tune.voices) {
+      try {
+        v.g.gain.cancelScheduledValues(now);
+        v.g.gain.setValueAtTime(Math.max(0.0001, v.g.gain.value), now);
+        v.g.gain.exponentialRampToValueAtTime(0.0001, now + fade);
+        v.o.stop(now + fade + 0.02);
+      } catch (e) { /* already stopped */ }
+    }
+    tune = null;
+  }
+
   return {
     // Called from the first click or key, where a context is allowed to start.
     resume() {
@@ -164,6 +316,24 @@ export function createAudio() {
       if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume();
       startLoops();
+      if (wantTune) { const n = wantTune; wantTune = null; this.music(n); }
+    },
+
+    /* Switch tracks, or pass null for silence. Asking for the one already
+       playing does nothing, so this can be called every time a screen
+       changes without restarting the music each time. */
+    music(name) {
+      if (tune && tune.name === name) return;
+      ensure();
+      // Before the first gesture there is no context to schedule into, so
+      // remember what was wanted and start it when there is one.
+      if (!ctx || ctx.state === 'suspended') { wantTune = name; return; }
+      stopTune(0.7);
+      const track = TRACKS[name];
+      if (!track) return;
+      tune = { name, track, bar: 0, next: ctx.currentTime + 0.2, voices: [], timer: 0 };
+      pump();
+      tune.timer = setInterval(pump, 250);
     },
 
     setVolume(v) {
@@ -174,6 +344,16 @@ export function createAudio() {
     setMuted(m) {
       muted = m;
       if (master) master.gain.value = muted ? 0 : volume;
+    },
+
+    setDrone(v) {
+      droneVol = v;
+      if (drone) drone.gain.value = droneVol;
+    },
+
+    setMusicVolume(v) {
+      musicVol = v;
+      if (musicBus) musicBus.gain.value = musicVol;
     },
 
     // throttle and speed both run 0 to 1.
@@ -559,6 +739,38 @@ export function createAudio() {
     },
 
     // A round landing on something solid that did not break.
+    /* The whine off a round that came back up.
+
+       A tone that falls fast and wide, which is the whole character of it:
+       the pitch drop is Doppler on something leaving at speed, and it is
+       what makes a spark off a hillside read as a bullet rather than as a
+       hit. Quiet, because at ten rounds a second there will be plenty. */
+    ricochet(dist) {
+      if (!ensure() || !impactBudget()) return;
+      const t = ctx.currentTime;
+      const k = falloff(dist) * 0.5;
+      if (k < 0.012) return;
+
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      const start = 1500 + Math.random() * 1400;
+      o.frequency.setValueAtTime(start, t);
+      o.frequency.exponentialRampToValueAtTime(start * 0.24, t + 0.32);
+
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1700;
+      bp.Q.value = 5;
+
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16 * k, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+
+      o.connect(bp); bp.connect(g); g.connect(master);
+      o.start(t); o.stop(t + 0.36);
+    },
+
     thud() {
       if (!ctx) return;
       const t = ctx.currentTime;

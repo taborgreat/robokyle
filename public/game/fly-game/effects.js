@@ -391,9 +391,9 @@ export function createEffects(scene) {
     /* A dot of light left behind a round in flight. Spawned every few
        metres rather than every frame, so the trail is a dashed streak with
        a readable length instead of a solid tube. */
-    tracer(pos) {
+    tracer(pos, color) {
       spawn('sphere', {
-        pos, color: 0xFFDE8A,
+        pos, color: color || 0xFFDE8A,
         from: 0.4, to: 0.05,
         life: 0.22, opacity: 0.9, fadePow: 1.5,
       });

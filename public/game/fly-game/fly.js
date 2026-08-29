@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=16';
-import { buildCraft, CRAFT } from './craft.js?v=16';
-import { createAudio } from './audio.js?v=16';
-import { createEffects } from './effects.js?v=16';
+import { createWorld, ENEMY_GUNS } from './world.js?v=17';
+import { buildCraft, CRAFT } from './craft.js?v=17';
+import { createAudio } from './audio.js?v=17';
+import { createEffects } from './effects.js?v=17';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -90,6 +90,8 @@ const settings = {
   sensitivity: 5,   // 1..10
   invertY: false,
   volume: 7,        // 0..10
+  drone: 8,         // engine and wind, 0..10
+  music: 6,         // 0..10
 };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (e) {} };
@@ -152,6 +154,12 @@ const bullets = [];
 // Long and thin, so a round in flight reads as a streak rather than a pea.
 const bulletGeo = new THREE.CapsuleGeometry(0.28, 5.6, 4, 6);
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFE9A0 });
+// Every fifth round is a tracer, which is how belts were actually loaded:
+// enough to see where the stream is going, not so many that the stream is
+// all you can see. Ricochets are drawn hot too, since a round that has just
+// come off a hillside is the one you want to be able to follow.
+const bulletHotMat = new THREE.MeshBasicMaterial({ color: 0xFF4A32 });
+let shots = 0;
 let fireCooldown = 0;
 let gunToggle = 0;
 
@@ -189,7 +197,10 @@ function fire() {
   const cs = craft.group.scale.x;
   _muzzleAt.copy(mount).multiplyScalar(cs).applyQuaternion(q).add(plane.pos);
 
-  const m = new THREE.Mesh(bulletGeo, bulletMat);
+  shots++;
+  const hot = shots % 5 === 0;
+
+  const m = new THREE.Mesh(bulletGeo, hot ? bulletHotMat : bulletMat);
   m.position.copy(_muzzleAt);
   scene.add(m);
 
@@ -199,6 +210,7 @@ function fire() {
     vel: dir.multiplyScalar(plane.speed + 520).clone(),
     life: BULLET_LIFE,
     trail: 0.055,   // let the round clear the nose before it starts leaving dots
+    hot,
   });
 
   effects.muzzle(_muzzleAt);
@@ -214,6 +226,7 @@ function fire() {
 
 const _bq = new THREE.Quaternion();
 const _prev = new THREE.Vector3();
+const _ric = new THREE.Vector3();
 
 // Distance from a sphere centre to the segment the round covered this frame.
 //
@@ -229,6 +242,38 @@ function segmentDistance(from, to, c) {
   t = t < 0 ? 0 : (t > 1 ? 1 : t);
   const dx = apx - abx * t, dy = apy - aby * t, dz = apz - abz * t;
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/* A round coming back off something hard.
+
+   It keeps the direction it arrived on, which is the part that makes a
+   ricochet read as a ricochet rather than as a firework: they spray
+   forward along the line of fire, not back at the shooter. What changes is
+   that it is now climbing, has lost most of its speed, and has picked up a
+   random twist. One in three, and never twice, or a firing pass at a
+   hillside turns into a swarm. */
+function ricochet(b, surfaceY) {
+  if (b.bounced || Math.random() > 0.34) return;
+
+  const speed = b.vel.length();
+  _ric.copy(b.vel).normalize();
+  // Up and away. The floor on the vertical is what stops one skidding
+  // along the ground looking like it is stuck to it.
+  _ric.y = Math.abs(_ric.y) * 0.3 + 0.34 + Math.random() * 0.4;
+  _ric.x += (Math.random() - 0.5) * 0.5;
+  _ric.z += (Math.random() - 0.5) * 0.5;
+  _ric.normalize().multiplyScalar(speed * (0.33 + Math.random() * 0.26));
+
+  const m = new THREE.Mesh(bulletGeo, bulletHotMat);
+  // Clear of the surface, or the ground check catches it again on the very
+  // next frame and it dies where it was born.
+  m.position.set(b.mesh.position.x, surfaceY + 1.6, b.mesh.position.z);
+  scene.add(m);
+  bullets.push({
+    mesh: m, vel: _ric.clone(), life: 0.8 + Math.random() * 0.7,
+    trail: 0.02, hot: true, bounced: true,
+  });
+  audio.ricochet(m.position.distanceTo(plane.pos));
 }
 
 function stepBullets(dt) {
@@ -249,7 +294,7 @@ function stepBullets(dt) {
     b.mesh.quaternion.copy(_bq);
 
     b.trail -= dt;
-    if (b.trail <= 0) { b.trail = TRACER_EVERY; effects.tracer(b.mesh.position); }
+    if (b.trail <= 0) { b.trail = TRACER_EVERY; effects.tracer(b.mesh.position, b.hot ? 0xFF6A44 : 0); }
 
     let hit = false;
     for (const balloon of world.balloons) {
@@ -295,10 +340,12 @@ function stepBullets(dt) {
       if (ground > 1.5 && Math.min(b.mesh.position.y, _prev.y) <= ground + 0.6) {
         effects.impact(b.mesh.position.clone());
         audio.dirtHit(b.mesh.position.distanceTo(plane.pos));
+        ricochet(b, ground);
         hit = true;
       } else if (ground <= 1.5 && Math.min(b.mesh.position.y, _prev.y) <= 0.6) {
         effects.ripple(b.mesh.position.clone());
         audio.waterHit(b.mesh.position.distanceTo(plane.pos));
+        ricochet(b, 0.6);
         hit = true;
       }
     }
@@ -359,6 +406,7 @@ function enemyGuns(dt) {
 
   for (const t of world.targets) {
     if (!t.alive || !t.hostile) continue;
+    if (t.engaging > 0) t.engaging -= dt;
 
     _toShip.copy(t.mesh.position);
     const range = _toShip.distanceTo(plane.pos);
@@ -419,6 +467,9 @@ function enemyGuns(dt) {
     _muzzleDir.copy(_flakVel).normalize();
     effects.flakMuzzle(_gunAt.clone(), _muzzleDir.clone());
     audio.flakFire(range);
+    // Long enough to outlast the gap between salvos, so the arrow stays up
+    // for as long as the ship keeps working rather than blinking with it.
+    t.engaging = 3.4;
   }
 }
 
@@ -484,6 +535,9 @@ const _bodyUp = new THREE.Vector3();
 const _wasAt = new THREE.Vector3();
 const _midAt = new THREE.Vector3();
 const _bodyRight = new THREE.Vector3();
+// What the stick is asking for, read by the model for its control surfaces.
+const ctl = { pitch: 0, yaw: 0 };
+
 const _rollQ = new THREE.Quaternion();
 const _bodyQ = new THREE.Quaternion();
 const _invQ  = new THREE.Quaternion();
@@ -513,8 +567,17 @@ function flight(dt) {
     return sg * Math.pow(a, 1.2);
   };
 
-  const cx = cursor.seen ? shaped(cursor.x) : 0;
-  const cy = cursor.seen ? shaped(cursor.y) * (settings.invertY ? -1 : 1) : 0;
+  // Hands off during the opening pan: it flies itself, straight and level,
+  // while the camera does the work.
+  const live = cursor.seen && !state.intro;
+  const cx = live ? shaped(cursor.x) : 0;
+  const cy = live ? shaped(cursor.y) * (settings.invertY ? -1 : 1) : 0;
+
+  // Kept for the model, which moves its elevators, rudder and ailerons to
+  // match. This is the commanded deflection, after inversion, which is what
+  // the surfaces would actually be doing.
+  ctl.pitch = cy;
+  ctl.yaw = cx;
 
   // The cursor is a rate on both axes, applied about the aircraft's own axes
   // rather than the world's. Holding the cursor at the top of the frame keeps
@@ -620,7 +683,10 @@ function flight(dt) {
   // with nothing to do but turn two joints.
   _aimLocal.copy(aimDirection(plane.pos))
            .applyQuaternion(_invQ.copy(craft.group.quaternion).invert());
-  craft.update(dt, { throttle: plane.throttle, speed: plane.speed, aim: _aimLocal });
+  craft.update(dt, {
+    throttle: plane.throttle, speed: plane.speed, aim: _aimLocal,
+    pitch: ctl.pitch, yaw: ctl.yaw,
+  });
 }
 
 /* ===== Camera ===== */
@@ -631,6 +697,61 @@ const _up = new THREE.Vector3();
 const _worldUp = new THREE.Vector3(0, 1, 0);
 
 const _camUpQ = new THREE.Quaternion();
+
+/* The opening pan.
+
+   Five seconds around the aeroplane before the player gets it: in from
+   ahead and below, back along the flank past the wing, up over the
+   shoulder to look down into both cockpits, and then out into the chase
+   position. Positions and look targets are in the aircraft's own frame, so
+   the whole thing travels with it and it can be flying properly underneath
+   rather than parked.
+
+   The last stretch blends into whatever the chase camera wants, which is
+   what makes handing over control invisible: at the end of the path the
+   camera is already exactly where the game was going to put it. */
+const INTRO_TIME = 5;
+const INTRO_PATH = [
+  { t: 0,    p: [17.0, -1.8, -20.0], l: [0, 0.9, -3.4] },
+  { t: 0.26, p: [13.0,  0.3,  -6.0], l: [0, 1.0, -2.0] },
+  { t: 0.52, p: [ 8.5,  2.0,   3.5], l: [0, 1.2,  0.2] },
+  { t: 0.74, p: [ 3.6,  3.3,   8.0], l: [0, 1.1, -0.6] },
+  { t: 1,    p: [ 0.0,  3.4,  11.6], l: [0, 0.8, -4.0] },
+];
+
+const _ip = new THREE.Vector3();
+const _il = new THREE.Vector3();
+const smoothStep = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+
+// How far back the camera sits, eased. Held outside the function so it
+// follows speed smoothly rather than snapping on every throttle twitch.
+let camPull = 11.6;
+let camRise = 3.5;
+
+function introCamera() {
+  const u = Math.min(1, state.introT / INTRO_TIME);
+  let a = INTRO_PATH[0], b = INTRO_PATH[1];
+  for (let i = 0; i < INTRO_PATH.length - 1; i++) {
+    if (u >= INTRO_PATH[i].t && u <= INTRO_PATH[i + 1].t) {
+      a = INTRO_PATH[i]; b = INTRO_PATH[i + 1]; break;
+    }
+  }
+  const k = smoothStep((u - a.t) / Math.max(1e-4, b.t - a.t));
+  _ip.set(a.p[0] + (b.p[0] - a.p[0]) * k,
+          a.p[1] + (b.p[1] - a.p[1]) * k,
+          a.p[2] + (b.p[2] - a.p[2]) * k).applyQuaternion(plane.orient).add(plane.pos);
+  _il.set(a.l[0] + (b.l[0] - a.l[0]) * k,
+          a.l[1] + (b.l[1] - a.l[1]) * k,
+          a.l[2] + (b.l[2] - a.l[2]) * k).applyQuaternion(plane.orient).add(plane.pos);
+
+  const hand = smoothStep((u - 0.7) / 0.3);
+  _ip.lerp(_camWant, hand);
+  _il.lerp(_look, hand);
+
+  camera.position.copy(_ip);
+  camera.up.set(0, 1, 0).lerp(_up, hand).normalize();
+  camera.lookAt(_il);
+}
 
 function chase(dt) {
   // On a crash the camera stops following the aircraft, which no longer
@@ -646,10 +767,35 @@ function chase(dt) {
     return;
   }
 
-  // Behind and above, in the aircraft's own frame, so the view rolls a little
-  // with it. Only a little: fully welded to the roll makes the horizon spin
-  // and is the quickest way to make someone put it down.
-  _camWant.set(0, 3.5, 11.6).applyQuaternion(plane.orient).add(plane.pos);
+  /* Behind and above, in the aircraft's own frame, so the view rolls a
+     little with it. Only a little: fully welded to the roll makes the
+     horizon spin and is the quickest way to make someone put it down.
+
+     How far behind depends on speed. Nothing about the aircraft changes,
+     but pulling the camera out as it accelerates puts more of the world
+     through the frame every second and takes the aeroplane off the middle
+     of it, and both of those read as speed. Coming back in when it slows
+     does the same in reverse. Eased hard, because the alternative is a
+     camera that breathes in and out with every gust. */
+  const h = craft.handling;
+  const slow = h.cruise * 0.72;
+  const fast = Math.max(0, Math.min(1.6, (plane.speed - slow) / (h.top - slow)));
+  const ease = Math.min(1, 2.2 * dt);
+  camPull += ((9.9 + fast * 4.6) - camPull) * ease;
+  camRise += ((3.1 + fast * 0.9) - camRise) * ease;
+
+  _camWant.set(0, camRise, camPull).applyQuaternion(plane.orient).add(plane.pos);
+  _look.copy(forwardVector()).multiplyScalar(34).add(plane.pos);
+
+  // Up comes from the flight orientation, which carries pitch and heading but
+  // not the cosmetic lean. That keeps the horizon steady through a turn while
+  // still following the aircraft over the top of a loop, where blending
+  // toward world up would flip the view inside out.
+  _camUpQ.setFromAxisAngle(AXIS_Z, plane.roll * 0.32);
+  _up.set(0, 1, 0).applyQuaternion(_bodyQ.copy(plane.orient).multiply(_camUpQ));
+
+  if (state.intro) { introCamera(); return; }
+
   camera.position.lerp(_camWant, Math.min(1, 7 * dt));
 
   // A near miss shakes the camera rather than the aircraft, so being rattled
@@ -662,15 +808,7 @@ function chase(dt) {
     state.shake *= Math.max(0, 1 - 6.5 * dt);
   }
 
-  _look.copy(forwardVector()).multiplyScalar(34).add(plane.pos);
   camera.lookAt(_look);
-
-  // Up comes from the flight orientation, which carries pitch and heading but
-  // not the cosmetic lean. That keeps the horizon steady through a turn while
-  // still following the aircraft over the top of a loop, where blending
-  // toward world up would flip the view inside out.
-  _camUpQ.setFromAxisAngle(AXIS_Z, plane.roll * 0.32);
-  _up.set(0, 1, 0).applyQuaternion(_bodyQ.copy(plane.orient).multiply(_camUpQ));
   camera.up.copy(_up).normalize();
 }
 
@@ -678,13 +816,18 @@ function chase(dt) {
 
 const state = { screen: 'title', flying: false, paused: false, popped: 0,
                 dead: false, deadKind: null, deadTimer: 0,
-                crashAt: null, crashDir: null, shake: 0 };
+                crashAt: null, crashDir: null, shake: 0,
+                intro: false, introT: 0 };
 
 const hudSpeed = document.getElementById('hud-speed');
 const hudAlt   = document.getElementById('hud-alt');
 const reticle  = document.getElementById('reticle');
 const pauseEl  = document.getElementById('fly-pause');
 const flashEl  = document.getElementById('fly-flash');
+const threatEl = document.getElementById('threat');
+const introEl  = document.getElementById('intro-card');
+const introName = document.getElementById('intro-name');
+const introSub  = document.getElementById('intro-sub');
 
 function show(name) {
   state.screen = name;
@@ -692,6 +835,56 @@ function show(name) {
   document.getElementById('screen-' + name).classList.add('active');
   document.body.classList.toggle('is-flying', name === 'fly');
   if (name === 'fly') resize();
+  // Leaving mid pan, by any route, takes the pan with it.
+  else if (state.intro) endIntro();
+  // One track for the menus, another over the islands. Asking for the one
+  // already playing is a no-op, so this can fire on every screen change.
+  audio.music(name === 'fly' ? 'island' : 'menu');
+}
+
+/* The threat arrow.
+
+   Only for a hostile that is actually shooting at you: a marker on every
+   warship on the horizon would be a map, not a warning. It rides an ellipse
+   inset from the edge of the frame and turns to face outward while the ship
+   is off screen or behind, and sits still over the ship once it is in view,
+   so one element covers both without ever being in two places. */
+const _threat = new THREE.Vector3();
+
+function updateThreat() {
+  let best = null, bd = Infinity;
+  if (!state.dead && !state.intro) {
+    for (const t of world.targets) {
+      if (!t.alive || !t.hostile || !(t.engaging > 0)) continue;
+      const d = t.mesh.position.distanceTo(plane.pos);
+      if (d < bd) { bd = d; best = t; }
+    }
+  }
+  if (!best) { if (!threatEl.hidden) threatEl.hidden = true; return; }
+  threatEl.hidden = false;
+
+  _threat.copy(best.mesh.position).project(camera);
+  // Behind the camera the projection comes back mirrored, so flip it and
+  // treat it as off screen, which it is.
+  const behind = _threat.z > 1;
+  const nx = behind ? -_threat.x : _threat.x;
+  const ny = behind ? -_threat.y : _threat.y;
+
+  const r = wrap.getBoundingClientRect();
+  const halfW = r.width / 2, halfH = r.height / 2;
+  let px = nx * halfW, py = -ny * halfH;
+
+  const inView = !behind && Math.abs(nx) < 0.94 && Math.abs(ny) < 0.94;
+  let turn = 0;
+  if (!inView) {
+    const limX = Math.max(40, halfW - 46);
+    const limY = Math.max(40, halfH - 46);
+    const over = Math.max(Math.abs(px) / limX, Math.abs(py) / limY, 1e-4);
+    px /= over; py /= over;
+    turn = Math.atan2(py, px) + Math.PI / 2;   // the arrow is drawn pointing up
+  }
+  threatEl.style.transform =
+    'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) rotate(' + turn.toFixed(3) + 'rad)';
 }
 
 function startFlight() {
@@ -713,7 +906,31 @@ function startFlight() {
   craft.group.visible = true;
   flashEl.className = 'fly-flash';
   pauseEl.hidden = true;
+
+  state.intro = true;
+  state.introT = 0;
+  wrap.classList.add('is-intro');
+  introName.textContent = currentMap.name;
+  introSub.textContent = currentMap.flyer;
+  introEl.classList.remove('is-out');
+  introEl.hidden = false;
+  threatEl.hidden = true;
+
   show('fly');
+}
+
+// Click or key out of the pan. It does not cut: it jumps to the last part
+// of the path, which is the part that eases into the chase position, so
+// skipping still hands over cleanly rather than snapping.
+function skipIntro() {
+  if (!state.intro) return;
+  state.introT = Math.max(state.introT, INTRO_TIME - 0.7);
+}
+
+function endIntro() {
+  state.intro = false;
+  wrap.classList.remove('is-intro');
+  introEl.hidden = true;
 }
 
 function crash(kind) {
@@ -769,7 +986,7 @@ function respawn() {
 }
 
 function togglePause() {
-  if (!state.flying) return;
+  if (!state.flying || state.intro) return;
   state.paused = !state.paused;
   pauseEl.hidden = !state.paused;
   // The loop stops calling flight() while paused, and the engine gain would
@@ -806,10 +1023,16 @@ function loop() {
 
   if (state.screen === 'fly' && state.flying && !state.paused) {
     if (!state.dead) {
+      if (state.intro) {
+        state.introT += dt;
+        if (state.introT >= INTRO_TIME - 1.1) introEl.classList.add('is-out');
+        if (state.introT >= INTRO_TIME) endIntro();
+      }
+
       flight(dt);
 
       fireCooldown -= dt;
-      if (cursor.down && fireCooldown <= 0) { fire(); fireCooldown = 0.09; }
+      if (!state.intro && cursor.down && fireCooldown <= 0) { fire(); fireCooldown = 0.09; }
 
       audio.flight(plane.throttle, Math.min(1, plane.speed / craft.handling.top));
 
@@ -834,6 +1057,7 @@ function loop() {
     stepBullets(dt);
     effects.update(dt);
     chase(dt);
+    updateThreat();
   }
 
   renderer.render(scene, camera);
@@ -843,12 +1067,13 @@ function loop() {
 /* ===== Wiring ===== */
 
 canvas.addEventListener('pointermove', readCursor, { passive: true });
-canvas.addEventListener('pointerdown', e => { readCursor(e); cursor.down = true; audio.resume(); });
+canvas.addEventListener('pointerdown', e => { readCursor(e); cursor.down = true; audio.resume(); skipIntro(); });
 addEventListener('pointerup', () => { cursor.down = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
+  if (state.intro && (k === 'escape' || k === ' ' || k === 'enter')) { skipIntro(); e.preventDefault(); return; }
   if (k === 'escape' && state.screen === 'fly') togglePause();
   if (k === ' ' && state.screen === 'fly') { cursor.down = true; e.preventDefault(); }
 });
@@ -927,22 +1152,48 @@ Object.entries(CRAFT).forEach(([key, def]) => {
   craftList.appendChild(li);
 });
 
-function bindRange(id, key, after) {
-  const el = document.getElementById(id);
-  el.value = settings[key];
-  el.addEventListener('input', () => { settings[key] = +el.value; save(); if (after) after(); });
+/* A setting can have more than one control now: one on the settings screen
+   and one in the pause menu, so sensitivity can be tuned against the
+   aircraft it applies to instead of from the title screen and a guess.
+   They are bound to the same value rather than duplicated, so moving
+   either moves both and there is never a stale slider to find later. */
+function bindRange(ids, key, after) {
+  const els = ids.map(id => document.getElementById(id)).filter(Boolean);
+  const sync = () => { for (const el of els) el.value = settings[key]; };
+  sync();
+  for (const el of els) {
+    el.addEventListener('input', () => {
+      settings[key] = +el.value; save(); sync(); if (after) after();
+    });
+  }
 }
-function bindCheck(id, key) {
-  const el = document.getElementById(id);
-  el.checked = !!settings[key];
-  el.addEventListener('change', () => { settings[key] = el.checked; save(); });
+function bindCheck(ids, key) {
+  const els = ids.map(id => document.getElementById(id)).filter(Boolean);
+  const sync = () => { for (const el of els) el.checked = !!settings[key]; };
+  sync();
+  for (const el of els) {
+    el.addEventListener('change', () => { settings[key] = el.checked; save(); sync(); });
+  }
 }
 
-bindRange('opt-sens', 'sensitivity');
-bindRange('opt-vol', 'volume', () => audio.setVolume(settings.volume / 10));
-bindCheck('opt-invert', 'invertY');
+function applyVolumes() {
+  audio.setVolume(settings.volume / 10);
+  audio.setDrone(settings.drone / 10);
+  // Music sits under everything else on purpose: it is there to be flown
+  // to, not listened to, and at parity it walks all over the engine.
+  audio.setMusicVolume((settings.music / 10) * 0.7);
+}
 
-audio.setVolume(settings.volume / 10);
+bindRange(['opt-sens', 'p-sens'], 'sensitivity');
+bindRange(['opt-vol', 'p-vol'], 'volume', applyVolumes);
+bindRange(['opt-drone', 'p-drone'], 'drone', applyVolumes);
+bindRange(['opt-music', 'p-music'], 'music', applyVolumes);
+bindCheck(['opt-invert', 'p-invert'], 'invertY');
+
+applyVolumes();
+// Queued rather than played: there is no audio context until a gesture, and
+// the request is held until there is one.
+audio.music('menu');
 resize();
 requestAnimationFrame(loop);
 
