@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>three.js starter - RoboKyle</title>
+    <meta name="description" content="A minimal three.js scene, wired to the vendored copy of the library. Copy this folder to start a new 3D game.">
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/png" href="/public/logo.png">
+
+    <!-- The import map has to come before any module script that needs it, and
+         the trailing slash on "three/addons/" is what makes that key a prefix. -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "/public/vendor/three/build/three.module.min.js",
+        "three/addons/": "/public/vendor/three/addons/"
+      }
+    }
+    </script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            background: #06050A;
+            color: #F1E4D2;
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+            overflow: hidden;
+        }
+        canvas { display: block; }
+
+        .hud {
+            position: fixed;
+            left: 1rem;
+            bottom: 1rem;
+            font-size: .72rem;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: #7C6459;
+            pointer-events: none;
+        }
+        .hud b { color: #E3552B; font-weight: 700; }
+
+        /* Shown only if the scene never starts. */
+        .fallback {
+            position: fixed;
+            inset: 0;
+            display: none;
+            place-items: center;
+            padding: 2rem;
+            text-align: center;
+            line-height: 1.6;
+            color: #BFA898;
+        }
+        .fallback code { color: #E3552B; }
+        body.is-broken .fallback { display: grid; }
+        body.is-broken .hud { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="fallback">
+        <p>
+            This scene needs WebGL, and the browser did not provide it.<br>
+            If that is unexpected, check the console - a 404 on
+            <code>/public/vendor/three/</code> means the library is not deployed.
+        </p>
+    </div>
+
+    <p class="hud">three.js r185 &middot; <b>drag</b> to orbit &middot; <b>scroll</b> to zoom</p>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // If anything above fails to load, the module never runs and the
+        // fallback stays hidden - so arm it first and disarm it on success.
+        const broken = setTimeout(() => document.body.classList.add('is-broken'), 4000);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x06050A);
+        scene.fog = new THREE.Fog(0x06050A, 9, 22);
+
+        const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
+        camera.position.set(4, 3.2, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, .8, 0);
+
+        // --- lights: one warm key, one cool fill, so the cube reads as solid ---
+        scene.add(new THREE.HemisphereLight(0x8899ff, 0x1a0f0c, .55));
+
+        const key = new THREE.DirectionalLight(0xffb98a, 2.4);
+        key.position.set(5, 8, 4);
+        key.castShadow = true;
+        key.shadow.mapSize.set(1024, 1024);
+        key.shadow.camera.near = 1;
+        key.shadow.camera.far = 25;
+        scene.add(key);
+
+        const rim = new THREE.PointLight(0xE3552B, 30, 20);
+        rim.position.set(-4, 2, -3);
+        scene.add(rim);
+
+        // --- the scene itself ---
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(1.6, 1.6, 1.6),
+            new THREE.MeshStandardMaterial({ color: 0xE3552B, roughness: .38, metalness: .25 })
+        );
+        cube.position.y = 1.2;
+        cube.castShadow = true;
+        scene.add(cube);
+
+        const floor = new THREE.Mesh(
+            new THREE.CircleGeometry(9, 64),
+            new THREE.MeshStandardMaterial({ color: 0x14100F, roughness: .95 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        scene.add(new THREE.GridHelper(18, 18, 0x37211C, 0x1c1214));
+
+        addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        const clock = new THREE.Clock();
+        renderer.setAnimationLoop(() => {
+            const t = clock.getElapsedTime();
+            cube.rotation.x = t * .5;
+            cube.rotation.y = t * .8;
+            cube.position.y = 1.2 + Math.sin(t * 1.4) * .18;
+            controls.update();
+            renderer.render(scene, camera);
+        });
+
+        clearTimeout(broken);
+    </script>
+</body>
+</html>
