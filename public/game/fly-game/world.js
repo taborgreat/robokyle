@@ -617,6 +617,24 @@ export function createWorld(scene) {
 
   const _p = new THREE.Vector3();
 
+  const _s1 = new THREE.Vector3();
+  const _s2 = new THREE.Vector3();
+  const _s3 = new THREE.Vector3();
+  const _s4 = new THREE.Vector3();
+
+  // Distance from a sphere centre to the segment ab. The path of a round
+  // is a curve, so it has to be tested a piece at a time rather than as
+  // one ray, and each piece is a segment.
+  function segDist(ax, ay, az, bx, by, bz, c) {
+    const abx = bx - ax, aby = by - ay, abz = bz - az;
+    const apx = c.x - ax, apy = c.y - ay, apz = c.z - az;
+    const ab2 = abx * abx + aby * aby + abz * abz;
+    let t = ab2 > 0 ? (apx * abx + apy * aby + apz * abz) / ab2 : 0;
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    const dx = apx - abx * t, dy = apy - aby * t, dz = apz - abz * t;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
   // Distance along a unit ray to the near side of a sphere, or -1 if it
   // misses or the sphere is behind.
   function raySphere(from, dir, c, r) {
@@ -1235,6 +1253,94 @@ export function createWorld(scene) {
 
        Returns max when it meets nothing, so the caller gets a usable
        point either way rather than having to handle a miss. */
+    /* Where a round actually ends up.
+
+       Not a ray. A round falls, and over these distances it falls a long
+       way: five units at four hundred, twenty six at nine hundred, sixty
+       three at fourteen hundred, by which point a straight line answer is
+       not in the same part of the sky. So this flies the thing, with the
+       same gravity the real round gets, and reports the first place it
+       meets the world.
+
+       Stepped at a twenty sixth of a second, which is about twenty three
+       units a step at muzzle speed, and every step is tested as the
+       segment it covered rather than as the point it ended at, so nothing
+       thinner than a step can be passed through. The crossing is then
+       bisected along that last segment, which is straight enough over
+       twenty three units for the interpolation to be exact to a fraction
+       of a unit. */
+    shotHit(from, vel, grav, maxTime, out) {
+      const STEP = 1 / 26;
+      out.copy(from);
+
+      // Only what is within reach can be struck, and on any given frame
+      // almost nothing is. One distance test each up here saves sixty odd
+      // segment tests each down there, which over a hundred targets and a
+      // frame budget is the difference between free and noticeable.
+      const reach = vel.length() * maxTime + 40;
+      const near = [];
+      for (const tg of targets) {
+        if (!tg.alive) continue;
+        const r = reach + tg.r;
+        if (tg.mesh.position.distanceToSquared(from) < r * r) near.push(tg);
+      }
+      const nearBalloons = [];
+      for (const b of balloons) {
+        if (!b.alive) continue;
+        const r = reach + b.r + 3;
+        if (b.mesh.position.distanceToSquared(from) < r * r) nearBalloons.push(b);
+      }
+      _s1.copy(from);            // where the round is
+      _s2.copy(vel);             // how fast, and which way
+      let t = 0;
+
+      while (t < maxTime) {
+        _s3.copy(_s1);           // where it was
+        _s2.y -= grav * STEP;
+        _s1.addScaledVector(_s2, STEP);
+        t += STEP;
+
+        // Anything solid, tested against the whole step.
+        let struck = null, radius = 0;
+        for (const tg of near) {
+          if (segDist(_s3.x, _s3.y, _s3.z, _s1.x, _s1.y, _s1.z, tg.mesh.position) <= tg.r) {
+            struck = tg.mesh.position; radius = tg.r; break;
+          }
+        }
+        if (!struck) {
+          for (const b of nearBalloons) {
+            if (segDist(_s3.x, _s3.y, _s3.z, _s1.x, _s1.y, _s1.z, b.mesh.position) <= b.r + 3) {
+              struck = b.mesh.position; radius = b.r + 3; break;
+            }
+          }
+        }
+        if (struck) {
+          // Walk back down the step to where it went in, so the mark sits
+          // on the near face rather than somewhere inside.
+          let lo = 0, hi = 1;
+          for (let k = 0; k < 9; k++) {
+            const mid = (lo + hi) * 0.5;
+            _s4.lerpVectors(_s3, _s1, mid);
+            if (_s4.distanceTo(struck) <= radius) hi = mid; else lo = mid;
+          }
+          return out.lerpVectors(_s3, _s1, hi);
+        }
+
+        if (_s1.y <= groundHeight(_s1.x, _s1.z)) {
+          let lo = 0, hi = 1;
+          for (let k = 0; k < 9; k++) {
+            const mid = (lo + hi) * 0.5;
+            _s4.lerpVectors(_s3, _s1, mid);
+            if (_s4.y <= groundHeight(_s4.x, _s4.z)) hi = mid; else lo = mid;
+          }
+          return out.lerpVectors(_s3, _s1, hi);
+        }
+
+        out.copy(_s1);
+      }
+      return out;
+    },
+
     rayHit(from, dir, max) {
       let range = max;
 

@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=23';
-import { buildCraft, CRAFT } from './craft.js?v=23';
-import { createAudio } from './audio.js?v=23';
-import { createEffects } from './effects.js?v=23';
+import { createWorld, ENEMY_GUNS } from './world.js?v=24';
+import { buildCraft, CRAFT } from './craft.js?v=24';
+import { createAudio } from './audio.js?v=24';
+import { createEffects } from './effects.js?v=24';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -149,6 +149,7 @@ fitCraft();
 
 const BULLET_LIFE = 3.4;
 const BULLET_GRAVITY = 24;     // what makes the stream sag at range
+const MUZZLE_BOOST = 520;      // over the aircraft's own speed
 const TRACER_EVERY = 0.035;    // seconds between dots left behind
 const bullets = [];
 // Long and thin, so a round in flight reads as a streak rather than a pea.
@@ -216,7 +217,7 @@ function fire() {
   const dir = aimDirection(_muzzleAt).clone();
   bullets.push({
     mesh: m,
-    vel: dir.multiplyScalar(plane.speed + 520).clone(),
+    vel: dir.multiplyScalar(plane.speed + MUZZLE_BOOST).clone(),
     life: BULLET_LIFE,
     trail: 0.055,   // let the round clear the nose before it starts leaving dots
     hot,
@@ -951,19 +952,23 @@ function show(name) {
    ring on that spot. Put the ring on the target rather than the
    crosshair and the rounds arrive.
 
-   Drop is deliberately left out of it, as asked. At long range the real
-   stream sags below this ring, and the ring is where the rounds would go
-   if it did not, which is the number worth having: it is the aiming line
-   itself, uncontaminated by how far the round has fallen by the time it
-   gets there.
+   Drop is in it. It was left out at first, because that is what was
+   asked for and because it sounded like a small correction. It is not:
+   these rounds fall five units at four hundred, twenty six at nine
+   hundred and sixty three at fourteen hundred, and a ring drawn on the
+   straight line ended up as much as seven hundred units from where the
+   rounds went. A gunsight that is wrong by that much is worse than no
+   gunsight, so this flies the round properly and marks where it lands.
 
-   With nothing at all in front of you the ring sits on the crosshair,
-   because with nothing to converge on there is nothing to disagree
-   about. That is the honest answer, not a failure to find one. */
-const PIP_RANGE = 1400;        // the same distance aimDirection converges on
+   Which means it does not sit on the crosshair even with nothing in
+   front of you: it sits below it, by however far the rounds will have
+   fallen by the time they get there. That gap is the sight telling you
+   how much to lift, and it is the whole reason to have a second mark. */
+const PIP_TIME = 2.4;          // about fourteen hundred units of flight
 const _pipMid = new THREE.Vector3();
 const _pipFrom = new THREE.Vector3();
 const _pipDir = new THREE.Vector3();
+const _pipVel = new THREE.Vector3();
 const _pipAt = new THREE.Vector3();
 
 function updatePipper() {
@@ -982,12 +987,14 @@ function updatePipper() {
 
   _pipFrom.copy(_pipMid).multiplyScalar(craft.group.scale.x)
     .applyQuaternion(craft.group.quaternion).add(plane.pos);
-  // The same call fire() makes, so the ring is on the line the next round
-  // will genuinely leave along rather than on a second guess at it.
+  // The same call fire() makes, at the same speed it hands the round, so
+  // what is drawn is the round that is about to be fired rather than a
+  // second guess at it.
   _pipDir.copy(aimDirection(_pipFrom));
+  _pipVel.copy(_pipDir).multiplyScalar(plane.speed + MUZZLE_BOOST);
 
-  const range = Math.max(20, world.rayHit(_pipFrom, _pipDir, PIP_RANGE));
-  _pipAt.copy(_pipFrom).addScaledVector(_pipDir, range).project(camera);
+  world.shotHit(_pipFrom, _pipVel, BULLET_GRAVITY, PIP_TIME, _pipAt);
+  _pipAt.project(camera);
 
   if (_pipAt.z > 1) { if (!pipEl.hidden) pipEl.hidden = true; return; }
 
