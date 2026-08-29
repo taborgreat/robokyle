@@ -57,7 +57,16 @@ body.game-body::before {
 }
 
 /* Page shell - take the whole viewport, dark chrome */
+/* Grand Heist has had this from the start; Undead never did, so padding
+   added to declared widths here and not there, and the two games drifted
+   apart on anything with both. */
+*, *::before, *::after { box-sizing: border-box; }
+
 body.game-body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     background: var(--gm-bg);
     color: var(--gm-ink);
     min-height: 100vh;
@@ -79,6 +88,10 @@ body.game-body {
         radial-gradient(50% 55% at 85% 85%, rgba(227,85,43,.16) 0%, transparent 60%),
         var(--gm-bg);
 }
+
+/* Nothing inside the frame is draggable or selectable. */
+.game-frame img,
+.game-frame canvas { -webkit-user-drag: none; user-select: none; }
 
 .game-frame {
     width: 100%;
@@ -471,7 +484,7 @@ body.game-body {
     margin-bottom: .4rem;
 }
 
-/* ---------- Fullscreen ---------- */
+/* ===== Fullscreen ===== */
 .fs-btn {
     position: absolute; top: .6rem; right: .6rem; z-index: 60;
     display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
@@ -484,33 +497,61 @@ body.game-body {
 .fs-btn:hover { border-color: var(--gm-accent, #E3552B); color: var(--gm-accent, #E3552B); }
 .fs-btn svg { width: 13px; height: 13px; }
 
-.game-frame.is-fullscreen, .game-frame:fullscreen {
+/* ===== Fullscreen =====
+   The frame becomes the screen and lays its active child out as a column.
+   The arena then takes the whole area at the monitor's own aspect ratio,
+   and the canvas resizes its backing store to match, so fullscreen shows
+   more of the world rather than magnifying the same picture. */
+.game-frame.is-fullscreen,
+.game-frame:fullscreen,
+.game-frame.is-maxed {
     border-radius: 0; border: 0; box-shadow: none;
     width: 100vw; height: 100vh; height: 100dvh;
     max-width: none;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; flex-direction: column;
 }
-.game-frame.is-maxed {
-    position: fixed; inset: 0; z-index: 999;
-    border-radius: 0; border: 0; box-shadow: none;
-    width: 100vw; height: 100vh; height: 100dvh; max-width: none;
-    display: flex; align-items: center; justify-content: center;
-}
-/* In fullscreen the arena is sized by height, so it fills the screen
-   without ever overflowing it. */
-.game-frame.is-fullscreen #gameCanvas,
-.game-frame:fullscreen #gameCanvas,
-.game-frame.is-maxed #gameCanvas {
-    width: auto; height: auto;
-    max-width: 100vw;
-    max-height: 100vh; max-height: 100dvh;
-}
+.game-frame.is-maxed { position: fixed; inset: 0; z-index: 999; }
+
 .game-frame.is-fullscreen .screen.active,
 .game-frame:fullscreen .screen.active,
 .game-frame.is-maxed .screen.active {
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    /* Hold the menus in a centred column. Without this every list and
+       heading stretches the full width of the display and the eye has to
+       travel from one corner to the other. */
+    padding-inline: max(clamp(1.5rem, 4vw, 3rem), calc((100% - 1180px) / 2));
+    /* And centre that column vertically, or a short menu sits in the top
+       third of a 1080 tall screen with a void under it. "safe" so a menu
+       taller than the display still scrolls from its top rather than
+       having the top clipped off. */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    justify-content: safe center;
+}
+/* The arena is not a menu: it fills. Scoped to .active, because .screen is
+   display:none until then and an unscoped display:block here put the arena
+   on screen underneath every menu. */
+.game-frame.is-fullscreen #screen-play.active,
+.game-frame:fullscreen #screen-play.active,
+.game-frame.is-maxed #screen-play.active {
+    display: block;
+}
+.game-frame.is-fullscreen .screen.centered.active,
+.game-frame:fullscreen .screen.centered.active,
+.game-frame.is-maxed .screen.centered.active {
+    display: grid;
+    place-items: center;
+    align-content: center;
+}
+.game-frame.is-fullscreen #screen-play.active,
+.game-frame:fullscreen #screen-play.active,
+.game-frame.is-maxed #screen-play.active {
+    aspect-ratio: auto;
+    padding: 0;
+    overflow: hidden;
 }
 
 /* Short windows: the site strip goes first. */
@@ -523,22 +564,26 @@ body.game-body {
     padding: 0;
     position: relative;
     background: #0a0d13;
+    /* Windowed, the arena keeps a 3:2 shape so the frame has a height to
+       take. In fullscreen this is dropped and the canvas takes the screen's
+       own shape, which is the whole point of fullscreen. */
+    aspect-ratio: 3 / 2;
+    min-height: 0;
 }
 #gameCanvas {
     display: block;
     width: 100%;
-    height: auto;
-    aspect-ratio: 3 / 2;
+    height: 100%;
     background: #0a0d13;
     cursor: crosshair;
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
 }
 
 /* HUD overlay */
 .hud {
     position: absolute;
     inset: 0;
+    margin-inline: auto;
+    max-width: 1700px;
     pointer-events: none;
     padding: 1rem 1.2rem;
     display: grid;

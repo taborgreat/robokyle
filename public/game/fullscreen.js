@@ -1,4 +1,4 @@
-/* ------------------------------------------------------------------
+/* ==================================================================
    Fullscreen, shared by both RoboKyle games.
 
    Monitors vary enough that a fixed frame is wrong on most of them: on
@@ -8,7 +8,13 @@
 
    The button lives inside the frame, so it comes along into fullscreen
    with everything else.
-   ------------------------------------------------------------------ */
+
+   Sizing is watched with a ResizeObserver rather than inferred from
+   window resize events. Entering fullscreen changes the frame's size
+   without the window necessarily reporting one, and the maxed fallback
+   changes it with no window event at all, so listening to the element
+   is the only version that is right in every case.
+   ================================================================== */
 (function () {
   'use strict';
 
@@ -78,6 +84,21 @@
     window.dispatchEvent(new Event('resize'));
     // twice: once now, once after the browser has finished the transition
     setTimeout(() => window.dispatchEvent(new Event('resize')), 120);
+  }
+
+  // Authoritative signal: whatever the frame's real size ends up being,
+  // coalesced to one notification per frame so a CSS transition does not
+  // fire a hundred of them.
+  if (typeof ResizeObserver !== 'undefined') {
+    let queued = false;
+    new ResizeObserver(() => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        window.dispatchEvent(new Event('resize'));
+      });
+    }).observe(frame);
   }
 
   ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => {

@@ -1340,6 +1340,7 @@
       policeLeft: bank.respond * 1000,
       zoom: clamp(GH.settings.zoom || 1, ZOOM_MIN, ZOOM_MAX),
       zoomTo: clamp(GH.settings.zoom || 1, ZOOM_MIN, ZOOM_MAX),
+      // re-clamped against zoomFloor() once the world exists, in loop()
       copsHere: false, breachLeft: bank.breach * 1000, breached: false,
       waveTimer: 0, waveNo: 0, waveGap: T.copWaveInterval,
       cam: { x: spawn0.x, y: spawn0.y, zoom: 1 },
@@ -1456,7 +1457,7 @@
     // The wheel sets where the camera is heading; the frame eases it
     // there. Snapping straight to the new zoom made every notch a jolt.
     const step = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-    H.zoomTo = clamp((H.zoomTo || H.zoom || 1) * step, ZOOM_MIN, ZOOM_MAX);
+    H.zoomTo = clamp((H.zoomTo || H.zoom || 1) * step, zoomFloor(), zoomCeil());
     GH.settings.zoom = H.zoomTo;              // remembered between jobs
     GH.saveSettings && GH.saveSettings();
   }, { passive: false });
@@ -5049,7 +5050,7 @@
   function endIntro() {
     if (!H || !H.intro) return;
     H.intro = null;
-    H.zoom = clamp(GH.settings.zoom || 1, ZOOM_MIN, ZOOM_MAX);
+    H.zoom = clamp(GH.settings.zoom || 1, zoomFloor(), zoomCeil());
     H.zoomTo = H.zoom;
     const wrap = canvas.parentElement;
     if (wrap) wrap.classList.remove('is-intro');
@@ -5284,6 +5285,10 @@
   function resize() {
     const wrap = canvas.parentElement;
     const rect = wrap.getBoundingClientRect();
+    // A hidden wrapper measures 0x0, and the floors below would then pin the
+    // canvas at 320x240 and leave the run rendering into a stamp until
+    // something resized it again. Keep the last good size instead.
+    if (rect.width < 2 || rect.height < 2) return;
     DPR = Math.min(2, window.devicePixelRatio || 1);
     VW = Math.max(320, rect.width);
     VH = Math.max(240, rect.height);
@@ -5297,8 +5302,28 @@
 
   const ZOOM_MIN = 0.62, ZOOM_MAX = 1.85;
 
+  // The camera must never be able to see past the edge of the bank. A small
+  // bank is 1250 wide, so on a 2560 wide display at zoom 1 more than half the
+  // screen would be ground that does not exist. The floor rises until the
+  // view fits, and it is a hair over the exact fit because at exactly
+  // VW/world.w float rounding leaves a sliver down one edge.
+  function zoomFloor() {
+    if (!H || !H.world) return ZOOM_MIN;
+    return Math.max(ZOOM_MIN,
+                    (VW / H.world.w) * 1.002,
+                    (VH / H.world.h) * 1.002);
+  }
+  function zoomCeil() { return Math.max(ZOOM_MAX, zoomFloor()); }
+
   function camOffset() {
-    const zoom = H.zoom || 1;
+    // Entering fullscreen changes VW/VH without touching H.zoom, so the floor
+    // is enforced here, at the point of use, rather than only where the
+    // player changes zoom.
+    const lo = zoomFloor(), hi = zoomCeil();
+    if (H.zoom == null) H.zoom = 1;
+    H.zoom = clamp(H.zoom, lo, hi);
+    if (H.zoomTo != null) H.zoomTo = clamp(H.zoomTo, lo, hi);
+    const zoom = H.zoom;
     // How much world fits on screen depends on the zoom, so the clamp
     // that keeps the camera off the edge has to account for it.
     const halfW = VW / (2 * zoom), halfH = VH / (2 * zoom);

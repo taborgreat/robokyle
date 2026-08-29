@@ -61,8 +61,39 @@
   const gameoverOverlay = document.getElementById('overlay-gameover');
 
   // ==================== CONFIG ====================
-  const W = canvas.width;   // 960 - viewport width
-  const H = canvas.height;  // 640 - viewport height
+  // The viewport is whatever the canvas is actually showing, in CSS pixels,
+  // remeasured whenever the element changes size. It used to be the canvas
+  // element's fixed 960x640 backing store, read once at load, which meant
+  // fullscreen only ever stretched a 960x640 bitmap: the picture got bigger
+  // and blurrier, and you saw exactly as much of the world as before.
+  // Everything downstream already treats W and H as "how much I can see",
+  // so making them live is all that was needed.
+  let W = 960;
+  let H = 640;
+  let DPR = 1;
+
+  // Backing store is W*DPR by H*DPR so the game renders at native device
+  // resolution; the draw code stays in CSS pixels and the three transform
+  // call sites below multiply by DPR.
+  function fitCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return false;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(320, Math.round(rect.width));
+    const h = Math.max(240, Math.round(rect.height));
+    if (w === W && h === H && dpr === DPR) return false;
+    W = w; H = h; DPR = dpr;
+    canvas.width  = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    return true;
+  }
+
+  // ResizeObserver rather than a window resize listener: entering fullscreen
+  // resizes the canvas without the window ever changing size.
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => fitCanvas()).observe(canvas);
+  }
+  window.addEventListener('resize', fitCanvas);
   const BASE_SPEED = 2.7;
   const SPRINT_SPEED = 4.6;
   const SPRINT_BUDGET_MS = 1600;
@@ -894,8 +925,8 @@
   window.addEventListener('keyup', e => { S.keys[e.key.toLowerCase()] = false; });
   canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
-    S.mouseSX = (e.clientX - rect.left) * (canvas.width / rect.width);
-    S.mouseSY = (e.clientY - rect.top)  * (canvas.height / rect.height);
+    S.mouseSX = (e.clientX - rect.left) * (W / rect.width);
+    S.mouseSY = (e.clientY - rect.top)  * (H / rect.height);
   });
   canvas.addEventListener('mousedown', e => { if (e.button === 0) { S.mouseDown = true; ensureAudio(); } });
   window.addEventListener('mouseup',   e => { if (e.button === 0)  S.mouseDown = false; });
@@ -904,7 +935,7 @@
     if (S.screen !== 'play') return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    S.cam.targetZoom = clamp(S.cam.targetZoom + delta, 0.55, 1.75);
+    S.cam.targetZoom = clamp(S.cam.targetZoom + delta, zoomLimits().lo, zoomLimits().hi);
   }, { passive: false });
 
   // ==================== TOUCH CONTROLS ====================
@@ -1086,8 +1117,8 @@
       btn.addEventListener('click', e => {
         e.preventDefault();
         if (kind === 'pause') { resetTouchInput(); togglePause(); }
-        if (kind === 'zoomin')  S.cam.targetZoom = clamp(S.cam.targetZoom + 0.15, 0.55, 1.75);
-        if (kind === 'zoomout') S.cam.targetZoom = clamp(S.cam.targetZoom - 0.15, 0.55, 1.75);
+        if (kind === 'zoomin')  S.cam.targetZoom = clamp(S.cam.targetZoom + 0.15, zoomLimits().lo, zoomLimits().hi);
+        if (kind === 'zoomout') S.cam.targetZoom = clamp(S.cam.targetZoom - 0.15, zoomLimits().lo, zoomLimits().hi);
       });
     });
 
@@ -1110,7 +1141,7 @@
       if (pinchPts.size === 2 && pinchStart > 0) {
         const [a, b] = [...pinchPts.values()];
         const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-        S.cam.targetZoom = clamp(pinchZoom * (d / pinchStart), 0.55, 1.75);
+        S.cam.targetZoom = clamp(pinchZoom * (d / pinchStart), zoomLimits().lo, zoomLimits().hi);
         e.preventDefault();
       }
     }, { passive: false });
@@ -1140,6 +1171,7 @@
 
   // ==================== FLOW ====================
   function startGame(mapKey) {
+    fitCanvas();
     S.map = mapKey;
     S.mapData = MAPS[mapKey];
     S.enemies = [];
@@ -1594,17 +1626,23 @@
     if (!collidesObstacles(p.x, ny, p.r) && inWorldBounds(p.x, ny, p.r)) p.y = ny;
 
     // Camera + aim
+    const zl = zoomLimits();
+    S.cam.targetZoom = clamp(S.cam.targetZoom, zl.lo, zl.hi);
     S.cam.zoom += (S.cam.targetZoom - S.cam.zoom) * 0.15;
+    S.cam.zoom = clamp(S.cam.zoom, zl.lo, zl.hi);
     const camLag = 0.13;
     S.cam.x += (p.x - S.cam.x) * camLag;
     S.cam.y += (p.y - S.cam.y) * camLag;
     const viewW = W / S.cam.zoom, viewH = H / S.cam.zoom;
-    const bx0 = S.mapData.bounds ? S.mapData.bounds.x : 0;
-    const by0 = S.mapData.bounds ? S.mapData.bounds.y : 0;
-    const bx1 = S.mapData.bounds ? S.mapData.bounds.x + S.mapData.bounds.w : S.mapData.worldW;
-    const by1 = S.mapData.bounds ? S.mapData.bounds.y + S.mapData.bounds.h : S.mapData.worldH;
-    S.cam.x = clamp(S.cam.x, bx0 + viewW / 2, bx1 - viewW / 2);
-    S.cam.y = clamp(S.cam.y, by0 + viewH / 2, by1 - viewH / 2);
+    const wr = worldRect();
+    const bx0 = wr.x0, by0 = wr.y0, bx1 = wr.x1, by1 = wr.y1;
+    // If the view still cannot fit (a map whose bounds are smaller than the
+    // zoom floor allows for), centre on the bounds rather than letting the
+    // clamp produce a nonsense position.
+    S.cam.x = viewW >= (bx1 - bx0) ? (bx0 + bx1) / 2
+                                   : clamp(S.cam.x, bx0 + viewW / 2, bx1 - viewW / 2);
+    S.cam.y = viewH >= (by1 - by0) ? (by0 + by1) / 2
+                                   : clamp(S.cam.y, by0 + viewH / 2, by1 - viewH / 2);
 
     recomputeWorldMouse();
     if (S.touch.active) {
@@ -2075,21 +2113,63 @@
     }
   }
 
+  // The playable rectangle. Not every map declares an explicit `bounds`, so
+  // the ones that do not fall back to the whole world. The camera clamp and
+  // the zoom floor have to agree on this or they fight each other: reading
+  // only `bounds` here, while the clamp fell back to worldW, is what left a
+  // strip of nothing past the arena edge on a wide display.
+  function worldRect() {
+    const m = S.mapData;
+    if (!m) return null;
+    const b = m.bounds;
+    return b
+      ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }
+      : { x0: 0, y0: 0, x1: m.worldW, y1: m.worldH };
+  }
+
+  // How far the camera may pull back before the viewport would show ground
+  // that is not part of the arena.
+  function zoomLimits() {
+    const r = worldRect();
+    if (!r) return { lo: 0.55, hi: 1.75 };
+    // A hair over the exact fit: at exactly W/worldW the view and the world
+    // are the same width, and float rounding leaves a one pixel sliver of
+    // nothing down one edge.
+    const lo = Math.max(0.55, (W / (r.x1 - r.x0)) * 1.002, (H / (r.y1 - r.y0)) * 1.002);
+    return { lo, hi: Math.max(lo, 1.75) };
+  }
+
   // ==================== RENDER ====================
+
+  // Screen space: one unit is one CSS pixel, origin top left of the canvas.
+  function toScreenSpace() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  // World space: camera centre maps to viewport centre, then zoom. sx/sy are
+  // the screen-shake offset.
+  function toWorldSpace(sx, sy) {
+    const z = S.cam.zoom * DPR;
+    ctx.setTransform(
+      z, 0, 0, z,
+      (W / 2 - S.cam.x * S.cam.zoom + sx) * DPR,
+      (H / 2 - S.cam.y * S.cam.zoom + sy) * DPR
+    );
+  }
+
   function draw() {
     // Screen shake (screen-space)
     const sx = S.shake ? rand(-S.shake, S.shake) : 0;
     const sy = S.shake ? rand(-S.shake, S.shake) : 0;
 
     // Clear
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    toScreenSpace();
     ctx.fillStyle = '#04060A';
     ctx.fillRect(0, 0, W, H);
 
     if (!S.mapData) return;
 
     // World transform: translate so cam center → screen center, then scale
-    ctx.setTransform(S.cam.zoom, 0, 0, S.cam.zoom, W/2 - S.cam.x * S.cam.zoom + sx, H/2 - S.cam.y * S.cam.zoom + sy);
+    toWorldSpace(sx, sy);
 
     drawFloorAndGrid();
     drawDecals();
@@ -2111,7 +2191,7 @@
     drawDamageNumbers();
 
     // Screen-space overlays
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    toScreenSpace();
     drawFlashBang();
     drawVignette();
     drawHitFlash();

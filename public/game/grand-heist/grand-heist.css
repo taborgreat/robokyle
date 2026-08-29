@@ -28,6 +28,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 body.gh-body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     margin: 0;
     min-height: 100vh;
     background: var(--bg);
@@ -64,6 +68,10 @@ body.gh-body::before {
     /* the whole page fits the window: game, then the site strip */
     min-height: 100vh; min-height: 100dvh;
 }
+/* Nothing inside the frame is draggable or selectable. */
+.game-frame img,
+.game-frame canvas { -webkit-user-drag: none; user-select: none; }
+
 .game-frame {
     position: relative;
     background: linear-gradient(180deg, #131B23, #0D131A);
@@ -764,12 +772,48 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 /* out of the way while a cutscene is running */
 .heist-wrap.is-intro ~ .fs-btn, .heist-wrap.is-cine ~ .fs-btn { opacity: 0; pointer-events: none; }
 
-.game-frame.is-fullscreen, .game-frame:fullscreen {
-    border-radius: 0; border: 0; width: 100vw; height: 100vh; height: 100dvh;
-}
+/* ===== Fullscreen =====
+   The canvas already sizes itself off its wrapper, so the only job here is
+   making sure the wrapper genuinely gets the whole screen, and that the
+   menus do not spread from one corner of a wide display to the other. */
+.game-frame.is-fullscreen,
+.game-frame:fullscreen,
 .game-frame.is-maxed {
-    position: fixed; inset: 0; z-index: 999;
-    border-radius: 0; border: 0; width: 100vw; height: 100vh; height: 100dvh;
+    border-radius: 0; border: 0;
+    width: 100vw; height: 100vh; height: 100dvh;
+    max-width: none; max-height: none;
+    min-height: 0;
+    display: flex; flex-direction: column;
+}
+.game-frame.is-maxed { position: fixed; inset: 0; z-index: 999; }
+
+.game-frame.is-fullscreen .screen.active,
+.game-frame:fullscreen .screen.active,
+.game-frame.is-maxed .screen.active {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-inline: max(clamp(1rem, 2.6vw, 2rem), calc((100% - 1240px) / 2));
+    /* Centre the column vertically too, or a short screen sits in the top
+       third with a void under it. "safe" so anything taller than the
+       display still scrolls from its top. */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    justify-content: safe center;
+}
+/* The arena is the exception: it takes everything. */
+.game-frame.is-fullscreen .screen.is-heist.active,
+.game-frame:fullscreen .screen.is-heist.active,
+.game-frame.is-maxed .screen.is-heist.active {
+    padding: 0;
+    overflow: hidden;
+    justify-content: stretch;
+}
+.game-frame.is-fullscreen .heist-wrap,
+.game-frame:fullscreen .heist-wrap,
+.game-frame.is-maxed .heist-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 /* Short windows: the site strip is the first thing to give. */
@@ -901,7 +945,13 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
 .screen.is-heist.active { display: flex; flex-direction: column; overflow: hidden; }
 #heist-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
-.hud { position: absolute; inset: 0; pointer-events: none; display: flex; justify-content: space-between; align-items: flex-start; padding: .7rem; gap: .7rem; }
+.hud {
+    position: absolute; inset: 0;
+    margin-inline: auto; max-width: 1700px;
+    pointer-events: none;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: .7rem; gap: .7rem;
+}
 .hud-left, .hud-right { display: grid; gap: .4rem; }
 .hud-right { justify-items: end; }
 .hud-mid { display: grid; gap: .35rem; justify-items: center; }
