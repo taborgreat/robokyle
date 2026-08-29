@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=15';
-import { buildCraft, CRAFT } from './craft.js?v=15';
-import { createAudio } from './audio.js?v=15';
-import { createEffects } from './effects.js?v=15';
+import { createWorld, ENEMY_GUNS } from './world.js?v=16';
+import { buildCraft, CRAFT } from './craft.js?v=16';
+import { createAudio } from './audio.js?v=16';
+import { createEffects } from './effects.js?v=16';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -108,6 +108,9 @@ scene.add(sun);
 const world = createWorld(scene);
 world.setFog(scene);
 const effects = createEffects(scene);
+// Burning rubble and sinking hulls are driven from the world, which already
+// walks that list every frame and knows where the wrecks are.
+world.attachEffects(effects);
 
 /* ===== The aircraft ===== */
 
@@ -646,7 +649,7 @@ function chase(dt) {
   // Behind and above, in the aircraft's own frame, so the view rolls a little
   // with it. Only a little: fully welded to the roll makes the horizon spin
   // and is the quickest way to make someone put it down.
-  _camWant.set(0, 3.9, 13.5).applyQuaternion(plane.orient).add(plane.pos);
+  _camWant.set(0, 3.5, 11.6).applyQuaternion(plane.orient).add(plane.pos);
   camera.position.lerp(_camWant, Math.min(1, 7 * dt));
 
   // A near miss shakes the camera rather than the aircraft, so being rattled

@@ -290,6 +290,33 @@ export function createEffects(scene) {
       }
     },
 
+    /* Things that go on burning.
+
+       Everything else here is a one shot: something happens, particles are
+       thrown, they die. These two are called over and over by the world for
+       anything still alight, so they spawn one particle a go and keep it
+       cheap. A wreck that smoulders for as long as you can see it is worth
+       more than a bigger bang. */
+    fire(pos, scale) {
+      spawn('sphere', {
+        pos, color: Math.random() < 0.35 ? 0xFFDA5C : 0xFF8A2C,
+        vel: new THREE.Vector3(rand(-1.4, 1.4), rand(6, 13), rand(-1.4, 1.4)).multiplyScalar(scale * 0.3),
+        grav: -2, drag: 1.5,
+        from: scale * rand(0.5, 1.0), to: scale * rand(0.1, 0.3),
+        life: rand(0.3, 0.65), opacity: 0.95, fadePow: 1.4,
+      });
+    },
+
+    smoke(pos, scale, color, rise) {
+      spawn('sphere', {
+        pos, color,
+        vel: new THREE.Vector3(rand(-2.2, 2.2), rise, rand(-2.2, 2.2)),
+        grav: -2.4, drag: 0.5,
+        from: scale * rand(0.5, 0.9), to: scale * rand(2.4, 4.0),
+        life: rand(2.2, 4.2), opacity: 0.45, fadePow: 1.6,
+      });
+    },
+
     /* A flak burst.
 
        The look this is after is wartime gun camera film: a hard bright
