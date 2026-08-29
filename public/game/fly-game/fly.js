@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=13';
-import { buildCraft, CRAFT } from './craft.js?v=13';
-import { createAudio } from './audio.js?v=13';
-import { createEffects } from './effects.js?v=13';
+import { createWorld, ENEMY_GUNS } from './world.js?v=14';
+import { buildCraft, CRAFT } from './craft.js?v=14';
+import { createAudio } from './audio.js?v=14';
+import { createEffects } from './effects.js?v=14';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -483,6 +483,8 @@ const _midAt = new THREE.Vector3();
 const _bodyRight = new THREE.Vector3();
 const _rollQ = new THREE.Quaternion();
 const _bodyQ = new THREE.Quaternion();
+const _invQ  = new THREE.Quaternion();
+const _aimLocal = new THREE.Vector3();
 
 function forwardVector() {
   return _fwd.set(0, 0, -1).applyQuaternion(plane.orient).clone();
@@ -608,7 +610,14 @@ function flight(dt) {
   _rollQ.setFromAxisAngle(AXIS_Z, plane.roll);
   craft.group.quaternion.copy(plane.orient).multiply(_rollQ);
   craft.group.position.copy(plane.pos);
-  craft.update(dt, { throttle: plane.throttle, speed: plane.speed });
+
+  // The rear gunner's gun follows the cursor, so the craft has to be told
+  // where that is. Unprojecting belongs here, next to the camera it needs,
+  // and handing the result over in the aircraft's own frame leaves the model
+  // with nothing to do but turn two joints.
+  _aimLocal.copy(aimDirection(plane.pos))
+           .applyQuaternion(_invQ.copy(craft.group.quaternion).invert());
+  craft.update(dt, { throttle: plane.throttle, speed: plane.speed, aim: _aimLocal });
 }
 
 /* ===== Camera ===== */

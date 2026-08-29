@@ -17,6 +17,8 @@ import * as THREE from 'three';
 const mat = (color, opts = {}) =>
   new THREE.MeshLambertMaterial({ color, ...opts });
 
+const clamp = (v, lo, hi) => (v < lo ? lo : (v > hi ? hi : v));
+
 const PAINT = {
   red:    0xE2402F,
   cream:  0xF7F1E3,
@@ -33,10 +35,12 @@ const PAINT = {
 
 /* ===== The crew =====
 
-   Two of them, and they are the same cat twice with different kit, which
+   Two of them, and they are the same cat twice in different kit, which
    is deliberate: building one animal well and reusing it keeps them
-   looking like they came off the same shelf. Same primitives as
-   everything else, so they sit in the world rather than on top of it.
+   looking like they came off the same shelf. The one in front flies it
+   and wears the red scarf, the one behind works the gun. Same
+   primitives as everything else, so they sit in the world rather than
+   on top of it.
    ================================================================== */
 
 const FUR = {
@@ -68,16 +72,17 @@ function buildCat({ scarf = null, jacket = PAINT.brown } = {}) {
     c.add(paw);
   }
 
+  let scarfTail = null;
   if (scarf) {
     const s1 = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.055, 6, 14), mat(scarf));
     s1.rotation.x = Math.PI / 2;
     s1.position.y = 0.36;
     c.add(s1);
     // the trailing end, streaming back
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.06, 0.5), mat(scarf));
-    tail.position.set(0.05, 0.34, 0.3);
-    tail.rotation.x = -0.25;
-    c.add(tail);
+    scarfTail = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.06, 0.5), mat(scarf));
+    scarfTail.position.set(0.05, 0.34, 0.3);
+    scarfTail.rotation.x = -0.25;
+    c.add(scarfTail);
   }
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.215, 12, 10), mat(FUR.coat));
@@ -105,16 +110,23 @@ function buildCat({ scarf = null, jacket = PAINT.brown } = {}) {
     c.add(eye);
   }
 
-  // Ears: a cone for the ear and a smaller one inside it.
+  // Ears: a cone for the ear and a smaller one inside it. Both hang off a
+  // pivot at the base so a twitch turns the whole ear rather than sliding
+  // the cone out of its lining.
+  const ears = [];
   for (const sx of [-0.125, 0.125]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(sx, 0.64, 0.02);
+    pivot.rotation.z = sx < 0 ? 0.3 : -0.3;
+    pivot.userData.rest = pivot.rotation.z;
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.16, 5), mat(FUR.coat));
-    ear.position.set(sx, 0.71, 0.02);
-    ear.rotation.z = sx < 0 ? 0.3 : -0.3;
-    c.add(ear);
+    ear.position.y = 0.07;
+    pivot.add(ear);
     const inner = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.1, 5), mat(FUR.inner));
-    inner.position.set(sx * 0.94, 0.7, -0.015);
-    inner.rotation.z = ear.rotation.z;
-    c.add(inner);
+    inner.position.set(0, 0.06, -0.035);
+    pivot.add(inner);
+    c.add(pivot);
+    ears.push(pivot);
   }
 
   // Tabby stripes over the crown.
@@ -140,7 +152,34 @@ function buildCat({ scarf = null, jacket = PAINT.brown } = {}) {
     c.add(lens);
   }
 
-  return c;
+  // Offset per cat so two of them never twitch on the same frame.
+  let t = Math.random() * 10;
+
+  return {
+    group: c,
+    update(dt, s) {
+      t += dt;
+      const throttle = s.throttle || 0;
+
+      // The scarf lies flatter and whips harder the faster you go, which is
+      // the cheapest way to make the airflow visible from the cockpit.
+      if (scarfTail) {
+        scarfTail.rotation.x = -(0.22 + throttle * 0.42) + Math.sin(t * 7.5) * 0.08;
+        scarfTail.rotation.y = Math.sin(t * 4.6) * 0.14;
+      }
+
+      // Ears flick in a short burst every few seconds rather than waving on
+      // a beat, because a steady wobble reads as a mechanism and a flick
+      // reads as an animal.
+      const flick = Math.max(0, Math.sin(t * 0.9) - 0.94) * 14;
+      for (const ear of ears) {
+        ear.rotation.z = ear.userData.rest + flick * 0.1 * Math.sign(ear.position.x);
+      }
+
+      // And a bob with the engine, small enough to be felt rather than seen.
+      head.position.y = 0.55 + Math.sin(t * 11) * 0.006 * (0.4 + throttle);
+    },
+  };
 }
 
 /* ===== A sport plane, the default ===== */
@@ -157,10 +196,23 @@ function buildPlane() {
   nose.position.z = -2.1;
   g.add(nose);
 
-  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), mat(PAINT.glass));
-  canopy.scale.set(1, 0.72, 1.7);
-  canopy.position.set(0, 0.46, -0.15);
-  g.add(canopy);
+  // Open cockpit, moved forward of the wing. A dome here hid the pilot
+  // twice over: the glass is opaque, and the wing crosses the top of the
+  // fuselage at exactly head height, so anything sitting under a canopy is
+  // buried inside the wing. Cut the roof off and put the seat ahead of the
+  // leading edge and the cat is the thing you actually look at.
+  const coaming = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.065, 6, 16), mat(PAINT.brown));
+  coaming.rotation.x = Math.PI / 2;
+  coaming.position.set(0, 0.52, -1.05);
+  g.add(coaming);
+
+  const screen = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.3, 0.05),
+    mat(PAINT.glass, { transparent: true, opacity: 0.55 })
+  );
+  screen.position.set(0, 0.72, -1.42);
+  screen.rotation.x = 0.35;
+  g.add(screen);
 
   // High wing, the shape that reads most clearly as a friendly aeroplane.
   const wing = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.18, 1.5), mat(PAINT.cream));
@@ -221,14 +273,70 @@ function buildPlane() {
     g.add(ex);
   }
 
-  // A pilot, visible through the canopy. One of those details you only
-  // notice when it is missing.
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), mat(0xE8C49A));
-  head.position.set(0, 0.42, -0.05);
-  g.add(head);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(PAINT.brown));
-  cap.position.set(0, 0.46, -0.05);
-  g.add(cap);
+  // The pilot. Head and shoulders out of the coaming, paws up on the rim,
+  // scarf over the wing behind.
+  const pilot = buildCat({ scarf: PAINT.red });
+  pilot.group.position.set(0, 0.28, -1.05);
+  g.add(pilot.group);
+
+  /* The back seat.
+
+     The gun sits on a ring that the whole seat turns with, so the gunner
+     swings round with it and stays behind the sights, rather than facing
+     forward while the barrel tracks away on its own. Behind the trailing
+     edge, which is the only part of the deck the wing does not cross. */
+  const gunRing = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.065, 6, 16), mat(PAINT.brown));
+  gunRing.rotation.x = Math.PI / 2;
+  gunRing.position.set(0, 0.52, 0.95);
+  g.add(gunRing);
+
+  const turret = new THREE.Group();      // yaw, the ring turning
+  turret.position.set(0, 0.28, 0.95);
+  g.add(turret);
+
+  const gunner = buildCat({ scarf: PAINT.gold, jacket: PAINT.navy });
+  turret.add(gunner.group);
+
+  const gunMetal = mat(PAINT.dark);
+  const gunSteel = mat(PAINT.steel);
+
+  // The post the whole thing swings on, so the guns are standing on the
+  // ring rather than hanging in the air above it.
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.32, 6), gunMetal);
+  post.position.set(0, 0.28, -0.26);
+  turret.add(post);
+
+  const mount = new THREE.Group();       // pitch, the guns in the ring
+  mount.position.set(0, 0.42, -0.26);
+  turret.add(mount);
+
+  // A twin mount, the way the rear station on these actually was: two guns
+  // side by side on one yoke, firing alternately.
+  const bodyGeo   = new THREE.BoxGeometry(0.12, 0.13, 0.42);
+  const barrelGeo = new THREE.CylinderGeometry(0.042, 0.042, 1.0, 8);
+  const drumGeo   = new THREE.CylinderGeometry(0.115, 0.115, 0.065, 12);
+  for (const sx of [-0.11, 0.11]) {
+    const gunBody = new THREE.Mesh(bodyGeo, gunMetal);
+    gunBody.position.x = sx;
+    mount.add(gunBody);
+    const barrel = new THREE.Mesh(barrelGeo, gunMetal);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(sx, 0, -0.6);
+    mount.add(barrel);
+    const drum = new THREE.Mesh(drumGeo, gunSteel);
+    drum.position.set(sx, 0.13, 0.04);
+    mount.add(drum);
+  }
+
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.07, 0.13), gunMetal);
+  mount.add(yoke);
+  const sight = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.014, 5, 12), gunSteel);
+  sight.rotation.x = Math.PI / 2;
+  sight.position.set(0, 0.11, -0.34);
+  mount.add(sight);
+  const grips = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.08), mat(PAINT.brown));
+  grips.position.set(0, -0.05, 0.24);
+  mount.add(grips);
 
   // Navigation lights: red on the left wing, green on the right, which is
   // the way round they actually go.
@@ -271,23 +379,47 @@ function buildPlane() {
   tailWheel.rotation.y = Math.PI / 2;
   g.add(tailWheel);
 
-  // The guns the muzzle flash comes out of.
-  const gunGeo = new THREE.CylinderGeometry(0.055, 0.055, 1.1, 6);
-  for (const sx of [-1.1, 1.1]) {
-    const gun = new THREE.Mesh(gunGeo, mat(PAINT.dark));
-    gun.rotation.x = Math.PI / 2;
-    gun.position.set(sx, 0.42, -1.0);
-    g.add(gun);
-  }
+  // Everything the aircraft fires now comes off this mount, and the mount
+  // moves, so these cannot be the constants the wing guns were. update()
+  // rewrites them from the two pivots each frame and fire() reads them back
+  // out, which is what keeps the tracer leaving the barrel that is pointing
+  // at the thing. They start where the guns sit level and forward.
+  const gunMuzzles = [new THREE.Vector3(-0.11, 0.7, -0.41), new THREE.Vector3(0.11, 0.7, -0.41)];
+  const ejectAt = new THREE.Vector3(0.2, 0.7, 0.79);
+  const _tip = new THREE.Vector3();
+  const _local = (x, y, z) => _tip.set(x, y, z)
+    .applyQuaternion(mount.quaternion).add(mount.position)
+    .applyQuaternion(turret.quaternion).add(turret.position);
 
   return {
     group: g,
-    muzzle: new THREE.Vector3(0, 0.42, -1.6),
-    guns: [new THREE.Vector3(-1.1, 0.42, -1.6), new THREE.Vector3(1.1, 0.42, -1.6)],
-    eject: new THREE.Vector3(0.5, 0.1, -0.6),
+    muzzle: gunMuzzles[0],
+    guns: gunMuzzles,
+    eject: ejectAt,
     update(dt, s) {
       prop.rotation.z += (16 + s.throttle * 40) * dt;
       disc.material.opacity = 0.1 + s.throttle * 0.22;
+      pilot.update(dt, s);
+      gunner.update(dt, s);
+
+      // The gun goes where the cursor is. s.aim arrives already in the
+      // aircraft's own frame, so this is two angles and no projection: yaw
+      // swings the ring, pitch lifts the gun inside it. Eased rather than
+      // snapped, because a gun on a pintle has weight, and stopped short of
+      // straight astern so the gunner never shoots through his own tail.
+      if (s.aim) {
+        const k = Math.min(1, 9 * dt);
+        const wantYaw   = Math.atan2(-s.aim.x, -s.aim.z);
+        const wantPitch = Math.asin(clamp(s.aim.y, -1, 1));
+        turret.rotation.y += (clamp(wantYaw, -1.3, 1.3) - turret.rotation.y) * k;
+        mount.rotation.x  += (clamp(wantPitch, -0.45, 1.0) - mount.rotation.x) * k;
+      }
+
+      // Both barrel tips and the ejection port, back through the two pivots
+      // into the aircraft's frame.
+      gunMuzzles[0].copy(_local(-0.11, 0, -1.1));
+      gunMuzzles[1].copy(_local(0.11, 0, -1.1));
+      ejectAt.copy(_local(0.22, 0, 0.12));
     },
   };
 }
