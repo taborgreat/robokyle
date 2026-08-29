@@ -32,6 +32,7 @@
     --orange:     #E3552B;
     --orange-hot: #FF7A3D;
     --gold:       #E0B44C;
+    --sky:        #4FB8D8;
     --green:      #7BC59A;
 }
 
@@ -373,6 +374,7 @@ body.hub-body::after {
 }
 .game-card.card-undead { --accent: var(--orange); }
 .game-card.card-heist  { --accent: var(--gold); }
+.game-card.card-fly    { --accent: var(--sky); }
 
 a.game-card:hover,
 a.game-card:focus-visible {
@@ -422,7 +424,7 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.06); }
     position: absolute;
     left: clamp(.85rem, 3.5%, 1.15rem);
     bottom: clamp(.7rem, 3.5%, 1rem);
-    right: 5.5rem;
+    right: 4.7rem;
 }
 .mark-title { margin: 0; }
 .mark-brand {
@@ -448,7 +450,9 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.06); }
 .mark-name {
     display: block;
     font-family: 'Black Ops One', Impact, sans-serif;
-    font-size: clamp(1.2rem, 4.6vw, 1.72rem);
+    /* Sized so the longest name still fits one line in a three column
+       grid. It wrapped and crowded the Play button at 1.72rem. */
+    font-size: clamp(.98rem, 3.2vw, 1.3rem);
     line-height: 1.02;
     letter-spacing: .015em;
     text-transform: uppercase;
@@ -461,6 +465,10 @@ a.game-card:focus-visible .thumb-art { transform: scale(1.06); }
 .mark-name.gold {
     color: #F2CE72;
     text-shadow: 0 2px 0 #000, 0 0 20px rgba(224,180,76,.6);
+}
+.mark-name.sky {
+    color: #EDF8FF;
+    text-shadow: 0 2px 0 #000, 0 0 20px rgba(79,184,216,.75);
 }
 
 /* Play button, quiet until the cabinet is hovered. */
@@ -636,6 +644,38 @@ a.game-card:hover .card-sheen { opacity: 1; }
     50%      { opacity: 1;   transform: scale(1); }
 }
 
+/* Fly Game: clouds drifting and balloons bobbing. Both slow, because this
+   card sits next to two dark ones and a busy bright card would shout. */
+.fg-cloud {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: fgDrift 26s ease-in-out infinite alternate;
+    animation-delay: calc(var(--i) * -3.4s);
+}
+@keyframes fgDrift {
+    from { transform: translateX(-5px); }
+    to   { transform: translateX(7px); }
+}
+.fg-balloon {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: fgBob 7s ease-in-out infinite alternate;
+    animation-delay: calc(var(--i) * -1.6s);
+}
+@keyframes fgBob {
+    from { transform: translateY(2.5px); }
+    to   { transform: translateY(-3px); }
+}
+.fg-plane {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: fgBank 9s ease-in-out infinite alternate;
+}
+@keyframes fgBank {
+    from { transform: translateY(1.6px) rotate(-1.4deg); }
+    to   { transform: translateY(-1.6px) rotate(1.4deg); }
+}
+
 /* Hovering a card spins its vault up, the one bit of art that reacts. */
 a.game-card:hover .gh-ring,
 a.game-card:focus-visible .gh-ring { animation-duration: 9s; }
@@ -677,6 +717,7 @@ a.game-card:focus-visible .gh-dial { animation-duration: 6s; }
     a.game-card:hover .thumb-art,
     a.game-card:focus-visible .thumb-art { transform: none; }
     .game-item, .stage-dust i, .hub-logo .kyle, .crt-roll,
+    .fg-cloud, .fg-balloon, .fg-plane,
     .un-ember, .un-shot,
     .gh-ring, .gh-dial, .gh-beam, .gh-glint { animation: none; }
     .stage-dust i { opacity: .4; }

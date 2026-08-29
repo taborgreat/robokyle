@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RoboKyle Arcade - Games</title>
-    <meta name="description" content="Browser games by RoboKyle: Undead Nightmare and Grand Heist.">
+    <meta name="description" content="Browser games by RoboKyle: Undead Nightmare, Grand Heist and Fly Game.">
     <link rel="icon" type="image/png" href="/public/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="hub.css?v=2">
+    <link rel="stylesheet" href="hub.css?v=3">
 </head>
 <body class="hub-body">
 
@@ -445,6 +445,139 @@
                             <p class="card-desc">
                                 An arcade heist shooter. Put a crew together and rob banks
                                 until someone stops you.
+                            </p>
+                        </div>
+                        <span class="card-sheen" aria-hidden="true"></span>
+                    </a>
+                </li>
+
+                <!-- ==================== FLY GAME ==================== -->
+                <li class="game-item" style="--i:2">
+                    <a class="game-card card-fly" href="fly-game/index.html">
+                        <div class="card-thumb">
+                            <div class="thumb-art">
+
+<svg class="art art-fly" viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="fg-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E74BE"/>
+      <stop offset=".55" stop-color="#6FB6E4"/>
+      <stop offset="1" stop-color="#C8E7F7"/>
+    </linearGradient>
+    <linearGradient id="fg-sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7CBEE2"/>
+      <stop offset=".22" stop-color="#3B95CE"/>
+      <stop offset="1" stop-color="#175E97"/>
+    </linearGradient>
+    <radialGradient id="fg-sun">
+      <stop offset="0" stop-color="#FFF6D8" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#FFF6D8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="fg-vig" cx="52%" cy="44%" r="74%">
+      <stop offset=".55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".38"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="400" height="225" fill="url(#fg-sky)"/>
+  <circle cx="342" cy="26" r="58" fill="url(#fg-sun)"/>
+
+  <!-- Sea. The horizon sits high so the wordmark below has open water to sit
+       on and the islands stay in the right hand half. -->
+  <rect x="0" y="118" width="400" height="107" fill="url(#fg-sea)"/>
+  <rect x="0" y="116" width="400" height="4" fill="#DCF0FB" opacity=".75"/>
+
+  <!-- Clouds. The far ones small and pale, which is most of what makes the
+       sky feel deep at this size. -->
+  <g fill="#FFFFFF">
+    <g transform="translate(56 44)"><g class="fg-cloud" style="--i:0">
+      <ellipse cx="0" cy="0" rx="17" ry="8"/><ellipse cx="12" cy="-4" rx="12" ry="9"/><ellipse cx="-13" cy="2" rx="11" ry="6"/>
+    </g></g>
+    <g transform="translate(196 30)"><g class="fg-cloud" style="--i:1">
+      <ellipse cx="0" cy="0" rx="21" ry="9"/><ellipse cx="14" cy="-5" rx="14" ry="10"/><ellipse cx="-16" cy="2" rx="12" ry="7"/>
+    </g></g>
+    <g transform="translate(320 58)" opacity=".9"><g class="fg-cloud" style="--i:2">
+      <ellipse cx="0" cy="0" rx="15" ry="7"/><ellipse cx="11" cy="-3" rx="10" ry="8"/>
+    </g></g>
+    <g transform="translate(120 78)" opacity=".78"><g class="fg-cloud" style="--i:3">
+      <ellipse cx="0" cy="0" rx="13" ry="5.5"/><ellipse cx="9" cy="-3" rx="9" ry="6.5"/>
+    </g></g>
+    <g transform="translate(378 96)" opacity=".7"><g class="fg-cloud" style="--i:4">
+      <ellipse cx="0" cy="0" rx="16" ry="6"/><ellipse cx="-11" cy="-3" rx="10" ry="7"/>
+    </g></g>
+  </g>
+
+  <!-- Islands: hazy and small far off, greener and bigger near. -->
+  <g opacity=".55">
+    <ellipse cx="156" cy="126" rx="15" ry="3" fill="#EFDFA8"/>
+    <path d="M156 114 L166 126 L146 126 Z" fill="#8CCB7C"/>
+    <ellipse cx="252" cy="124" rx="11" ry="2.4" fill="#EFDFA8"/>
+    <path d="M252 115 L259 124 L245 124 Z" fill="#8CCB7C"/>
+  </g>
+  <g>
+    <ellipse cx="334" cy="141" rx="33" ry="6" fill="#EFDFA8"/>
+    <path d="M334 119 L352 141 L316 141 Z" fill="#74C365"/>
+    <path d="M344 128 L354 141 L334 141 Z" fill="#5FAE52"/>
+    <g fill="#4E9E45"><circle cx="322" cy="136" r="2.6"/><circle cx="345" cy="137" r="2.2"/></g>
+  </g>
+  <g>
+    <ellipse cx="312" cy="190" rx="72" ry="13" fill="#EFDFA8"/>
+    <path d="M312 152 L349 190 L275 190 Z" fill="#74C365"/>
+    <path d="M330 168 L356 190 L304 190 Z" fill="#5FAE52"/>
+    <g fill="#3F8C39">
+      <circle cx="290" cy="182" r="4.4"/><circle cx="336" cy="184" r="3.8"/><circle cx="312" cy="176" r="3.4"/>
+    </g>
+  </g>
+
+  <!-- Balloons -->
+  <g>
+    <g transform="translate(362 78)"><ellipse class="fg-balloon" style="--i:0" rx="5" ry="6" fill="#E2402F"/></g>
+    <g transform="translate(386 116)"><ellipse class="fg-balloon" style="--i:1" rx="4" ry="4.8" fill="#E8B444"/></g>
+    <g transform="translate(300 62)"><ellipse class="fg-balloon" style="--i:2" rx="3.4" ry="4.2" fill="#5FBF87"/></g>
+    <g transform="translate(232 96)"><ellipse class="fg-balloon" style="--i:3" rx="3" ry="3.7" fill="#E06FA8"/></g>
+  </g>
+
+  <!-- The aeroplane, seen from behind and banking into a turn -->
+  <g transform="translate(246 104) rotate(-15)">
+    <g class="fg-plane">
+      <ellipse cx="0" cy="17" rx="15" ry="3" fill="#0B3A5C" opacity=".18"/>
+      <rect x="-13" y="12" width="26" height="3.4" rx="1.7" fill="#F7F1E3"/>
+      <rect x="-1.9" y="6" width="3.8" height="12" rx="1.4" fill="#E2402F"/>
+      <ellipse cx="0" cy="2" rx="8.4" ry="13" fill="#E2402F"/>
+      <rect x="-44" y="-4.6" width="88" height="7" rx="3.4" fill="#F7F1E3"/>
+      <rect x="-44" y="-1.4" width="88" height="2.6" fill="#E2402F"/>
+      <ellipse cx="0" cy="-3.5" rx="5.6" ry="6.4" fill="#2A3F55"/>
+      <circle cx="-9" cy="7" r="2.6" fill="#37414A"/>
+      <circle cx="9" cy="7" r="2.6" fill="#37414A"/>
+      <ellipse cx="0" cy="-12" rx="12" ry="3.2" fill="#DCE6EE" opacity=".5"/>
+    </g>
+  </g>
+
+  <rect width="400" height="225" fill="url(#fg-vig)"/>
+</svg>
+
+                            </div>
+
+                            <div class="thumb-scrim" aria-hidden="true"></div>
+
+                            <div class="thumb-mark">
+                                <h3 class="mark-title">
+                                    <span class="mark-brand" aria-hidden="true"><span class="robo">Robo</span><span class="kyle">Kyle</span></span>
+                                    <span class="sr-only">RoboKyle:</span>
+                                    <span class="mark-name sky">Fly Game</span>
+                                </h3>
+                            </div>
+
+                            <span class="card-cta" aria-hidden="true">
+                                <svg viewBox="0 0 12 12" focusable="false"><path d="M3 1.6 L10 6 L3 10.4 Z" fill="currentColor"/></svg>
+                                Play
+                            </span>
+                        </div>
+
+                        <div class="card-body">
+                            <p class="card-desc">
+                                An endless world of sea and islands. The aircraft flies itself
+                                forward, you point it where you want to go.
                             </p>
                         </div>
                         <span class="card-sheen" aria-hidden="true"></span>
