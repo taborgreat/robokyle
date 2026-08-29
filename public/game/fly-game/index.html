@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="fly-game.css?v=3">
+    <link rel="stylesheet" href="fly-game.css?v=5">
 
     <!-- three.js resolves from the copy vendored at /public/vendor/three.
          The import map has to come before any module script that needs it,
@@ -42,6 +42,17 @@
                         <li><button class="menu-btn is-primary" id="btn-play" type="button">Play</button></li>
                         <li><button class="menu-btn" id="btn-settings" type="button">Settings</button></li>
                     </ul>
+                </div>
+            </section>
+
+            <!-- ==================== MAP SELECT ==================== -->
+            <section class="screen" id="screen-maps">
+                <div class="sheet">
+                    <div class="topbar">
+                        <button class="menu-back" data-goto="title" type="button">Back</button>
+                        <h2 class="screen-title">Choose a map</h2>
+                    </div>
+                    <ul class="map-list" id="map-list"></ul>
                 </div>
             </section>
 
@@ -120,6 +131,6 @@
 
     <script src="/public/site.js"></script>
     <script src="/public/game/fullscreen.js?v=33"></script>
-    <script type="module" src="fly.js?v=3"></script>
+    <script type="module" src="fly.js?v=5"></script>
 </body>
 </html>

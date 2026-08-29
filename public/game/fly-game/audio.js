@@ -40,6 +40,25 @@ export function createAudio() {
     return buf;
   }
 
+  // Distance attenuation. Nothing fancy, just enough that a hillside three
+  // hundred units away does not sound like it is in the cockpit.
+  function falloff(dist) {
+    const d = Math.max(0, dist || 0);
+    return 1 / (1 + (d / 190) * (d / 190));
+  }
+
+  // At ten rounds a second every impact would be its own voice. Cap it.
+  let impactTokens = 6;
+  let impactClock = 0;
+  function impactBudget() {
+    const now = ctx ? ctx.currentTime : 0;
+    impactTokens = Math.min(6, impactTokens + (now - impactClock) * 9);
+    impactClock = now;
+    if (impactTokens < 1) return false;
+    impactTokens -= 1;
+    return true;
+  }
+
   function startLoops() {
     if (started || !ctx) return;
     started = true;
@@ -184,19 +203,116 @@ export function createAudio() {
       osc.start(t); osc.stop(t + 0.11);
     },
 
-    // A crash into land. Body first, then the crack, then a long tail, which
-    // is roughly the order a real one arrives in.
-    explosion() {
+    // Impact sounds carry a distance, so a round landing on a hillside a
+    // long way off is quieter than one right under the nose. Rate limited
+    // too: at ten rounds a second, one sound per round is a buzz.
+    dirtHit(dist) {
+      if (!ctx || !impactBudget()) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist) * 0.34;
+      if (v < 0.006) return;
+
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(0.16);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(1500, t);
+      lp.frequency.exponentialRampToValueAtTime(320, t + 0.13);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(v, t);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.16);
+      src.connect(lp); lp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + 0.17);
+
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(210, t);
+      osc.frequency.exponentialRampToValueAtTime(70, t + 0.09);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(v * 0.7, t);
+      og.gain.exponentialRampToValueAtTime(0.0005, t + 0.1);
+      osc.connect(og); og.connect(master);
+      osc.start(t); osc.stop(t + 0.11);
+    },
+
+    waterHit(dist) {
+      if (!ctx || !impactBudget()) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist) * 0.3;
+      if (v < 0.006) return;
+
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(0.22);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1800, t);
+      bp.frequency.exponentialRampToValueAtTime(520, t + 0.18);
+      bp.Q.value = 1.4;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(v, t);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.2);
+      src.connect(bp); bp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + 0.22);
+
+      // The little pitched blip of a drop closing over.
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(1250, t + 0.07);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(v * 0.5, t);
+      og.gain.exponentialRampToValueAtTime(0.0005, t + 0.08);
+      osc.connect(og); og.connect(master);
+      osc.start(t); osc.stop(t + 0.09);
+    },
+
+    // A round landing on something solid that did not break.
+    thud() {
       if (!ctx) return;
       const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(90, t + 0.1);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.22, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 0.13);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.14);
+    },
+
+    // Wind the engine and the wind down to nothing. Used on pause and on
+    // leaving the flight, where the loop stops calling flight() and the
+    // gains would otherwise just hold their last value and drone on.
+    idle() {
+      if (!ctx || !engine) return;
+      const t = ctx.currentTime;
+      engine.gain.gain.setTargetAtTime(0, t, 0.05);
+      wind.gain.gain.setTargetAtTime(0, t, 0.05);
+    },
+
+    // A crash into land. Body first, then the crack, then a long tail, which
+    // is roughly the order a real one arrives in.
+    // dist attenuates, scale is how big a thing went up. The player's own
+    // crash is the loudest case and it is still well under half of what it
+    // was: an instant full level transient right after quiet flying reads as
+    // a jump scare rather than as an explosion. Everything now has a short
+    // attack rather than starting at full level on the first sample.
+    explosion(dist, scale) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const v = falloff(dist || 0) * (scale == null ? 1 : scale);
+      if (v < 0.004) return;
+      const A = 0.012;                   // attack, seconds
 
       const boom = ctx.createOscillator();
       boom.type = 'sine';
       boom.frequency.setValueAtTime(140, t);
       boom.frequency.exponentialRampToValueAtTime(26, t + 0.9);
       const bg = ctx.createGain();
-      bg.gain.setValueAtTime(0.85, t);
-      bg.gain.exponentialRampToValueAtTime(0.0008, t + 1.1);
+      bg.gain.setValueAtTime(0.0001, t);
+      bg.gain.linearRampToValueAtTime(0.34 * v, t + A);
+      bg.gain.exponentialRampToValueAtTime(0.0005, t + 1.1);
       boom.connect(bg); bg.connect(master);
       boom.start(t); boom.stop(t + 1.15);
 
@@ -204,25 +320,28 @@ export function createAudio() {
       src.buffer = noiseBuffer(1.6);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(3200, t);
+      lp.frequency.setValueAtTime(2600, t);
       lp.frequency.exponentialRampToValueAtTime(160, t + 1.4);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.75, t);
-      g.gain.exponentialRampToValueAtTime(0.0008, t + 1.5);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.3 * v, t + A);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 1.5);
       src.connect(lp); lp.connect(g); g.connect(master);
       src.start(t); src.stop(t + 1.6);
 
-      // A short bright crack on top, or it is all rumble and no impact.
+      // A little edge on top, or it is all rumble and no impact. Much
+      // quieter than it was: this was most of the startle.
       const crack = ctx.createBufferSource();
       crack.buffer = noiseBuffer(0.2);
       const hp = ctx.createBiquadFilter();
       hp.type = 'highpass';
-      hp.frequency.value = 1200;
+      hp.frequency.value = 900;
       const cg = ctx.createGain();
-      cg.gain.setValueAtTime(0.5, t);
-      cg.gain.exponentialRampToValueAtTime(0.0008, t + 0.2);
+      cg.gain.setValueAtTime(0.0001, t);
+      cg.gain.linearRampToValueAtTime(0.13 * v, t + A);
+      cg.gain.exponentialRampToValueAtTime(0.0005, t + 0.22);
       crack.connect(hp); hp.connect(cg); cg.connect(master);
-      crack.start(t); crack.stop(t + 0.2);
+      crack.start(t); crack.stop(t + 0.24);
     },
 
     // Hitting the water at speed. Heavier and wetter than the skim below.
@@ -238,8 +357,9 @@ export function createAudio() {
       bp.frequency.exponentialRampToValueAtTime(180, t + 1.1);
       bp.Q.value = 0.7;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.8, t);
-      g.gain.exponentialRampToValueAtTime(0.0008, t + 1.2);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.34, t + 0.014);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 1.2);
       src.connect(bp); bp.connect(g); g.connect(master);
       src.start(t); src.stop(t + 1.4);
 
@@ -249,8 +369,9 @@ export function createAudio() {
       osc.frequency.setValueAtTime(190, t);
       osc.frequency.exponentialRampToValueAtTime(48, t + 0.5);
       const og = ctx.createGain();
-      og.gain.setValueAtTime(0.55, t);
-      og.gain.exponentialRampToValueAtTime(0.0008, t + 0.6);
+      og.gain.setValueAtTime(0.0001, t);
+      og.gain.linearRampToValueAtTime(0.24, t + 0.014);
+      og.gain.exponentialRampToValueAtTime(0.0005, t + 0.6);
       osc.connect(og); og.connect(master);
       osc.start(t); osc.stop(t + 0.65);
 
@@ -261,7 +382,7 @@ export function createAudio() {
       hp.type = 'highpass'; hp.frequency.value = 2200;
       const sg = ctx.createGain();
       sg.gain.setValueAtTime(0.0001, t);
-      sg.gain.linearRampToValueAtTime(0.3, t + 0.14);
+      sg.gain.linearRampToValueAtTime(0.16, t + 0.14);
       sg.gain.exponentialRampToValueAtTime(0.0008, t + 1.0);
       spray.connect(hp); hp.connect(sg); sg.connect(master);
       spray.start(t); spray.stop(t + 1.0);

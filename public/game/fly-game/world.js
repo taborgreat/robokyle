@@ -83,6 +83,10 @@ const GEO = {
   leaf:   new THREE.ConeGeometry(1, 1, 7),
   puff:   new THREE.SphereGeometry(1, 8, 6),
   balloon: new THREE.SphereGeometry(1, 12, 10),
+  box:    new THREE.BoxGeometry(1, 1, 1),
+  roof:   new THREE.ConeGeometry(1, 1, 4),
+  cyl:    new THREE.CylinderGeometry(1, 1, 1, 9),
+  taper:  new THREE.CylinderGeometry(0.72, 1, 1, 10),
 };
 
 const _m = new THREE.Matrix4();
@@ -93,8 +97,10 @@ const _s = new THREE.Vector3();
 
 // Clone a shared geometry, place it, and paint every vertex one colour so a
 // whole chunk can collapse into one mesh with one material.
-function piece(geo, color, x, y, z, sx, sy, sz, rotY) {
-  _e.set(0, rotY || 0, 0);
+function piece(geo, color, x, y, z, sx, sy, sz, rotY, rotX, rotZ) {
+  // XYZ order, so Z is applied first, then Y. A palm frond droops about Z
+  // and is then swung around the trunk about Y, which is exactly that order.
+  _e.set(rotX || 0, rotY || 0, rotZ || 0);
   _q.setFromEuler(_e);
   _v.set(x, y, z);
   _s.set(sx, sy, sz);
@@ -110,6 +116,82 @@ function piece(geo, color, x, y, z, sx, sy, sz, rotY) {
   return g;
 }
 
+/* ===== things you can knock down =====
+
+   These cannot go into the merged chunk mesh: the whole point of merging is
+   that a chunk is one object, and one object cannot lose a house. So each
+   one is its own mesh, merged internally so it is still a single draw call,
+   and they all share the vertex coloured material. */
+
+function houseGeo(rnd) {
+  const wall = rnd() < 0.5 ? 0xF2E7D2 : 0xE6D6B8;
+  const roof = rnd() < 0.5 ? 0xC1462F : 0x40708C;
+  const parts = [
+    piece(GEO.box,  wall,     0, 2.6, 0, 6.4, 5.2, 5.4, 0),
+    piece(GEO.roof, roof,     0, 6.7, 0, 5.6, 3.6, 5.6, Math.PI / 4),
+    piece(GEO.box,  0x6B4A2F, 0, 1.4, 2.8, 1.5, 2.8, 0.35, 0),
+    piece(GEO.box,  0x8FB8D8, -2.0, 3.3, 2.8, 1.3, 1.3, 0.3, 0),
+    piece(GEO.box,  0x9C9384, 1.9, 8.2, -1.0, 1.0, 2.6, 1.0, 0),
+  ];
+  return { geo: mergeGeometries(parts), r: 5.2, hp: 1 };
+}
+
+function hutGeo(rnd) {
+  const parts = [
+    piece(GEO.cyl,  0xD8C39A, 0, 1.7, 0, 2.7, 3.4, 2.7, 0),
+    piece(GEO.leaf, 0x8A6236, 0, 4.9, 0, 3.6, 3.4, 3.6, rnd() * 6.28),
+    piece(GEO.box,  0x6B4A2F, 0, 1.1, 2.6, 1.1, 2.2, 0.3, 0),
+  ];
+  return { geo: mergeGeometries(parts), r: 3.6, hp: 1 };
+}
+
+function windmillGeo(rnd) {
+  const parts = [
+    piece(GEO.taper, 0xEFE6D2, 0, 4.6, 0, 2.4, 9.2, 2.4, 0),
+    piece(GEO.roof,  0xC1462F, 0, 10.0, 0, 3.0, 2.0, 3.0, Math.PI / 4),
+    piece(GEO.box,   0x6B4A2F, 0, 9.0, 2.6, 0.6, 0.6, 1.2, 0),
+  ];
+  // Sails, as a cross of four boards.
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    parts.push(piece(GEO.box, 0xE8DCC0,
+      Math.cos(a) * 3.4, 9.0 + Math.sin(a) * 3.4, 3.1,
+      Math.abs(Math.cos(a)) * 6.4 + 0.5, Math.abs(Math.sin(a)) * 6.4 + 0.5, 0.35, 0));
+  }
+  return { geo: mergeGeometries(parts), r: 4.6, hp: 1 };
+}
+
+function lighthouseGeo() {
+  const parts = [
+    piece(GEO.taper, 0xF6F1E6, 0, 6.5, 0, 2.4, 13, 2.4, 0),
+    piece(GEO.cyl,   0xC1462F, 0, 3.4, 0, 2.32, 2.0, 2.32, 0),
+    piece(GEO.cyl,   0xC1462F, 0, 8.4, 0, 1.95, 2.0, 1.95, 0),
+    piece(GEO.cyl,   0x37414A, 0, 13.4, 0, 2.2, 0.6, 2.2, 0),
+    piece(GEO.cyl,   0xFFE9A0, 0, 14.4, 0, 1.5, 2.0, 1.5, 0),
+    piece(GEO.roof,  0x37414A, 0, 16.2, 0, 2.2, 1.6, 2.2, 0),
+  ];
+  return { geo: mergeGeometries(parts), r: 3.4, hp: 1 };
+}
+
+function shipGeo(rnd) {
+  const wood = rnd() < 0.5 ? 0x5A3A22 : 0x6B4A2F;
+  const parts = [
+    piece(GEO.box,  wood,     0, 1.9, 0, 17, 3.8, 5.6, 0),
+    piece(GEO.box,  0x7C5735, 0, 3.6, 0, 15.5, 0.6, 5.0, 0),
+    piece(GEO.roof, wood,     10.2, 1.9, 0, 4.6, 3.8, 5.6, 0),
+    piece(GEO.box,  wood,     -6.0, 5.2, 0, 5.2, 3.4, 5.2, 0),
+    piece(GEO.box,  0x3A2A1A, 0, 2.4, 2.9, 17, 1.0, 0.5, 0),
+    piece(GEO.box,  0x3A2A1A, 0, 2.4, -2.9, 17, 1.0, 0.5, 0),
+    piece(GEO.cyl,  0x4A3520, 1.0, 10.0, 0, 0.5, 15, 0.5, 0),
+    piece(GEO.box,  0xF4EFE2, 1.0, 11.5, 0, 0.4, 8.5, 7.0, 0),
+    piece(GEO.box,  0xF4EFE2, 1.0, 5.6, 0, 0.4, 4.0, 5.0, 0),
+    piece(GEO.box,  0x22222A, 1.0, 17.4, 1.6, 0.3, 1.6, 2.6, 0),
+  ];
+  return { geo: mergeGeometries(parts), r: 10, hp: 6 };
+}
+
+const PROPS = [houseGeo, houseGeo, hutGeo, hutGeo, windmillGeo, lighthouseGeo];
+
 export function createWorld(scene) {
   const landMat  = new THREE.MeshLambertMaterial({ vertexColors: true });
   // Lambert alone leaves the underside of a cloud picking up the green
@@ -123,6 +205,7 @@ export function createWorld(scene) {
   const chunks = new Map();        // "cx,cz" -> { land, cloud, islands, balloons }
   const balloons = [];             // live, shootable
   const islands  = [];             // live, for the ground check
+  const targets  = [];             // live, shootable and destructible
 
   /* ===== sky ===== */
 
@@ -159,13 +242,55 @@ export function createWorld(scene) {
 
   /* ===== sea ===== */
 
+  // Flat colour gave no sense of height at all: at any altitude the water
+  // was the same solid blue, so there was nothing to judge closeness by.
+  // A tiled pattern of wave streaks fixes that through parallax. The
+  // texture is pinned to world coordinates rather than to the plane, which
+  // follows the player, so it slides past as you fly instead of travelling
+  // with you and looking painted on.
+  const SEA_TILE = 150;
+
+  function waveTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#2E86C8';
+    g.fillRect(0, 0, 256, 256);
+
+    for (let i = 0; i < 26; i++) {
+      const y = Math.random() * 256;
+      g.fillStyle = 'rgba(120,190,230,' + (0.05 + Math.random() * 0.07).toFixed(3) + ')';
+      g.fillRect(0, y, 256, 6 + Math.random() * 22);
+    }
+    for (let i = 0; i < 170; i++) {
+      const x = Math.random() * 256, y = Math.random() * 256;
+      const w = 8 + Math.random() * 34;
+      g.strokeStyle = 'rgba(233,247,255,' + (0.06 + Math.random() * 0.16).toFixed(3) + ')';
+      g.lineWidth = 0.8 + Math.random() * 1.8;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.quadraticCurveTo(x + w * 0.5, y - 2.5, x + w, y);
+      g.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  const seaTex = waveTexture();
+  const SEA_SIZE = CHUNK * 24;
+  seaTex.repeat.set(SEA_SIZE / SEA_TILE, SEA_SIZE / SEA_TILE);
+
   const sea = new THREE.Mesh(
-    new THREE.PlaneGeometry(CHUNK * 24, CHUNK * 24, 1, 1),
-    new THREE.MeshLambertMaterial({ color: C.sea })
+    new THREE.PlaneGeometry(SEA_SIZE, SEA_SIZE, 1, 1),
+    new THREE.MeshLambertMaterial({ color: 0xFFFFFF, map: seaTex })
   );
   sea.rotation.x = -Math.PI / 2;
   sea.position.y = SEA_LEVEL;
   scene.add(sea);
+
+  let seaDrift = 0;
 
   /* ===== chunk building ===== */
 
@@ -178,6 +303,7 @@ export function createWorld(scene) {
     const cloudParts = [];
     const localIslands = [];
     const localBalloons = [];
+    const localTargets = [];
 
     // Islands. Not every chunk gets one, or the sea stops being sea.
     const islandCount = rnd() < 0.62 ? 1 + (rnd() < 0.3 ? 1 : 0) : 0;
@@ -207,10 +333,42 @@ export function createWorld(scene) {
         const tz = iz + Math.sin(a) * d;
         // Sit the tree on the cone's slope rather than at sea level.
         const ty = Math.max(2, h * (1 - d / r) * 0.82);
-        const th = 10 + rnd() * 12;
-        landParts.push(piece(GEO.trunk, C.trunk, tx, ty + th * 0.3, tz, th * 0.5, th * 0.7, th * 0.5, 0));
-        landParts.push(piece(GEO.leaf, rnd() < 0.5 ? C.leaf : C.leaf2,
-                             tx, ty + th * 0.95, tz, th * 0.42, th * 0.9, th * 0.42, rnd() * 6.28));
+        const th = 11 + rnd() * 11;
+
+        // A palm: a leaning tapered trunk, a crown of drooping fronds, and
+        // a couple of coconuts under them.
+        const lean = (rnd() - 0.5) * 0.22;
+        const leanDir = rnd() * Math.PI * 2;
+        const crownY = ty + th;
+        const cx = tx + Math.sin(lean) * th * 0.5 * Math.cos(leanDir);
+        const cz = tz + Math.sin(lean) * th * 0.5 * Math.sin(leanDir);
+
+        landParts.push(piece(GEO.taper, C.trunk,
+          (tx + cx) / 2, ty + th * 0.5, (tz + cz) / 2,
+          th * 0.075, th, th * 0.075, leanDir, 0, lean));
+
+        const fronds = 6 + Math.floor(rnd() * 3);
+        const frondBase = rnd() * Math.PI * 2;
+        for (let f = 0; f < fronds; f++) {
+          const ang = frondBase + (f / fronds) * Math.PI * 2 + (rnd() - 0.5) * 0.25;
+          const droop = 0.42 + rnd() * 0.42;
+          const len = th * (0.52 + rnd() * 0.24);
+          const half = len * 0.5;
+          landParts.push(piece(GEO.leaf, rnd() < 0.5 ? C.leaf : C.leaf2,
+            cx + Math.cos(ang) * half * Math.cos(droop),
+            crownY - half * Math.sin(droop) + th * 0.02,
+            cz + Math.sin(ang) * half * Math.cos(droop),
+            len, th * 0.13, th * 0.2,
+            -ang, 0, -(Math.PI / 2) + droop));
+        }
+
+        landParts.push(piece(GEO.puff, 0x6E4A2A, cx, crownY - th * 0.03, cz,
+          th * 0.09, th * 0.09, th * 0.09, 0));
+        if (rnd() < 0.6) {
+          landParts.push(piece(GEO.puff, 0x8A6236,
+            cx + th * 0.06, crownY - th * 0.06, cz + th * 0.05,
+            th * 0.055, th * 0.055, th * 0.055, 0));
+        }
       }
 
       const rocks = Math.floor(rnd() * 4);
@@ -223,6 +381,27 @@ export function createWorld(scene) {
       }
 
       localIslands.push({ x: ix, z: iz, r, h });
+
+      // Something built on the island, sited where the slope is gentle.
+      const built = r > 78 ? 1 + Math.floor(rnd() * 3) : (rnd() < 0.5 ? 1 : 0);
+      for (let b = 0; b < built; b++) {
+        const a = rnd() * Math.PI * 2;
+        const d = r * (0.22 + rnd() * 0.45);
+        const px = ix + Math.cos(a) * d;
+        const pz = iz + Math.sin(a) * d;
+        const py = Math.max(1, h * (1 - d / r) * 0.82);
+        const make = PROPS[Math.floor(rnd() * PROPS.length)];
+        const def = make(rnd);
+        const m = new THREE.Mesh(def.geo, landMat);
+        m.position.set(px, py, pz);
+        m.rotation.y = rnd() * 6.28;
+        scene.add(m);
+        // Generous on purpose. The sphere stands in for a building you are
+        // strafing past at speed, and a tight one means shots that clearly
+        // went through the roof do nothing.
+        const t = { mesh: m, kind: 'prop', r: def.r + 5, hp: def.hp, alive: true };
+        localTargets.push(t); targets.push(t);
+      }
     }
 
     // Clouds sit above the height you normally cruise at. Level with it, the
@@ -243,6 +422,27 @@ export function createWorld(scene) {
         const ps = scale * (0.55 + rnd() * 0.6);
         cloudParts.push(piece(GEO.puff, 0xFFFFFF, px, py, pz, ps, ps * 0.72, ps, 0));
       }
+    }
+
+    // Ships, out in open water and clear of the beaches.
+    const shipCount = rnd() < 0.45 ? 1 + (rnd() < 0.25 ? 1 : 0) : 0;
+    for (let i = 0; i < shipCount; i++) {
+      const sx = ox + (rnd() - 0.5) * CHUNK * 0.9;
+      const sz = oz + (rnd() - 0.5) * CHUNK * 0.9;
+      let clear = true;
+      for (const isl of localIslands) {
+        if (Math.hypot(sx - isl.x, sz - isl.z) < isl.r * 1.35 + 30) { clear = false; break; }
+      }
+      if (!clear) continue;
+      const def = shipGeo(rnd);
+      const m = new THREE.Mesh(def.geo, landMat);
+      m.position.set(sx, 1.2, sz);
+      m.rotation.y = rnd() * 6.28;
+      scene.add(m);
+      // A hull seventeen long does not fit a ten unit sphere.
+      const t = { mesh: m, kind: 'ship', r: def.r + 4, hp: def.hp, maxHp: def.hp,
+                  alive: true, bob: rnd() * 6.28, baseY: 1.2 };
+      localTargets.push(t); targets.push(t);
     }
 
     // Balloons, the thing worth shooting at.
@@ -271,7 +471,7 @@ export function createWorld(scene) {
 
     for (const isl of localIslands) islands.push(isl);
 
-    return { land, cloud, islands: localIslands, balloons: localBalloons };
+    return { land, cloud, islands: localIslands, balloons: localBalloons, targets: localTargets };
   }
 
   function dropChunk(key) {
@@ -289,12 +489,18 @@ export function createWorld(scene) {
       const i = islands.indexOf(isl);
       if (i >= 0) islands.splice(i, 1);
     }
+    for (const t of c.targets) {
+      if (t.alive) { scene.remove(t.mesh); t.mesh.geometry.dispose(); }
+      const i = targets.indexOf(t);
+      if (i >= 0) targets.splice(i, 1);
+    }
     chunks.delete(key);
   }
 
   return {
     balloons,
     islands,
+    targets,
     CHUNK,
     VIEW,
 
@@ -304,6 +510,14 @@ export function createWorld(scene) {
       sky.position.copy(pos);
       sea.position.x = pos.x;
       sea.position.z = pos.z;
+
+      // Cancel out the plane following the player so the pattern stays put
+      // in the world, then add a slow drift of its own for movement.
+      seaDrift += dt * 0.012;
+      seaTex.offset.set(
+        pos.x / SEA_TILE,
+        -pos.z / SEA_TILE + seaDrift
+      );
 
       const cx = Math.round(pos.x / CHUNK);
       const cz = Math.round(pos.z / CHUNK);
@@ -326,6 +540,27 @@ export function createWorld(scene) {
         b.mesh.position.y = b.y + Math.sin(b.bob) * 3.5;
         b.mesh.rotation.y += dt * 0.4;
       }
+
+      for (const t of targets) {
+        if (!t.alive || t.kind !== 'ship') continue;
+        t.bob += dt * 0.8;
+        t.mesh.position.y = t.baseY + Math.sin(t.bob) * 0.7;
+        t.mesh.rotation.z = Math.sin(t.bob * 0.7) * 0.045;
+      }
+    },
+
+    // Returns 'miss', 'hit' or 'destroyed'. A ship takes several rounds; a
+    // building comes down on the first.
+    damage(t, amount) {
+      if (!t || !t.alive) return 'miss';
+      t.hp -= amount;
+      if (t.hp > 0) return 'hit';
+      t.alive = false;
+      scene.remove(t.mesh);
+      t.mesh.geometry.dispose();
+      const i = targets.indexOf(t);
+      if (i >= 0) targets.splice(i, 1);
+      return 'destroyed';
     },
 
     // Ground height under a point. The islands are cones, so this is just the

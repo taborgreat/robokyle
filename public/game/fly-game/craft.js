@@ -134,10 +134,15 @@ function buildPlane() {
     g.add(seam);
   }
 
+  // A torus lies in the XY plane by default, which puts the wheel across the
+  // aircraft like a barrel. Turned a quarter about Y so the axle runs side to
+  // side and the wheel rolls the way the aircraft travels.
   const wheelGeo = new THREE.TorusGeometry(0.24, 0.1, 6, 12);
   const wheelMat = mat(PAINT.dark);
-  const wL = new THREE.Mesh(wheelGeo, wheelMat); wL.position.set(-0.8, -0.72, -0.5); g.add(wL);
-  const wR = new THREE.Mesh(wheelGeo, wheelMat); wR.position.set(0.8, -0.72, -0.5); g.add(wR);
+  const wL = new THREE.Mesh(wheelGeo, wheelMat);
+  wL.position.set(-0.8, -0.72, -0.5); wL.rotation.y = Math.PI / 2; g.add(wL);
+  const wR = new THREE.Mesh(wheelGeo, wheelMat);
+  wR.position.set(0.8, -0.72, -0.5); wR.rotation.y = Math.PI / 2; g.add(wR);
 
   // Gear legs, so the wheels are attached to something.
   const legGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 5);
@@ -151,6 +156,7 @@ function buildPlane() {
   // Tail wheel.
   const tailWheel = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.055, 5, 10), wheelMat);
   tailWheel.position.set(0, -0.42, 2.0);
+  tailWheel.rotation.y = Math.PI / 2;
   g.add(tailWheel);
 
   // The guns the muzzle flash comes out of.
@@ -314,7 +320,7 @@ export const CRAFT = {
     name: 'Sport plane',
     blurb: 'Steady and forgiving. Turns wide, holds a line.',
     build: buildPlane,
-    handling: { turn: 1.0, cruise: 62, top: 96, lift: 1.0, scale: 1 },
+    handling: { turn: 1.0, cruise: 71, top: 110, lift: 1.0, scale: 1 },
   },
   eagle: {
     name: 'Eagle',

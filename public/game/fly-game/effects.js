@@ -160,13 +160,107 @@ export function createEffects(scene) {
       }
     },
 
+    /* A round hitting ground: dirt thrown up, a little dust left behind. */
+    impact(pos) {
+      spawn('sphere', { pos, color: 0xFFF0C8, from: 0.3, to: 1.1, life: 0.06, opacity: 0.9 });
+
+      for (let i = 0; i < 9; i++) {
+        const v = dir(rand(5, 16));
+        v.y = Math.abs(v.y) + rand(6, 15);        // always thrown upward
+        spawn('shard', {
+          pos, color: i % 3 === 0 ? 0x4E9E45 : 0x7A5230,
+          vel: v, grav: 30, spin: rand(-16, 16),
+          from: rand(0.25, 0.7), to: rand(0.15, 0.4),
+          life: rand(0.4, 0.9),
+        });
+      }
+      for (let i = 0; i < 5; i++) {
+        spawn('sphere', {
+          pos, color: 0xC7B48A,
+          vel: dir(rand(2, 7)).add(_v.set(0, rand(2, 6), 0)),
+          grav: 2, drag: 1.6,
+          from: rand(0.5, 1.2), to: rand(2.2, 4.2),
+          life: rand(0.45, 0.9), opacity: 0.5,
+        });
+      }
+    },
+
+    /* A round hitting water: a small ring and a few droplets. */
+    ripple(pos) {
+      const at = pos.clone(); at.y = 0.5;
+      spawn('ring', { pos: at, color: 0xEAF6FF, flat: true, from: 0.6, to: 7, life: 0.5, opacity: 0.7 });
+      for (let i = 0; i < 7; i++) {
+        const v = dir(rand(3, 9));
+        v.y = Math.abs(v.y) + rand(5, 12);
+        spawn('sphere', {
+          pos: at, color: 0xDCF0FB,
+          vel: v, grav: 34,
+          from: rand(0.2, 0.5), to: rand(0.1, 0.3),
+          life: rand(0.3, 0.6), opacity: 0.9,
+        });
+      }
+    },
+
+    /* A building coming down. Planks and dust rather than a fireball. */
+    rubble(pos) {
+      spawn('sphere', { pos, color: 0xFFE9BE, from: 1, to: 9, life: 0.16, opacity: 0.85 });
+      for (let i = 0; i < 20; i++) {
+        const v = dir(rand(8, 24));
+        v.y = Math.abs(v.y) + rand(6, 18);
+        spawn('box', {
+          pos, color: [0xF2E7D2, 0xC1462F, 0x6B4A2F, 0x9C9384][i % 4],
+          vel: v, grav: 30, spin: rand(-14, 14),
+          from: rand(0.3, 1.1), to: rand(0.25, 0.8),
+          life: rand(0.8, 1.7),
+        });
+      }
+      for (let i = 0; i < 8; i++) {
+        spawn('sphere', {
+          pos, color: 0xC7B48A,
+          vel: dir(rand(3, 10)).add(_v.set(0, rand(2, 7), 0)),
+          grav: 1.5, drag: 1.2,
+          from: rand(1, 2.5), to: rand(5, 10),
+          life: rand(0.9, 1.8), opacity: 0.5,
+        });
+      }
+    },
+
+    /* A ship going down: fire, timber, and the water it displaces. */
+    wreck(pos) {
+      const at = pos.clone(); at.y = Math.max(1.5, pos.y);
+      spawn('sphere', { pos: at, color: 0xFFF3C4, from: 1, to: 16, life: 0.28, opacity: 1, fadePow: 1.6 });
+      spawn('sphere', { pos: at, color: 0xFF9A3C, from: 2, to: 24, life: 0.5, opacity: 0.9, fadePow: 1.4 });
+      spawn('ring', { pos: new THREE.Vector3(at.x, 0.6, at.z), color: 0xEAF6FF,
+                      flat: true, from: 4, to: 40, life: 0.9, opacity: 0.8 });
+
+      for (let i = 0; i < 20; i++) {
+        const v = dir(rand(10, 30));
+        v.y = Math.abs(v.y) + rand(8, 22);
+        spawn('box', {
+          pos: at, color: [0x5A3A22, 0x6B4A2F, 0xF4EFE2, 0x3A2A1A][i % 4],
+          vel: v, grav: 30, spin: rand(-12, 12),
+          from: rand(0.4, 1.5), to: rand(0.3, 1.0),
+          life: rand(1.0, 2.0),
+        });
+      }
+      for (let i = 0; i < 12; i++) {
+        spawn('sphere', {
+          pos: at, color: i % 2 ? 0x6E6E6E : 0xCFEAF7,
+          vel: dir(rand(4, 14)).add(_v.set(0, rand(4, 12), 0)),
+          grav: -1.5, drag: 1.0,
+          from: rand(1.5, 3.5), to: rand(6, 12),
+          life: rand(1.2, 2.2), opacity: 0.55,
+        });
+      }
+    },
+
     /* Brass out of the breech. */
     casing(pos, vel) {
       spawn('box', {
         pos, color: 0xD8A94B,
         vel, grav: 26, spin: rand(-22, 22),
-        from: 0.24, to: 0.24,
-        life: 1.4, opacity: 1,
+        from: 0.11, to: 0.11,
+        life: 1.2, opacity: 1,
       });
     },
 
@@ -176,8 +270,8 @@ export function createEffects(scene) {
     tracer(pos) {
       spawn('sphere', {
         pos, color: 0xFFDE8A,
-        from: 0.85, to: 0.08,
-        life: 0.3, opacity: 0.95, fadePow: 1.5,
+        from: 0.4, to: 0.05,
+        life: 0.22, opacity: 0.9, fadePow: 1.5,
       });
     },
 
@@ -187,8 +281,8 @@ export function createEffects(scene) {
       // which at chase camera distance is wider than the aircraft, and with
       // the guns firing ten times a second one was always alive: the result
       // was a permanent translucent disc sitting over the whole plane.
-      spawn('sphere', { pos, color: 0xFFF3C8, from: 0.22, to: 0.85, life: 0.05, opacity: 1 });
-      spawn('sphere', { pos, color: 0xFFA83C, from: 0.4, to: 1.5, life: 0.075, opacity: 0.7 });
+      spawn('sphere', { pos, color: 0xFFF3C8, from: 0.1,  to: 0.34, life: 0.04,  opacity: 1 });
+      spawn('sphere', { pos, color: 0xFFA83C, from: 0.16, to: 0.6,  life: 0.055, opacity: 0.62 });
     },
 
     update(dt) {
