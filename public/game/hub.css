@@ -84,8 +84,8 @@ body.hub-body {
     bottom: 0;
     height: 68%;
     overflow: hidden;
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 88%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 88%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.35) 26%, #000 58%, #000 88%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.35) 26%, #000 58%, #000 88%, transparent 100%);
 }
 .stage-grid {
     position: absolute;
@@ -99,9 +99,7 @@ body.hub-body {
         linear-gradient(to right,  var(--grid) 1px, transparent 1px),
         linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
     background-size: 94px 94px;
-    animation: gridRun 6s linear infinite;
 }
-@keyframes gridRun { to { background-position: 0 94px; } }
 
 /* The line where the floor meets the dark, plus its bloom. */
 .stage-horizon {
@@ -181,8 +179,8 @@ body.hub-body::before {
     z-index: 5;
     pointer-events: none;
     background: linear-gradient(to bottom,
-        transparent 0%, rgba(184,216,255,.05) 48%, transparent 100%);
-    animation: crtRoll 8.5s linear infinite;
+        transparent 0%, rgba(184,216,255,.032) 48%, transparent 100%);
+    animation: crtRoll 16s linear infinite;
 }
 @keyframes crtRoll {
     from { transform: translateY(-56vh); }
@@ -287,16 +285,14 @@ body.hub-body::after {
         0 0 30px rgba(227,85,43,.7),
         0 0 70px rgba(227,85,43,.45),
         0 0 120px rgba(180,35,28,.35);
-    animation: neonStrike .95s steps(1, end) both,
-               tubeHum 5.5s ease-in-out .95s infinite;
+    animation: neonStrike 1.1s ease-out both,
+               tubeHum 5.5s ease-in-out 1.1s infinite;
 }
 @keyframes neonStrike {
-    0%, 16%   { opacity: .5; filter: brightness(.55); }
-    19%, 26%  { opacity: 1;  filter: brightness(1.35); }
-    29%, 38%  { opacity: .6; filter: brightness(.62); }
-    41%, 49%  { opacity: 1;  filter: brightness(1.22); }
-    52%, 58%  { opacity: .7; filter: brightness(.75); }
-    61%, 100% { opacity: 1;  filter: brightness(1); }
+    0%   { opacity: .55; filter: brightness(.6); }
+    30%  { opacity: .92; filter: brightness(1.18); }
+    52%  { opacity: .7;  filter: brightness(.8); }
+    100% { opacity: 1;   filter: brightness(1); }
 }
 @keyframes tubeHum {
     0%, 100%      { filter: brightness(1); }
@@ -601,11 +597,9 @@ a.game-card:hover .card-sheen { opacity: 1; }
 }
 @keyframes unShot {
     0%          { opacity: 1;   transform: scale(1); }
-    5%          { opacity: .3;  transform: scale(.86); }
-    9%          { opacity: 1;   transform: scale(1.06); }
-    14%         { opacity: .35; transform: scale(.88); }
-    18%         { opacity: .95; transform: scale(1); }
-    30%, 100%   { opacity: .62; transform: scale(.94); }
+    12%         { opacity: .55; transform: scale(.9); }
+    24%         { opacity: 1;   transform: scale(1.04); }
+    40%, 100%   { opacity: .7;  transform: scale(.95); }
 }
 
 /* Grand Heist: the door works, the torch sweeps, the gold winks */
@@ -682,7 +676,7 @@ a.game-card:focus-visible .gh-dial { animation-duration: 6s; }
     .game-card, .thumb-art, .card-cta, .card-sheen { transition: none; }
     a.game-card:hover .thumb-art,
     a.game-card:focus-visible .thumb-art { transform: none; }
-    .game-item, .stage-grid, .stage-dust i, .hub-logo .kyle, .crt-roll,
+    .game-item, .stage-dust i, .hub-logo .kyle, .crt-roll,
     .un-ember, .un-shot,
     .gh-ring, .gh-dial, .gh-beam, .gh-glint { animation: none; }
     .stage-dust i { opacity: .4; }
