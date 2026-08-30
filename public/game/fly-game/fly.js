@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=25';
-import { buildCraft, CRAFT } from './craft.js?v=25';
-import { createAudio } from './audio.js?v=25';
-import { createEffects } from './effects.js?v=25';
+import { createWorld, ENEMY_GUNS } from './world.js?v=26';
+import { buildCraft, CRAFT } from './craft.js?v=26';
+import { createAudio } from './audio.js?v=26';
+import { createEffects } from './effects.js?v=26';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -994,6 +994,10 @@ const _pipFrom = new THREE.Vector3();
 const _pipDir = new THREE.Vector3();
 const _pipVel = new THREE.Vector3();
 const _pipAt = new THREE.Vector3();
+// The ring's world point, kept before it is flattened onto the screen, so
+// a test can fire a round and check where it lands rather than comparing
+// two overlays through a camera that has moved in between.
+const _pipWorld = new THREE.Vector3();
 
 function updatePipper() {
   if (!pipEl) return;
@@ -1018,6 +1022,7 @@ function updatePipper() {
   _pipVel.copy(_pipDir).multiplyScalar(plane.speed + MUZZLE_BOOST);
 
   world.shotHit(_pipFrom, _pipVel, BULLET_GRAVITY, PIP_TIME, _pipAt);
+  _pipWorld.copy(_pipAt);
   _pipAt.project(camera);
 
   if (_pipAt.z > 1) { if (!pipEl.hidden) pipEl.hidden = true; return; }
@@ -1480,6 +1485,15 @@ if (location.search.includes('debug')) {
   };
 
   window.flyParticles = () => effects.count();
+
+  // Where the gun ring is, in the world, and where the round it is
+  // predicting would leave from and along what line.
+  window.flyPipper = () => ({
+    at: { x: _pipWorld.x, y: _pipWorld.y, z: _pipWorld.z },
+    from: { x: _pipFrom.x, y: _pipFrom.y, z: _pipFrom.z },
+    dir: { x: _pipDir.x, y: _pipDir.y, z: _pipDir.z },
+    range: _pipFrom.distanceTo(_pipWorld),
+  });
 
   window.flyDebug = () => ({
     x: Math.round(plane.pos.x), y: Math.round(plane.pos.y), z: Math.round(plane.pos.z),
