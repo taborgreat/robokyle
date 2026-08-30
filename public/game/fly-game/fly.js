@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=26';
-import { buildCraft, CRAFT } from './craft.js?v=26';
-import { createAudio } from './audio.js?v=26';
-import { createEffects } from './effects.js?v=26';
+import { createWorld, ENEMY_GUNS } from './world.js?v=27';
+import { buildCraft, CRAFT } from './craft.js?v=27';
+import { createAudio } from './audio.js?v=27';
+import { createEffects } from './effects.js?v=27';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -319,7 +319,11 @@ function ricochet(b, surfaceY) {
     mesh: m, vel: _ric.clone(), life: 2.2 + Math.random() * 1.3,
     trail: 0.02, bounced: true,
   });
-  audio.ricochet(m.position.distanceTo(plane.pos));
+  // Heard from the cockpit rather than from where it happened. A whine
+  // that fades out with range is technically right and dramatically
+  // useless: the whole appeal of a ricochet is the sound of it going past
+  // you, and at four hundred units the honest version is inaudible.
+  audio.ricochet(0);
 }
 
 function stepBullets(dt) {
@@ -935,7 +939,6 @@ const hudAlt   = document.getElementById('hud-alt');
 const reticle  = document.getElementById('reticle');
 const pauseEl  = document.getElementById('fly-pause');
 const flashEl  = document.getElementById('fly-flash');
-const pipEl    = document.getElementById('pipper');
 const threatEl = document.getElementById('threat');
 const introEl  = document.getElementById('intro-card');
 const introName = document.getElementById('intro-name');
@@ -952,88 +955,6 @@ function show(name) {
   // One track for the menus, another over the islands. Asking for the one
   // already playing is a no-op, so this can fire on every screen change.
   audio.music(name === 'fly' ? 'island' : 'menu');
-}
-
-/* The gun pipper.
-
-   Where the rounds are actually going, which is not where the crosshair
-   is and never can be.
-
-   The crosshair belongs to the camera and the guns belong to the
-   aeroplane, and the camera sits a dozen units behind and above them.
-   Rounds are laid along the line from the muzzle to the point the cursor
-   picks out at fourteen hundred, so at fourteen hundred the two lines
-   meet exactly and the crosshair is honest. Nearer than that they have
-   not converged yet, and the round passes to one side of whatever the
-   crosshair is sitting on. At three hundred units that gap is most of a
-   ship's length, which is what "the bullets never go where the crosshair
-   is" actually was: not an error, but two lines that only meet at one
-   range, which is the same reason real guns are harmonised to a distance
-   and only truly correct there.
-
-   So this marks the gun line instead of the sight line. It fires an
-   imaginary round, asks the world what it would meet first, and draws a
-   ring on that spot. Put the ring on the target rather than the
-   crosshair and the rounds arrive.
-
-   Drop is in it. It was left out at first, because that is what was
-   asked for and because it sounded like a small correction. It is not:
-   these rounds fall five units at four hundred, twenty six at nine
-   hundred and sixty three at fourteen hundred, and a ring drawn on the
-   straight line ended up as much as seven hundred units from where the
-   rounds went. A gunsight that is wrong by that much is worse than no
-   gunsight, so this flies the round properly and marks where it lands.
-
-   Which means it does not sit on the crosshair even with nothing in
-   front of you: it sits below it, by however far the rounds will have
-   fallen by the time they get there. That gap is the sight telling you
-   how much to lift, and it is the whole reason to have a second mark. */
-const PIP_TIME = 2.4;          // about fourteen hundred units of flight
-const _pipMid = new THREE.Vector3();
-const _pipFrom = new THREE.Vector3();
-const _pipDir = new THREE.Vector3();
-const _pipVel = new THREE.Vector3();
-const _pipAt = new THREE.Vector3();
-// The ring's world point, kept before it is flattened onto the screen, so
-// a test can fire a round and check where it lands rather than comparing
-// two overlays through a camera that has moved in between.
-const _pipWorld = new THREE.Vector3();
-
-function updatePipper() {
-  if (!pipEl) return;
-  if (state.dead || state.intro || !cursor.seen) {
-    if (!pipEl.hidden) pipEl.hidden = true;
-    return;
-  }
-
-  // The midpoint of the barrels rather than whichever fires next, or the
-  // ring would flick from one to the other every round.
-  const mounts = craft.guns || [craft.muzzle];
-  _pipMid.set(0, 0, 0);
-  for (const m of mounts) _pipMid.add(m);
-  _pipMid.multiplyScalar(1 / mounts.length);
-
-  _pipFrom.copy(_pipMid).multiplyScalar(craft.group.scale.x)
-    .applyQuaternion(craft.group.quaternion).add(plane.pos);
-  // The same call fire() makes, at the same speed it hands the round, so
-  // what is drawn is the round that is about to be fired rather than a
-  // second guess at it.
-  _pipDir.copy(aimDirection(_pipFrom));
-  _pipVel.copy(_pipDir).multiplyScalar(plane.speed + MUZZLE_BOOST);
-
-  world.shotHit(_pipFrom, _pipVel, BULLET_GRAVITY, PIP_TIME, _pipAt);
-  _pipWorld.copy(_pipAt);
-  _pipAt.project(camera);
-
-  if (_pipAt.z > 1) { if (!pipEl.hidden) pipEl.hidden = true; return; }
-
-  const r = canvas.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  const px = (_pipAt.x * 0.5 + 0.5) * r.width;
-  const py = (1 - (_pipAt.y * 0.5 + 0.5)) * r.height;
-
-  if (pipEl.hidden) pipEl.hidden = false;
-  pipEl.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px)';
 }
 
 /* Threat markers.
@@ -1162,7 +1083,6 @@ function startFlight() {
   introSub.textContent = currentMap.flyer;
   introEl.classList.remove('is-out');
   introEl.hidden = false;
-  pipEl.hidden = true;
   for (const el of threatPool) el.hidden = true;
 
   show('fly');
@@ -1316,7 +1236,6 @@ function loop() {
     // survive. One line, and both marks below are honest.
     camera.updateMatrixWorld(true);
 
-    updatePipper();
     updateThreat();
   }
 
@@ -1485,15 +1404,6 @@ if (location.search.includes('debug')) {
   };
 
   window.flyParticles = () => effects.count();
-
-  // Where the gun ring is, in the world, and where the round it is
-  // predicting would leave from and along what line.
-  window.flyPipper = () => ({
-    at: { x: _pipWorld.x, y: _pipWorld.y, z: _pipWorld.z },
-    from: { x: _pipFrom.x, y: _pipFrom.y, z: _pipFrom.z },
-    dir: { x: _pipDir.x, y: _pipDir.y, z: _pipDir.z },
-    range: _pipFrom.distanceTo(_pipWorld),
-  });
 
   window.flyDebug = () => ({
     x: Math.round(plane.pos.x), y: Math.round(plane.pos.y), z: Math.round(plane.pos.z),

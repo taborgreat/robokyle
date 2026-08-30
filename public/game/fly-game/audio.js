@@ -453,29 +453,41 @@ export function createAudio() {
       const v = falloff(dist) * 0.3;
       if (v < 0.006) return;
 
-      const src = ctx.createBufferSource();
-      src.buffer = noiseBuffer(0.22);
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.setValueAtTime(1800, t);
-      bp.frequency.exponentialRampToValueAtTime(520, t + 0.18);
-      bp.Q.value = 1.4;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(v, t);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.2);
-      src.connect(bp); bp.connect(g); g.connect(master);
-      src.start(t); src.stop(t + 0.22);
+      /* A round going into water, not a snare drum.
 
-      // The little pitched blip of a drop closing over.
+         Which is what it was: a noise burst through a bandpass at 1800
+         with a Q of 1.4 and an instant attack. That is the recipe for a
+         snare, near enough, and it is what a snare is. Water has almost
+         nothing up there. It is a lowpass that shuts as it goes, a
+         softer tail underneath for the spray coming back down, and the
+         attack ramped over a few milliseconds rather than stepped, since
+         the step is the crack of the stick on the head. */
+      const slap = ctx.createBufferSource();
+      slap.buffer = noiseBuffer(0.32);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(950, t);
+      lp.frequency.exponentialRampToValueAtTime(170, t + 0.17);
+      lp.Q.value = 0.6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0005, t);
+      g.gain.exponentialRampToValueAtTime(v, t + 0.007);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.2);
+      slap.connect(lp); lp.connect(g); g.connect(master);
+      slap.start(t); slap.stop(t + 0.32);
+
+      // The cavity closing over behind it. Quiet, and late enough to be
+      // heard as a consequence rather than as part of the impact.
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(520, t);
-      osc.frequency.exponentialRampToValueAtTime(1250, t + 0.07);
+      osc.frequency.setValueAtTime(280, t + 0.025);
+      osc.frequency.exponentialRampToValueAtTime(720, t + 0.12);
       const og = ctx.createGain();
-      og.gain.setValueAtTime(v * 0.5, t);
-      og.gain.exponentialRampToValueAtTime(0.0005, t + 0.08);
+      og.gain.setValueAtTime(0.0005, t + 0.025);
+      og.gain.exponentialRampToValueAtTime(v * 0.3, t + 0.045);
+      og.gain.exponentialRampToValueAtTime(0.0005, t + 0.14);
       osc.connect(og); og.connect(master);
-      osc.start(t); osc.stop(t + 0.09);
+      osc.start(t + 0.025); osc.stop(t + 0.15);
     },
 
     // A building coming apart. Deliberately nothing like the aircraft going
