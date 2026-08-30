@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=27';
-import { buildCraft, CRAFT } from './craft.js?v=27';
-import { createAudio } from './audio.js?v=27';
-import { createEffects } from './effects.js?v=27';
+import { createWorld, ENEMY_GUNS } from './world.js?v=28';
+import { buildCraft, CRAFT } from './craft.js?v=28';
+import { createAudio } from './audio.js?v=28';
+import { createEffects } from './effects.js?v=28';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -102,7 +102,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(68, 1, 0.6, 9000);
 
-scene.add(new THREE.HemisphereLight(0xDCF0FF, 0x4C7A4A, 1.15));
+const hemi = new THREE.HemisphereLight(0xDCF0FF, 0x4C7A4A, 1.15);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xFFF6E0, 1.5);
 sun.position.set(-380, 700, 260);
 scene.add(sun);
@@ -113,6 +114,9 @@ const effects = createEffects(scene);
 // Burning rubble and sinking hulls are driven from the world, which already
 // walks that list every frame and knows where the wrecks are.
 world.attachEffects(effects);
+// The day is the world's to run, but the lights are the scene's, so it
+// gets a handle on them.
+world.attachLights(sun, hemi);
 
 /* ===== The aircraft ===== */
 
@@ -463,7 +467,9 @@ const _lift = new THREE.Vector3();
 const _muzzleDir = new THREE.Vector3();
 const _flakVel = new THREE.Vector3();
 const shellGeo = new THREE.SphereGeometry(0.45, 6, 5);
-const shellMat = new THREE.MeshBasicMaterial({ color: 0x6E6A62 });
+// Unlit and warm, so a shell in the air reads against a night sky as
+// well as against a bright one. It is the thing you have to see coming.
+const shellMat = new THREE.MeshBasicMaterial({ color: 0xFFC966 });
 
 function enemyGuns(dt) {
   if (state.dead) return;
@@ -483,9 +489,12 @@ function enemyGuns(dt) {
     t.cool = 0.85 + Math.random() * 0.9 - (1 - range / FLAK_RANGE) * 0.45;
 
     // One mount per salvo, so a ship walks its fire around rather than
-    // spitting five shells from the same spot.
-    const mount = ENEMY_GUNS[Math.floor(Math.random() * ENEMY_GUNS.length)];
-    _gunAt.set(mount.x, 6.8, mount.z)
+    // spitting five shells from the same spot. A battery ashore carries
+    // its own list and its own barrel height, so the same code serves a
+    // gun on a hill and a gun on a deck.
+    const mounts = t.guns || ENEMY_GUNS;
+    const mount = mounts[Math.floor(Math.random() * mounts.length)];
+    _gunAt.set(mount.x, t.gunY || 6.8, mount.z)
       .multiplyScalar(t.mesh.scale.x)
       .applyQuaternion(t.mesh.quaternion)
       .add(t.mesh.position);

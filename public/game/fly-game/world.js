@@ -38,6 +38,14 @@ const C = {
   // fogged water used to meet the sky. Deeper and bluer than it was: at
   // near white the fog glared and swallowed the islands early.
   haze:   0xA8CCE4,
+
+  // Built things, and the things that burn.
+  tarmac: 0x5A5E62,
+  concrete: 0xB9B4A8,
+  lava:   0xFF5A18,
+  lavaHot: 0xFFC24A,
+  cinder: 0x3A322C,
+  lamp:   0xFFD98A,
 };
 
 const BALLOON_COLOURS = [0xE2402F, 0xE8B444, 0x5FBF87, 0xE06FA8, 0x6FA8E0];
@@ -144,6 +152,9 @@ const GEO = {
   roof:   new THREE.ConeGeometry(1, 1, 4),
   cyl:    new THREE.CylinderGeometry(1, 1, 1, 9),
   taper:  new THREE.CylinderGeometry(0.72, 1, 1, 10),
+  // A disc smooth enough to sit under a fourteen sided island without the
+  // two silhouettes disagreeing with each other.
+  shelf:  new THREE.CylinderGeometry(1, 1, 1, 26),
 };
 
 const _m = new THREE.Matrix4();
@@ -194,6 +205,30 @@ function piece(geo, color, x, y, z, sx, sy, sz, rotY, rotX, rotZ, uvPer) {
 
 // How far apart the ground texture tiles, in world units.
 const GROUND_UV = 42;
+
+/* ===== Lit windows =====
+
+   Every building gets a few, in their own geometry and their own
+   unlit material, so they can be turned up at dusk without the rest of
+   the model glowing with them. They are the only thing that makes an
+   island read as inhabited once the sun is down, and from the air a
+   scatter of warm points is worth more than any amount of detail on the
+   walls.
+
+   Scattered rather than placed: at the height you see them from, where
+   exactly a window is matters far less than that there are some. */
+function lampGeo(rnd, opts) {
+  const { r, low, high, count = 5, colour = C.lamp } = opts;
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + rnd() * 0.9;
+    const d = r * (0.72 + rnd() * 0.34);
+    parts.push(piece(GEO.box, colour,
+      Math.cos(a) * d, low + rnd() * (high - low), Math.sin(a) * d,
+      0.5 + rnd() * 0.4, 0.5 + rnd() * 0.5, 0.5 + rnd() * 0.4, a));
+  }
+  return mergeGeometries(parts);
+}
 
 /* ===== rubble =====
 
@@ -273,7 +308,8 @@ function houseGeo(rnd) {
     parts.push(piece(GEO.box, 0xC6B79A, i * 1.5, 0.75, 4.6, 0.22, 1.5, 0.22, 0));
   }
   parts.push(piece(GEO.box, 0xC6B79A, 0, 1.15, 4.6, 6.6, 0.18, 0.16, 0));
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 5.4, hp: 1 };
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 5.4, hp: 1,
+           lights: lampGeo(rnd, { r: 3.6, low: 2.2, high: 4.4, count: 5 }) };
 }
 
 function hutGeo(rnd) {
@@ -289,7 +325,8 @@ function hutGeo(rnd) {
     parts.push(piece(GEO.cyl, 0x7A5230, Math.cos(a) * 2.1, 0.4, Math.sin(a) * 2.1, 0.24, 0.9, 0.24, 0));
   }
   parts.push(piece(GEO.cyl, 0xA9714B, 2.2, 0.5, 1.6, 0.5, 1.0, 0.5, 0));
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 3.7, hp: 1 };
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 3.7, hp: 1,
+           lights: lampGeo(rnd, { r: 2.4, low: 1.4, high: 2.8, count: 3, colour: 0xFFC46A }) };
 }
 
 function windmillGeo(rnd) {
@@ -310,7 +347,8 @@ function windmillGeo(rnd) {
     parts.push(piece(GEO.box, 0xE8DCC0, cx * 1.25, 8.9 + (cy - 8.9) * 1.25, 3.2,
       Math.abs(Math.cos(a)) * 3.4 + 0.9, Math.abs(Math.sin(a)) * 3.4 + 0.9, 0.16, 0));
   }
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 4.8, hp: 1 };
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 4.8, hp: 1,
+           lights: lampGeo(rnd, { r: 2.2, low: 2.5, high: 8, count: 4 }) };
 }
 
 function lighthouseGeo(rnd) {
@@ -331,7 +369,13 @@ function lighthouseGeo(rnd) {
     const a = (i / 8) * Math.PI * 2;
     parts.push(piece(GEO.box, 0x37414A, Math.cos(a) * 2.3, 14.4, Math.sin(a) * 2.3, 0.16, 1.5, 0.16, 0));
   }
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 3.6, hp: 1 };
+  // The lamp room at the top is the point of a lighthouse, so it gets a
+  // proper one rather than a scatter.
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 3.6, hp: 1,
+           lights: mergeGeometries([
+             piece(GEO.cyl, 0xFFF0B0, 0, 14.7, 0, 1.7, 2.3, 1.7, 0),
+             piece(GEO.box, 0xFFF0B0, 0, 14.7, 0, 9.5, 1.1, 1.1, rnd() * 6.28),
+           ]) };
 }
 
 function churchGeo(rnd) {
@@ -349,7 +393,8 @@ function churchGeo(rnd) {
     piece(GEO.box,  0x8FB8D8, -3.05, 3.6, 2.0, 0.3, 2.4, 1.2, 0),
     piece(GEO.box,  0x8FB8D8, -3.05, 3.6, -1.0, 0.3, 2.4, 1.2, 0),
   ];
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 6.4, hp: 1 };
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 6.4, hp: 1,
+           lights: lampGeo(rnd, { r: 3.6, low: 2.6, high: 5.6, count: 5, colour: 0xFFE2A0 }) };
 }
 
 function barnGeo(rnd) {
@@ -364,7 +409,8 @@ function barnGeo(rnd) {
     piece(GEO.box,  0xEFE6D2, -4.05, 3.4, 2.4, 0.25, 1.8, 1.8, 0),
     piece(GEO.box,  0xEFE6D2, 4.05, 3.4, 2.4, 0.25, 1.8, 1.8, 0),
   ];
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 6.2, hp: 1 };
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 6.2, hp: 1,
+           lights: lampGeo(rnd, { r: 4.2, low: 2, high: 5, count: 4 }) };
 }
 
 function waterTowerGeo(rnd) {
@@ -381,7 +427,8 @@ function waterTowerGeo(rnd) {
     parts.push(piece(GEO.box, 0x6B4A2F, lx, 3.3, lz, 0.45, 6.8, 0.45, 0));
     parts.push(piece(GEO.box, 0x6B4A2F, lx * 0.7, 3.4, lz * 0.7, 2.6, 0.28, 2.6, a));
   }
-  return { geo: mergeGeometries(parts), rubble: wreck, r: 4.0, hp: 1 };
+  return { geo: mergeGeometries(parts), rubble: wreck, r: 4.0, hp: 1,
+           lights: lampGeo(rnd, { r: 2.6, low: 6.5, high: 12, count: 3, colour: 0xFFCF7A }) };
 }
 
 // Everything afloat runs bow first along +X.
@@ -545,8 +592,143 @@ function enemyShipGeo(rnd) {
   return { geo: mergeGeometries(parts), r: 20, hp: 14 };
 }
 
+/* ===== A mid rise =====
+
+   The islands were all cottages and windmills, which is charming and
+   gives you nothing to dive at. This is four to eight floors of concrete
+   with a banded facade, and it takes a few passes to bring down rather
+   than falling to the first round, so a block of them is worth a proper
+   attack rather than one trigger pull.
+
+   The bands are what make the height readable from the air. A plain box
+   of any size looks the same size; a box with eight floor lines on it is
+   obviously eight floors. */
+function midriseGeo(rnd) {
+  const floors = 4 + Math.floor(rnd() * 5);
+  const fh = 3.1;
+  const height = floors * fh;
+  const w = 6.5 + rnd() * 3.5, dp = 6 + rnd() * 3;
+  const wall = [0xC8C2B4, 0xB6AFA2, 0xD2CBBC, 0xA9A79E][Math.floor(rnd() * 4)];
+  const trim = 0x8E8879;
+
+  const parts = [
+    piece(GEO.box, wall, 0, height / 2, 0, w, height, dp, 0),
+    piece(GEO.box, trim, 0, 0.6, 0, w + 0.9, 1.2, dp + 0.9, 0),          // plinth
+    piece(GEO.box, trim, 0, height + 0.5, 0, w + 0.8, 1.0, dp + 0.8, 0), // parapet
+  ];
+  // Floor bands, and a darker recess between them so the facade has depth.
+  for (let f = 1; f < floors; f++) {
+    parts.push(piece(GEO.box, trim, 0, f * fh, 0, w + 0.35, 0.4, dp + 0.35, 0));
+  }
+  for (const sx of [-1, 1]) {
+    parts.push(piece(GEO.box, 0x6E7A82, sx * (w / 2 + 0.02), height * 0.52, 0,
+                     0.12, height * 0.8, dp * 0.62, 0));
+  }
+  for (const sz of [-1, 1]) {
+    parts.push(piece(GEO.box, 0x6E7A82, 0, height * 0.52, sz * (dp / 2 + 0.02),
+                     w * 0.62, height * 0.8, 0.12, 0));
+  }
+  // Roof clutter, which is most of what says building rather than box.
+  parts.push(piece(GEO.box, 0x9A948A, w * 0.2, height + 1.9, dp * 0.15, 2.4, 1.8, 2.4, rnd()));
+  parts.push(piece(GEO.cyl, 0x8E8879, -w * 0.25, height + 2.3, -dp * 0.2, 1.1, 2.6, 1.1, 0));
+
+  const wreck = rubbleGeo(rnd, { r: 6.4, wall, roof: trim, beam: 0x6E7A82, stubs: 3, tall: 4.5 });
+
+  // Windows up the whole height, which is what a tower looks like at night.
+  const lamps = [];
+  for (let f = 0; f < floors; f++) {
+    for (const sx of [-1, 1]) {
+      if (rnd() < 0.28) continue;                 // not every flat is in
+      lamps.push(piece(GEO.box, 0xFFE0A0, sx * (w / 2 + 0.06), f * fh + fh * 0.55, 0,
+                       0.16, 1.3, dp * 0.52, 0));
+    }
+    for (const sz of [-1, 1]) {
+      if (rnd() < 0.28) continue;
+      lamps.push(piece(GEO.box, 0xFFE0A0, 0, f * fh + fh * 0.55, sz * (dp / 2 + 0.06),
+                       w * 0.52, 1.3, 0.16, 0));
+    }
+  }
+  return {
+    geo: mergeGeometries(parts), rubble: wreck,
+    r: Math.max(w, dp) * 0.62 + 1.5, hp: 3,
+    lights: lamps.length ? mergeGeometries(lamps) : null,
+    tall: height,
+  };
+}
+
+/* ===== Airfield furniture ===== */
+
+function hangarGeo(rnd) {
+  const skin = rnd() < 0.5 ? 0x7E8A86 : 0x6E7A76;
+  const parts = [
+    piece(GEO.box, skin, 0, 4, 0, 20, 8, 13, 0),
+    piece(GEO.cyl, skin, 0, 8, 0, 10.4, 13, 6.6, 0, 0, Math.PI / 2),   // barrel roof
+    piece(GEO.box, 0x4A5450, 0, 3.4, 6.6, 14, 6.8, 0.4, 0),            // doors
+    piece(GEO.box, 0x9AA6A2, 0, 6.9, 6.7, 14.6, 0.6, 0.5, 0),
+  ];
+  return {
+    geo: mergeGeometries(parts),
+    rubble: rubbleGeo(rnd, { r: 9, wall: skin, roof: 0x4A5450, beam: 0x3A423E, stubs: 2 }),
+    r: 11, hp: 4,
+    lights: lampGeo(rnd, { r: 6.5, low: 2, high: 6, count: 4, colour: 0xFFE7B0 }),
+  };
+}
+
+function towerGeo(rnd) {
+  const parts = [
+    piece(GEO.box, 0xCFC9BA, 0, 5, 0, 5.5, 10, 5.5, 0),
+    piece(GEO.box, 0x9EA8AE, 0, 11, 0, 8, 3.2, 8, 0),                  // glazed cab
+    piece(GEO.box, 0xCFC9BA, 0, 12.9, 0, 8.6, 0.7, 8.6, 0),
+    piece(GEO.cyl, 0x6E7A82, 0, 15.5, 0, 0.22, 4.4, 0.22, 0),
+    piece(GEO.box, 0xB03A2A, 0, 17.6, 0, 0.7, 0.7, 0.7, 0),
+  ];
+  return {
+    geo: mergeGeometries(parts),
+    rubble: rubbleGeo(rnd, { r: 5, wall: 0xCFC9BA, roof: 0x9EA8AE, stubs: 2, tall: 3.5 }),
+    r: 6.5, hp: 3,
+    lights: mergeGeometries([
+      piece(GEO.box, 0xBFF0FF, 0, 11, 0, 8.2, 2.4, 8.2, 0),
+      piece(GEO.box, 0xFF6A5A, 0, 17.6, 0, 1.1, 1.1, 1.1, 0),
+    ]),
+  };
+}
+
+/* ===== A flak pit =====
+
+   The same job the enemy ships do, standing still. A ring of sandbags, a
+   mount and a pair of barrels, and it shoots at you exactly as they do
+   because the flight code reads a gun list off the target rather than
+   assuming the target is a ship. */
+function flakGeo(rnd) {
+  const dark = 0x3E443F, bag = 0x8A8264;
+  const parts = [
+    piece(GEO.cyl, bag, 0, 0.9, 0, 5.2, 1.8, 5.2, 0),
+    piece(GEO.cyl, 0x6E6A52, 0, 1.85, 0, 4.6, 0.5, 4.6, 0),
+    piece(GEO.cyl, dark, 0, 2.2, 0, 2.1, 1.4, 2.1, 0),
+    piece(GEO.box, dark, 0, 3.2, 0, 2.6, 1.4, 3.0, 0),
+  ];
+  const swing = rnd() * 6.28;
+  for (const off of [-0.5, 0.5]) {
+    parts.push(piece(GEO.cyl, dark, Math.cos(swing) * 1.6 + off * Math.sin(swing) * 0.2, 4.6,
+                     Math.sin(swing) * 1.6 - off * Math.cos(swing) * 0.2,
+                     0.26, 5.4, 0.26, swing, 0, -0.85));
+  }
+  return {
+    geo: mergeGeometries(parts),
+    rubble: rubbleGeo(rnd, { r: 5, wall: bag, roof: dark, beam: dark, stubs: 1 }),
+    r: 6, hp: 5,
+    lights: lampGeo(rnd, { r: 3.4, low: 1, high: 2.2, count: 2, colour: 0xFF9060 }),
+    // Where its shells come from, in its own space, read by the flight code.
+    guns: [{ x: 0, z: 0 }], gunY: 4.6,
+  };
+}
+
 const PROPS = [houseGeo, houseGeo, houseGeo, hutGeo, hutGeo,
                windmillGeo, lighthouseGeo, churchGeo, barnGeo, waterTowerGeo];
+
+// What a city is built out of: mostly blocks, with houses filling in.
+const CITY_PROPS = [midriseGeo, midriseGeo, midriseGeo, midriseGeo,
+                    houseGeo, houseGeo, churchGeo, waterTowerGeo];
 
 export function createWorld(scene) {
   const landMat  = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -594,6 +776,22 @@ export function createWorld(scene) {
   const groundMat = new THREE.MeshLambertMaterial({
     vertexColors: true, map: grainTexture(),
   });
+
+  // Shallow water: translucent, so the sea and its waves show through
+  // rather than being covered over by a flat disc of paint.
+  const shallowMat = new THREE.MeshLambertMaterial({
+    vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false,
+  });
+
+  // Lit from within: lava, and anything else that should keep its colour
+  // after the sun has gone.
+  const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+
+  // Windows. One material for every lit window in the world, so dusk is a
+  // single write rather than a walk over every building.
+  const lampMat = new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0, depthWrite: false,
+  });
   // Lambert alone leaves the underside of a cloud picking up the green
   // bounce off the hemisphere light and reading as grey. A strong pale
   // emissive floors the shaded side at something still cloud coloured.
@@ -608,6 +806,82 @@ export function createWorld(scene) {
   const targets  = [];             // live, shootable and destructible
   const burning  = [];             // rubble that is still alight
   const sinking  = [];             // hulls on their way down
+  const volcanoes = [];            // live, for the smoke off them
+
+  /* ===== The day =====
+
+     One full turn every five minutes, and the sun is up for three
+     quarters of it. Night being short is deliberate: it is the best
+     looking part and the worst to fly in, so it wants to be an event you
+     pass through rather than a state you sit in.
+
+     Elevation is a half sine over the day and another over the night, so
+     it touches the horizon exactly at the changeover and reaches straight
+     up and straight down at the middles. Everything else is read off it:
+     how warm the light is, how dark the sky is, whether the windows are
+     lit. */
+  const DAY_LENGTH = 300;          // seconds for a whole cycle
+  const DAY_SHARE = 0.76;          // how much of it the sun is up for
+  let clock = 0.24;                // mid morning, so a new flight starts bright
+  let sunLight = null, hemiLight = null;
+  let cloudClock = 0;
+
+  const sunHeight = u => (u < DAY_SHARE
+    ? Math.sin(Math.PI * (u / DAY_SHARE))
+    : -Math.sin(Math.PI * ((u - DAY_SHARE) / (1 - DAY_SHARE))));
+
+  const SKY = {
+    dayTop: 0x2F86CE, dayHaze: 0xA8CCE4,
+    duskTop: 0x2C4C80, duskHaze: 0xF0A268,
+    nightTop: 0x060F1E, nightHaze: 0x141F36,
+  };
+  const _c1 = new THREE.Color(), _c2 = new THREE.Color();
+  const _top = new THREE.Color(), _haze = new THREE.Color();
+
+  function stepSky(dt) {
+    clock = (clock + dt / DAY_LENGTH) % 1;
+    const elev = sunHeight(clock);
+    // Full dark once the sun is a third of the way down; the horizon
+    // colours peak while it is sitting on the horizon.
+    const night = Math.max(0, Math.min(1, -elev * 3));
+    const dusk = Math.max(0, Math.min(1, 1 - Math.abs(elev) * 5));
+
+    _top.setHex(SKY.dayTop).lerp(_c1.setHex(SKY.duskTop), dusk).lerp(_c2.setHex(SKY.nightTop), night);
+    _haze.setHex(SKY.dayHaze).lerp(_c1.setHex(SKY.duskHaze), dusk).lerp(_c2.setHex(SKY.nightHaze), night);
+
+    sky.material.uniforms.top.value.copy(_top);
+    sky.material.uniforms.bottom.value.copy(_haze);
+    if (fogRef) fogRef.color.copy(_haze);
+    if (bgRef) bgRef.copy(_haze);
+
+    if (sunLight) {
+      const az = clock * Math.PI * 2;
+      sunLight.position.set(Math.cos(az) * 620, elev * 780 + 24, Math.sin(az) * 620);
+      sunLight.color.setHex(0xFFF6E0).lerp(_c1.setHex(0xFF8A3C), dusk);
+      sunLight.intensity = Math.max(0, elev) * 1.6 + 0.04;
+    }
+    if (hemiLight) {
+      hemiLight.intensity = 0.3 + Math.max(0, elev) * 0.9;
+      hemiLight.color.setHex(0xDCF0FF).lerp(_c1.setHex(0x2E3F63), night);
+      hemiLight.groundColor.setHex(0x4C7A4A).lerp(_c1.setHex(0x121C28), night);
+    }
+
+    // The sea keeps its texture and loses its light.
+    const k = 0.16 + (1 - night) * 0.84;
+    sea.material.color.setRGB(k * 0.94, k * 0.97, Math.min(1, k * 1.06));
+
+    // Cloud undersides pick up the sunset and go out at night.
+    cloudMat.color.setHex(0xFFFFFF).lerp(_c1.setHex(0xFFB37A), dusk * 0.8).lerp(_c2.setHex(0x2A3550), night);
+    cloudMat.emissiveIntensity = 0.8 * (1 - night * 0.85);
+
+    // Windows come on as the light goes, and a little before it is fully
+    // dark, which is when they are actually switched on.
+    lampMat.opacity = Math.max(0, Math.min(1, night * 1.1 + dusk * 0.45));
+    stars.material.opacity = night * 0.95;
+    stars.visible = night > 0.02;
+
+    return { elev, night, dusk };
+  }
 
   // Handed in after construction, because the effects pool is built after
   // the world is. Everything that goes on burning is driven from here
@@ -680,6 +954,35 @@ export function createWorld(scene) {
   sky.frustumCulled = false;
   scene.add(sky);
 
+  /* Stars. Only ever seen for a quarter of the cycle, so they are a few
+     hundred points on a sphere and nothing more clever than that. They
+     ride with the sky, which rides with the player, so they never slide
+     past as you fly. */
+  const starGeo = new THREE.BufferGeometry();
+  {
+    const n = 700, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      // Weighted upward: stars near the horizon are lost in the haze anyway.
+      const u = Math.random() * 2 - 1;
+      const phi = Math.random() * Math.PI * 2;
+      const y = Math.abs(u) * 0.92 + 0.08;
+      const rr = Math.sqrt(Math.max(0, 1 - y * y));
+      pos[i * 3] = Math.cos(phi) * rr * 5200;
+      pos[i * 3 + 1] = y * 5200;
+      pos[i * 3 + 2] = Math.sin(phi) * rr * 5200;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  }
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+    color: 0xFFFFFF, size: 26, sizeAttenuation: true,
+    transparent: true, opacity: 0, depthWrite: false,
+  }));
+  stars.frustumCulled = false;
+  stars.visible = false;
+  sky.add(stars);
+
+  let fogRef = null, bgRef = null;
+
   /* ===== sea ===== */
 
   // Flat colour gave no sense of height at all: at any altitude the water
@@ -740,8 +1043,11 @@ export function createWorld(scene) {
     const oz = cz * CHUNK;
 
     const groundParts = [];         // hills and beaches, textured
+    const shallowParts = [];        // the water over the shelf, translucent
+    const glowParts = [];           // lava, and anything else lit from within
     const landParts = [];           // trees and rocks, flat colour
     const cloudParts = [];
+    const localVolcanoes = [];
     const localIslands = [];
     const localBalloons = [];
     const localTargets = [];
@@ -751,22 +1057,101 @@ export function createWorld(scene) {
     for (let i = 0; i < islandCount; i++) {
       const ix = ox + (rnd() - 0.5) * CHUNK * 0.8;
       const iz = oz + (rnd() - 0.5) * CHUNK * 0.8;
-      const r  = 55 + rnd() * 130;
+      /* What kind of island this is.
+
+         All of them used to be the same island at different sizes, which
+         is fine for one pass over and dull for twenty. A city is wide and
+         nearly flat so there is somewhere to put streets; an airfield is
+         the same but with a strip down it and guns that shoot back; a
+         volcano is steep with its top open. */
+      const roll = rnd();
+      const kind = roll < 0.12 ? 'city'
+                 : roll < 0.21 ? 'airfield'
+                 : roll < 0.30 ? 'volcano'
+                 : roll < 0.36 ? 'arch'
+                 : 'plain';
+
+      const r  = kind === 'city'     ? 195 + rnd() * 115
+               : kind === 'airfield' ? 170 + rnd() * 85
+               : 55 + rnd() * 130;
       // Height from the radius rather than rolled on its own. Rolling them
       // separately is what produced the spikes: a 55 wide island could come
       // out 110 tall, which is a traffic cone, and a 185 wide one 25 tall,
-      // which is a pancake. Tied together they come out as land.
-      const h  = r * (0.17 + rnd() * 0.3);
+      // which is a pancake. Tied together they come out as land. Cities and
+      // airfields are flatter again, because nobody builds a runway on a
+      // hill and a street on a 25 degree slope reads as a mistake.
+      const h  = kind === 'city' || kind === 'airfield' ? r * (0.05 + rnd() * 0.055)
+               : kind === 'volcano' ? r * (0.36 + rnd() * 0.22)
+               : r * (0.17 + rnd() * 0.3);
 
       const hillRot = rnd() * 6.28;
 
-      // Shallows first, a flat pale ring standing just proud of the sea.
-      // It has to sit above the water, not below it: the sea is an opaque
-      // plane and anything under it is simply gone.
-      groundParts.push(piece(GEO.beach, 0x6FC3D8, ix, 0.18, iz, r * 1.62, 0.5, r * 1.62, 0, 0, 0, GROUND_UV));
-      groundParts.push(piece(GEO.beach, C.sand, ix, -3, iz, r * 1.2, 8, r * 1.2, 0, 0, 0, GROUND_UV));
+      /* The water over the shelf.
+
+         This was a twelve sided disc in flat pale blue sat on top of an
+         opaque sea, which is why it never matched: too few sides against a
+         twenty six sided beach, and a solid colour against a textured sea.
+         It is a proper disc now, in its own translucent mesh, so the sea
+         and its wave pattern show through it and what you see is shallow
+         water rather than a sticker of it. */
+      shallowParts.push(piece(GEO.shelf, 0x86D8DE, ix, 0.35, iz, r * 1.66, 0.5, r * 1.66, 0));
+      shallowParts.push(piece(GEO.shelf, 0xA6E3DE, ix, 0.5, iz, r * 1.34, 0.5, r * 1.34, 0));
+      groundParts.push(piece(GEO.shelf, C.sand, ix, -3, iz, r * 1.2, 8, r * 1.2, 0, 0, 0, GROUND_UV));
       groundParts.push(piece(GEO.hill, rnd() < 0.5 ? C.grass : C.grass2,
                              ix, h / 2 - 2, iz, r, h, r, hillRot, 0, 0, GROUND_UV));
+
+      /* A volcano is the same cone with its top opened up.
+
+         heightAt still treats it as a solid cone, so the crater is scenery
+         you cannot land in. That is the right way round: flying into a
+         volcano should stop you, and it does. */
+      if (kind === 'volcano') {
+        const cr = r * 0.19;
+        const top = h - 2;
+        groundParts.push(piece(GEO.shelf, C.cinder, ix, top - h * 0.05, iz,
+                               cr * 1.5, h * 0.12, cr * 1.5, 0, 0, 0, GROUND_UV));
+        groundParts.push(piece(GEO.hill, C.cinder, ix, top - h * 0.16, iz,
+                               cr * 1.9, h * 0.2, cr * 1.9, rnd() * 6.28, 0, 0, GROUND_UV));
+        // The lava is unlit, so it holds its colour after dark.
+        glowParts.push(piece(GEO.shelf, C.lava, ix, top - h * 0.03, iz, cr, 0.9, cr, 0));
+        glowParts.push(piece(GEO.shelf, C.lavaHot, ix, top - h * 0.02, iz, cr * 0.55, 0.9, cr * 0.55, 0));
+        // A couple of flows down the flank.
+        for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
+          const fa = rnd() * Math.PI * 2;
+          const fd = r * (0.2 + rnd() * 0.4);
+          glowParts.push(piece(GEO.box, C.lava,
+            ix + Math.cos(fa) * fd, islandSurface(h, r, fd, fa, hillRot) + 0.6, iz + Math.sin(fa) * fd,
+            r * 0.05, 0.7, fd * 1.3, -fa));
+        }
+        localVolcanoes.push({ x: ix, y: top, z: iz, r: cr });
+      }
+
+      /* An arch, on its own little island.
+
+         Deliberately not in the ground check. That means you can fly
+         under it, which is the point, and also through the legs, which is
+         the price of not building a second collision system for one
+         piece of scenery. */
+      if (kind === 'arch') {
+        const span = r * 0.85, rise = h * 1.5 + 24;
+        const arot = rnd() * Math.PI * 2;
+        const ca = Math.cos(arot), sa = Math.sin(arot);
+        const at = (u, y) => [ix + ca * u, y, iz + sa * u];
+        const steps = 9;
+        for (let k = 0; k <= steps; k++) {
+          const ang = (k / steps) * Math.PI;
+          const u = -Math.cos(ang) * span * 0.5;
+          const y = Math.sin(ang) * rise;
+          const p = at(u, y);
+          const thick = 13 - Math.sin(ang) * 4;
+          landParts.push(piece(GEO.rock, C.rock, p[0], p[1] + 2, p[2],
+                               thick, thick * 0.9, thick, arot + k, 0, ang * 0.4));
+        }
+        for (const side of [-1, 1]) {
+          const p = at(side * span * 0.5, 0);
+          landParts.push(piece(GEO.rock, C.rock, p[0], rise * 0.22, p[2], 17, rise * 0.5, 15, arot));
+        }
+      }
 
       /* Lobes.
 
@@ -779,12 +1164,13 @@ export function createWorld(scene) {
          peak went into neither: it was drawn and then forgotten, so you
          could pass straight through it. */
       const lobes = [];
-      const lobeCount = 2 + Math.floor(rnd() * 3);
+      const flat = kind === 'city' || kind === 'airfield';
+      const lobeCount = flat ? 1 : 2 + Math.floor(rnd() * 3);
       for (let k = 0; k < lobeCount; k++) {
         const la = rnd() * Math.PI * 2;
-        const ld = r * (0.18 + rnd() * 0.5);
-        const lr = r * (0.3 + rnd() * 0.34);
-        const lh = h * (0.34 + rnd() * 0.52);
+        const ld = r * (flat ? 0.55 + rnd() * 0.3 : 0.18 + rnd() * 0.5);
+        const lr = r * (flat ? 0.22 + rnd() * 0.14 : 0.3 + rnd() * 0.34);
+        const lh = h * (flat ? 0.5 + rnd() * 0.4 : 0.34 + rnd() * 0.52);
         const lx = ix + Math.cos(la) * ld;
         const lz = iz + Math.sin(la) * ld;
         groundParts.push(piece(GEO.hill, k % 2 ? C.grass2 : C.grass,
@@ -792,7 +1178,7 @@ export function createWorld(scene) {
         lobes.push({ x: lx, z: lz, r: lr, h: lh });
       }
 
-      const trees = 3 + Math.floor(rnd() * 7);
+      const trees = kind === 'volcano' ? 0 : (flat ? 5 + Math.floor(rnd() * 8) : 3 + Math.floor(rnd() * 7));
       for (let t = 0; t < trees; t++) {
         const a = rnd() * Math.PI * 2;
         const d = r * (0.25 + rnd() * 0.6);
@@ -854,22 +1240,31 @@ export function createWorld(scene) {
       for (const lb of lobes) reach = Math.max(reach, Math.hypot(lb.x - ix, lb.z - iz) + lb.r);
       localIslands.push({ x: ix, z: iz, r, h, lobes, reach });
 
-      // Something built on the island, sited where the slope is gentle.
-      const built = r > 78 ? 1 + Math.floor(rnd() * 3) : (rnd() < 0.5 ? 1 : 0);
-      for (let b = 0; b < built; b++) {
-        const a = rnd() * Math.PI * 2;
-        const d = r * (0.22 + rnd() * 0.45);
+      /* Putting a building down.
+
+         One place that knows how to sit a thing on the slope, hang its
+         lit windows off it, and register it as something you can knock
+         over, so the cottage, the tower block and the flak pit all arrive
+         the same way. */
+      function place(def, a, d, spin, hostile) {
         const px = ix + Math.cos(a) * d;
         const pz = iz + Math.sin(a) * d;
         // Bedded in by half a unit so it never hovers on a seam.
         const py = Math.max(0.5, islandSurface(h, r, d, a, hillRot) - 0.5);
-        const make = PROPS[Math.floor(rnd() * PROPS.length)];
-        const def = make(rnd);
         const m = new THREE.Mesh(def.geo, landMat);
         m.position.set(px, py, pz);
-        m.rotation.y = rnd() * 6.28;
+        m.rotation.y = spin == null ? rnd() * 6.28 : spin;
         m.scale.setScalar(BUILT_SCALE);
         scene.add(m);
+
+        // The windows are a child, in their own unlit material, so dusk
+        // can turn them up without the walls glowing too.
+        let lit = null;
+        if (def.lights) {
+          lit = new THREE.Mesh(def.lights, lampMat);
+          m.add(lit);
+        }
+
         // Generous on purpose. The sphere stands in for a building you are
         // strafing past at speed, and a tight one means shots that clearly
         // went through the roof do nothing.
@@ -877,9 +1272,88 @@ export function createWorld(scene) {
           mesh: m, kind: 'prop', r: def.r * BUILT_SCALE + 5, hp: def.hp, alive: true,
           // Kept so the mesh can become its own ruin in place rather than
           // being deleted, and so the fire on it is sized to the building.
-          rubble: def.rubble || null, baseR: def.r * BUILT_SCALE,
+          rubble: def.rubble || null, baseR: def.r * BUILT_SCALE, lit,
         };
+        if (hostile) {
+          t.hostile = true;
+          t.engaging = 0;
+          t.cool = 0.8 + rnd() * 2.6;
+          // Read by the flight code instead of the ship mounts, so a gun
+          // on the ground fires from its own barrel.
+          t.guns = def.guns;
+          t.gunY = def.gunY;
+        }
         localTargets.push(t); targets.push(t);
+        return t;
+      }
+
+      if (kind === 'city') {
+        /* A town, laid out in rough streets.
+
+           Rings rather than a grid: a grid on a round island leaves
+           corners hanging off the beach, and from the air a ring of
+           blocks around a centre reads as a town anyway. */
+        const rings = 2 + Math.floor(rnd() * 2);
+        for (let ring = 0; ring < rings; ring++) {
+          const rd = r * (0.16 + ring * 0.2);
+          const n = 4 + ring * 4 + Math.floor(rnd() * 3);
+          for (let k = 0; k < n; k++) {
+            if (rnd() < 0.18) continue;              // gaps, or it is a fence
+            const a = (k / n) * Math.PI * 2 + rnd() * 0.14;
+            const make = CITY_PROPS[Math.floor(rnd() * CITY_PROPS.length)];
+            place(make(rnd), a, rd * (0.92 + rnd() * 0.16), a + Math.PI / 2, false);
+          }
+        }
+      } else if (kind === 'airfield') {
+        /* A strip, laid in segments.
+
+           One long slab would float at the ends and bury itself in the
+           middle, because the island is a dome. Segments each sat on
+           their own bit of ground follow it. */
+        const rot = rnd() * Math.PI * 2;
+        const half = r * 0.62;
+        const segs = 9;
+        for (let k = 0; k <= segs; k++) {
+          const u = (k / segs - 0.5) * 2 * half;
+          const d = Math.abs(u);
+          const a = u >= 0 ? rot : rot + Math.PI;
+          const sy = Math.max(0.4, islandSurface(h, r, d, a, hillRot));
+          groundParts.push(piece(GEO.box, C.tarmac,
+            ix + Math.cos(rot) * u, sy + 0.35, iz + Math.sin(rot) * u,
+            (half * 2) / segs + 3, 0.8, 30, rot, 0, 0, GROUND_UV));
+          if (k % 2 === 0) {
+            groundParts.push(piece(GEO.box, 0xE6E2D6,
+              ix + Math.cos(rot) * u, sy + 0.8, iz + Math.sin(rot) * u,
+              (half * 2) / segs * 0.5, 0.3, 2.2, rot, 0, 0, GROUND_UV));
+          }
+        }
+        // Hangars and a tower off to one side of the strip.
+        const side = rot + Math.PI / 2;
+        for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
+          const along = (rnd() - 0.5) * half * 1.2;
+          const off = r * (0.3 + rnd() * 0.12);
+          const px = Math.cos(rot) * along + Math.cos(side) * off;
+          const pz = Math.sin(rot) * along + Math.sin(side) * off;
+          place(hangarGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rot, false);
+        }
+        {
+          const px = Math.cos(rot) * half * 0.3 + Math.cos(side) * r * 0.42;
+          const pz = Math.sin(rot) * half * 0.3 + Math.sin(side) * r * 0.42;
+          place(towerGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rot, false);
+        }
+        // And the guns. These are what make it worth flying at.
+        const pits = 3 + Math.floor(rnd() * 3);
+        for (let k = 0; k < pits; k++) {
+          const a = (k / pits) * Math.PI * 2 + rnd() * 0.5;
+          place(flakGeo(rnd), a, r * (0.5 + rnd() * 0.32), rnd() * 6.28, true);
+        }
+      } else {
+        // Something built on the island, sited where the slope is gentle.
+        const built = r > 78 ? 1 + Math.floor(rnd() * 3) : (rnd() < 0.5 ? 1 : 0);
+        for (let b = 0; b < built; b++) {
+          place(PROPS[Math.floor(rnd() * PROPS.length)](rnd),
+                rnd() * Math.PI * 2, r * (0.22 + rnd() * 0.45), null, false);
+        }
       }
     }
 
@@ -925,12 +1399,24 @@ export function createWorld(scene) {
       m.rotation.y = rnd() * 6.28;
       m.scale.setScalar(BUILT_SCALE);
       scene.add(m);
+
+      // Enough lights to find her by after dark: a masthead, a pair of
+      // side lights the right way round, and a couple of deck lamps.
+      const shipLamps = [
+        piece(GEO.box, 0xFFEFC0, -2.4, 13.5, 0, 1.0, 1.0, 1.0, 0),
+        piece(GEO.box, 0xFF5A4A, -1.0, 6.2, -3.9, 0.9, 0.9, 0.9, 0),
+        piece(GEO.box, 0x5AE07A, -1.0, 6.2, 3.9, 0.9, 0.9, 0.9, 0),
+        piece(GEO.box, 0xFFE0A0, 9.0, 5.6, 0, 0.8, 0.8, 0.8, 0),
+        piece(GEO.box, 0xFFE0A0, -12.0, 5.6, 0, 0.8, 0.8, 0.8, 0),
+      ];
+      const shipLit = new THREE.Mesh(mergeGeometries(shipLamps), lampMat);
+      m.add(shipLit);
       // A hull twenty six long does not fit a ten unit sphere.
       const t = {
         mesh: m, kind: 'ship', hostile,
         r: def.r * BUILT_SCALE + 4,
         hp: def.hp, maxHp: def.hp,
-        alive: true, bob: rnd() * 6.28, baseY: 1.2, puff: rnd() * 0.6, stack: false,
+        alive: true, bob: rnd() * 6.28, baseY: 1.2, puff: rnd() * 0.6, stack: false, lit: shipLit,
         // Counts down from the last time it fired, so the threat arrow
         // knows which hostiles are actually engaging rather than merely
         // floating about.
@@ -961,6 +1447,16 @@ export function createWorld(scene) {
       ? new THREE.Mesh(mergeGeometries(groundParts), groundMat) : null;
     if (ground) { ground.frustumCulled = true; scene.add(ground); }
 
+    // The shelf water goes in last of the opaque things and blends over
+    // the sea, so the wave pattern reads through it.
+    const shallow = shallowParts.length
+      ? new THREE.Mesh(mergeGeometries(shallowParts), shallowMat) : null;
+    if (shallow) { shallow.frustumCulled = true; shallow.renderOrder = 1; scene.add(shallow); }
+
+    const glow = glowParts.length
+      ? new THREE.Mesh(mergeGeometries(glowParts), glowMat) : null;
+    if (glow) { glow.frustumCulled = true; scene.add(glow); }
+
     const land = landParts.length
       ? new THREE.Mesh(mergeGeometries(landParts), landMat) : null;
     if (land) { land.frustumCulled = true; scene.add(land); }
@@ -970,14 +1466,19 @@ export function createWorld(scene) {
     if (cloud) { cloud.frustumCulled = true; scene.add(cloud); }
 
     for (const isl of localIslands) islands.push(isl);
+    for (const v of localVolcanoes) volcanoes.push(v);
 
-    return { ground, land, cloud, islands: localIslands, balloons: localBalloons, targets: localTargets };
+    return { ground, shallow, glow, land, cloud, islands: localIslands,
+             balloons: localBalloons, targets: localTargets, volcanoes: localVolcanoes };
   }
 
   function dropChunk(key) {
     const c = chunks.get(key);
     if (!c) return;
     if (c.ground) { scene.remove(c.ground); c.ground.geometry.dispose(); }
+    if (c.shallow) { scene.remove(c.shallow); c.shallow.geometry.dispose(); }
+    if (c.glow) { scene.remove(c.glow); c.glow.geometry.dispose(); }
+    for (const v of c.volcanoes) { const i = volcanoes.indexOf(v); if (i >= 0) volcanoes.splice(i, 1); }
     if (c.land)  { scene.remove(c.land);  c.land.geometry.dispose(); }
     if (c.cloud) { scene.remove(c.cloud); c.cloud.geometry.dispose(); }
     for (const b of c.balloons) {
@@ -1013,9 +1514,21 @@ export function createWorld(scene) {
     // Keep the sky and sea centred on the player so neither ever runs out,
     // and stream chunks in and out around them.
     update(pos, dt) {
+      stepSky(dt);
       sky.position.copy(pos);
       sea.position.x = pos.x;
       sea.position.z = pos.z;
+
+      /* Clouds, moving.
+
+         A wide slow circle rather than a straight drift. A drift has to
+         wrap eventually and the wrap is a jump; a circle never runs away
+         from the chunk it was built in and is always visibly moving,
+         which is the whole of what was wanted. */
+      cloudClock += dt;
+      const cdx = Math.sin(cloudClock * 0.0085) * 320;
+      const cdz = Math.cos(cloudClock * 0.0085) * 320;
+      for (const c of chunks.values()) if (c.cloud) c.cloud.position.set(cdx, 0, cdz);
 
       // Cancel out the plane following the player so the pattern stays put
       // in the world, then add a slow drift of its own for movement.
@@ -1056,7 +1569,11 @@ export function createWorld(scene) {
         pending.sort((a, b) =>
           (Math.abs(a.cx - cx) + Math.abs(a.cz - cz)) -
           (Math.abs(b.cx - cx) + Math.abs(b.cz - cz)));
-        let budget = chunks.size === 0 ? 9 : 2;
+        // One a frame. A chunk with a city on it carries five times the
+        // geometry a bare island does, and two of those in a frame put the
+        // worst case back over the budget at 17.3 ms. Seven frames to fill
+        // a column is still an eighth of a second.
+        let budget = chunks.size === 0 ? 8 : 1;
         while (budget > 0 && pending.length) {
           const job = pending.shift();
           queued.delete(job.key);
@@ -1106,6 +1623,25 @@ export function createWorld(scene) {
                t.mesh.position.y + (t.stack ? 13.2 : 11.8) * BUILT_SCALE,
                t.mesh.position.z - Math.sin(ry) * lx);
         fx.smoke(_p, t.stack ? 4.4 : 3.6, 0x24242C, 14);
+      }
+
+      // Volcanoes, smoking. Warmer and more of it at night, when the glow
+      // off the crater is the thing you navigate by.
+      if (fx) {
+        let cones = 0;
+        for (const v of volcanoes) {
+          if (cones > 3) break;
+          if (Math.abs(v.x - pos.x) > 2600 || Math.abs(v.z - pos.z) > 2600) continue;
+          cones++;
+          v.puff = (v.puff || 0) - dt;
+          if (v.puff > 0) continue;
+          v.puff = 0.22;
+          _p.set(v.x + (Math.random() - 0.5) * v.r * 1.2,
+                 v.y + 4,
+                 v.z + (Math.random() - 0.5) * v.r * 1.2);
+          fx.smoke(_p, v.r * 0.5, 0x2E2A28, 16);
+          if (Math.random() < 0.35) fx.fire(_p, v.r * 0.34);
+        }
       }
 
       /* Wrecks that are still going.
@@ -1174,6 +1710,15 @@ export function createWorld(scene) {
     // The effects pool is built after the world, so it arrives late.
     attachEffects(effects) { fx = effects; },
 
+    // The lights live in the flight code because that is where the scene
+    // is put together; the day lives here because this is what owns the
+    // sky, the sea and the fog. So they are introduced.
+    attachLights(sun, hemi) { sunLight = sun; hemiLight = hemi; },
+
+    // For anything that wants to know whether it is dark: 0 in daylight,
+    // 1 in the middle of the night.
+    nightness() { return Math.max(0, Math.min(1, -sunHeight(clock) * 3)); },
+
     // Returns 'miss', 'hit' or 'destroyed'. A ship takes several rounds; a
     // building comes down on the first.
     damage(t, amount) {
@@ -1186,14 +1731,18 @@ export function createWorld(scene) {
 
       if (t.kind === 'ship') {
         // A ship goes down; it does not stop existing. Same mesh, rolling
-        // over and settling, and burning the whole way.
+        // over and settling, and burning the whole way. Her lights go out
+        // as she goes.
+        if (t.lit) { t.mesh.remove(t.lit); t.lit.geometry.dispose(); t.lit = null; }
         t.sink = 0;
         t.puff = 0;
         t.roll = (Math.random() < 0.5 ? -1 : 1) * (0.55 + Math.random() * 0.5);
         t.pitchOver = (Math.random() < 0.5 ? -1 : 1) * (0.18 + Math.random() * 0.3);
         sinking.push(t);
       } else if (t.rubble) {
-        // A building becomes its own ruin, in place, still smoking.
+        // A building becomes its own ruin, in place, still smoking. Its
+        // windows go out, which is most of what says it is gone at night.
+        if (t.lit) { t.mesh.remove(t.lit); t.lit.geometry.dispose(); t.lit = null; }
         t.mesh.geometry.dispose();
         t.mesh.geometry = t.rubble;
         t.rubble = null;
@@ -1228,6 +1777,10 @@ export function createWorld(scene) {
       // gone by four, which keeps some depth without hiding the world.
       scene2.fog = new THREE.FogExp2(C.haze, 0.00052);
       scene2.background = new THREE.Color(C.haze);
+      // Held on to so the day can recolour them without reaching into the
+      // scene from the other side of the module every frame.
+      fogRef = scene2.fog;
+      bgRef = scene2.background;
     },
   };
 }
