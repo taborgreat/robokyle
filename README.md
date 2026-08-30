@@ -39,3 +39,6 @@ Both licensed under Creative Commons: By Attribution 4.0
 
 The same credit appears on the game's own settings screen, which is what
 the licence asks for: somewhere people can actually find it.
+
+Cat sounds in Fly Game are public domain (CC0) from opengameart.org,
+which asks for nothing in return.

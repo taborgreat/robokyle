@@ -32,6 +32,10 @@ export function createAudio() {
   let musicBus = null;
   let musicVol = 0.6;
 
+  // How hard the aircraft is diving, kept so the engine can be pulled down
+  // out of the siren's way. Set by dive(), read by flight().
+  let diveDuck = 0;
+
   function ensure() {
     if (ctx) return ctx;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -208,6 +212,44 @@ export function createAudio() {
               gain: sirenGain, chop, chopDepth };
   }
 
+  /* ===== The crew =====
+
+     Recorded cats, because a purr is a very particular thing and nothing
+     synthesised sounds like one. Seven of them: two purrs, two trills and
+     three mews, picked at random so it never becomes a tic.
+
+     Public domain, from opengameart.org, so there is nothing to credit
+     and nothing to keep track of.
+
+     Decoded into buffers rather than played through elements: they are
+     short, they are wanted at unpredictable moments, and a buffer starts
+     the instant it is asked to. */
+  const CAT_DIR = '/public/game/fly-game/cat/';
+  const CAT_SOUNDS = [
+    // The purrs are loops, so they are held for a few seconds and faded
+    // rather than played end to end.
+    { file: 'purr-active.wav', gain: 0.5, hold: 4.5, loop: true },
+    { file: 'purr-sleepy.ogg', gain: 0.55, hold: 5.5, loop: true },
+    { file: 'trill-1.wav', gain: 0.45 },
+    { file: 'trill-2.wav', gain: 0.42 },
+    { file: 'mew-soft.wav', gain: 0.42 },
+    { file: 'mew-food.wav', gain: 0.38 },
+    { file: 'mew-kitten.ogg', gain: 0.4 },
+  ];
+  const catBuffers = new Map();
+
+  function catLoad(name) {
+    if (catBuffers.has(name)) return catBuffers.get(name);
+    catBuffers.set(name, null);           // in flight, so it is not fetched twice
+    fetch(CAT_DIR + name)
+      .then(r => r.arrayBuffer())
+      .then(b => ctx.decodeAudioData(b))
+      .then(buf => catBuffers.set(name, buf))
+      // A sound that will not load leaves a quiet cat, not a broken game.
+      .catch(() => catBuffers.delete(name));
+    return null;
+  }
+
   /* ===== Music =====
 
      Two recordings rather than the generative thing that was here before.
@@ -254,7 +296,35 @@ export function createAudio() {
       if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume();
       startLoops();
+      // A megabyte and a half between them, and they are wanted at moments
+      // nothing can predict, so they are fetched up front.
+      for (const c of CAT_SOUNDS) catLoad(c.file);
       if (wantTune) { const n = wantTune; wantTune = null; this.music(n); }
+    },
+
+    /* One of the cats says something.
+
+       Not attenuated and not positioned: they are eighteen inches in front
+       of you. Called on a long timer from the flight code, which is what
+       keeps it a surprise rather than a metronome. */
+    catCall() {
+      if (!ensure() || !master) return;
+      const pick = CAT_SOUNDS[Math.floor(Math.random() * CAT_SOUNDS.length)];
+      const buf = catBuffers.get(pick.file);
+      if (!buf) { catLoad(pick.file); return; }
+
+      const t = ctx.currentTime;
+      const dur = Math.min(pick.hold || buf.duration, pick.loop ? (pick.hold || 4) : buf.duration);
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      s.loop = !!pick.loop;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(pick.gain, t + (pick.loop ? 0.4 : 0.05));
+      g.gain.setValueAtTime(pick.gain, t + Math.max(0.1, dur - 0.45));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(g); g.connect(master);
+      s.start(t); s.stop(t + dur + 0.05);
     },
 
     /* Switch tracks, or pass null for silence. Asking for the one already
@@ -325,9 +395,14 @@ export function createAudio() {
       engine.oscA.frequency.setTargetAtTime(hz, t, 0.09);
       engine.oscB.frequency.setTargetAtTime(hz * 1.5, t, 0.09);
       engine.filter.frequency.setTargetAtTime(420 + throttle * 1500, t, 0.12);
-      engine.gain.gain.setTargetAtTime(0.05 + throttle * 0.1, t, 0.12);
+      // Ducked under the siren. In a full dive the engine gives up nearly
+      // half its level and the wind rather more, which is what lets the
+      // siren be the loudest thing in the aeroplane without simply
+      // turning everything up.
+      const duck = 1 - diveDuck * 0.45;
+      engine.gain.gain.setTargetAtTime((0.05 + throttle * 0.1) * duck, t, 0.12);
 
-      wind.gain.gain.setTargetAtTime(speed * 0.05, t, 0.2);
+      wind.gain.gain.setTargetAtTime(speed * 0.05 * (1 - diveDuck * 0.55), t, 0.2);
       wind.filter.frequency.setTargetAtTime(380 + speed * 900, t, 0.2);
     },
 
@@ -347,10 +422,16 @@ export function createAudio() {
       // airflow drives both the pitch and the rate of the ports.
       siren.chop.frequency.setTargetAtTime(18 + a * 26, t, 0.2);
 
-      // Cubed, so it only shows up in a committed dive rather than wailing
-      // every time the nose dips. Quieter than it was: it sits under the
-      // engine rather than over it.
-      const level = a * a * a * 0.085;
+      /* Loud. It is the whole reason to point the nose down.
+
+         It was cubed and capped at 0.085, which put it under an engine
+         that is itself getting louder and higher as the speed builds, and
+         the result was a siren you could just about hear behind the drone
+         rather than a siren. Squared brings it in sooner and four times
+         the ceiling brings it in front, and flight() ducks the engine and
+         the wind out of its way besides. */
+      diveDuck = a * a;
+      const level = a * a * 0.34;
       siren.gain.gain.setTargetAtTime(level, t, 0.16);
       siren.chopDepth.gain.setTargetAtTime(level * 0.55, t, 0.16);
     },
