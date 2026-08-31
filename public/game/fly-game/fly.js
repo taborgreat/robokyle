@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=31';
-import { buildCraft, CRAFT } from './craft.js?v=31';
-import { createAudio } from './audio.js?v=31';
-import { createEffects } from './effects.js?v=31';
+import { createWorld, ENEMY_GUNS } from './world.js?v=32';
+import { buildCraft, CRAFT } from './craft.js?v=32';
+import { createAudio } from './audio.js?v=32';
+import { createEffects } from './effects.js?v=32';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -89,7 +89,10 @@ const settings = {
   craft: 'plane',
   sensitivity: 5,   // 1..10
   invertY: false,
-  volume: 7,        // 0..10
+  // These sit on preset stops on purpose: the six buttons under each
+  // slider are at fifths of the range, and a default between two of them
+  // leaves the row with nothing lit and looking broken.
+  volume: 6,        // 0..10
   drone: 8,         // engine and wind, 0..10
   music: 6,         // 0..10
 };
@@ -1197,10 +1200,6 @@ addEventListener('resize', resize);
 let last = performance.now();
 let hudTick = 0;
 
-// The cats say something every couple of minutes. Often enough that they
-// are company, rare enough that it never becomes a tic, and the first one
-// comes sooner so you learn they are there.
-let catTimer = 35 + Math.random() * 40;
 
 function loop() {
   const now = performance.now();
@@ -1221,12 +1220,6 @@ function loop() {
       if (!state.intro && cursor.down && fireCooldown <= 0) { fire(); fireCooldown = 0.09; }
 
       audio.flight(plane.throttle, Math.min(1, plane.speed / craft.handling.top));
-
-      catTimer -= dt;
-      if (catTimer <= 0) {
-        catTimer = 95 + Math.random() * 95;
-        audio.catCall();
-      }
 
       hudTick -= dt;
       if (hudTick <= 0) {

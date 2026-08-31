@@ -503,39 +503,46 @@ body.is-flying .back-strip { opacity: .55; }
    belonging to that control and not the next one. */
 .preset-row {
   display: flex;
-  gap: .28rem;
+  gap: .4rem;
   width: min(58%, 20rem);
-  margin: -.1rem 0 .55rem auto;
+  margin: .45rem 0 .9rem auto;
 }
 .preset {
   flex: 1 1 0;
-  padding: .24rem 0;
+  min-height: 2.3rem;
+  padding: .5rem 0;
   font: inherit;
-  font-size: .68rem;
-  font-weight: 600;
+  font-size: .82rem;
+  font-weight: 700;
   line-height: 1;
   color: inherit;
-  border: 1px solid rgba(0, 0, 0, .16);
-  border-radius: .45rem;
-  background: rgba(255, 255, 255, .55);
+  border: 2px solid rgba(0, 0, 0, .14);
+  border-radius: .6rem;
+  background: #FFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
   cursor: pointer;
-  transition: background .12s ease, color .12s ease;
+  transition: background .12s ease, color .12s ease, transform .1s ease;
 }
-.preset:hover { background: rgba(255, 255, 255, .95); }
+.preset:hover { background: #EAF4FC; border-color: rgba(0, 0, 0, .28); }
+.preset:active { transform: translateY(1px); }
 .preset.is-on {
   background: var(--sky-deep);
   border-color: transparent;
   color: #FFF;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
 }
 
 /* The pause card is dark, so the same row has to be the other way round. */
-.pause-opts .preset-row { width: min(52%, 13rem); }
+.pause-opts .preset-row { width: min(62%, 15rem); margin-bottom: .7rem; }
 .pause-opts .preset {
-  background: rgba(255, 255, 255, .12);
-  border-color: rgba(255, 255, 255, .22);
+  min-height: 2rem;
+  font-size: .76rem;
+  background: rgba(255, 255, 255, .14);
+  border-color: rgba(255, 255, 255, .3);
   color: #FFF;
+  box-shadow: none;
 }
-.pause-opts .preset:hover { background: rgba(255, 255, 255, .3); }
+.pause-opts .preset:hover { background: rgba(255, 255, 255, .34); border-color: rgba(255, 255, 255, .6); }
 .pause-opts .preset.is-on { background: #FFF; color: #16232F; border-color: transparent; }
 
 /* Out on the rim it is a warning rather than a label, so it gets a harder
