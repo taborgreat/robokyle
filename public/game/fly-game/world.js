@@ -825,7 +825,11 @@ export function createWorld(scene) {
   const SKY = {
     dayTop: 0x2F86CE, dayHaze: 0xA8CCE4,
     duskTop: 0x2C4C80, duskHaze: 0xF0A268,
-    nightTop: 0x060F1E, nightHaze: 0x141F36,
+    // A moonlit night rather than a moonless one. The first pass at these
+    // was very nearly black, which is accurate and no use: you could not
+    // read the horizon, and an aeroplane you cannot see the horizon from
+    // is an aeroplane you fly into the sea.
+    nightTop: 0x101D38, nightHaze: 0x2A3B56,
   };
   const _c1 = new THREE.Color(), _c2 = new THREE.Color();
   const _top = new THREE.Color(), _haze = new THREE.Color();
@@ -848,23 +852,37 @@ export function createWorld(scene) {
 
     if (sunLight) {
       const az = clock * Math.PI * 2;
-      sunLight.position.set(Math.cos(az) * 620, elev * 780 + 24, Math.sin(az) * 620);
-      sunLight.color.setHex(0xFFF6E0).lerp(_c1.setHex(0xFF8A3C), dusk);
-      sunLight.intensity = Math.max(0, elev) * 1.6 + 0.04;
+      /* One lamp doing duty as both.
+
+         Below the horizon it would light everything from underneath,
+         which looks exactly as wrong as it sounds, so at night it is
+         lifted back above the horizon, turned cool and turned down. That
+         is a moon, near enough, and it is what stops the ground going
+         flat black when the sun goes. */
+      const lift = elev >= 0 ? elev : -elev * 0.8;
+      sunLight.position.set(Math.cos(az) * 620, lift * 780 + 24, Math.sin(az) * 620);
+      sunLight.color.setHex(0xFFF6E0)
+        .lerp(_c1.setHex(0xFF8A3C), dusk)
+        .lerp(_c2.setHex(0x9EB6E8), night);
+      sunLight.intensity = Math.max(0, elev) * 1.5 + 0.05 + night * 0.4;
     }
     if (hemiLight) {
-      hemiLight.intensity = 0.3 + Math.max(0, elev) * 0.9;
-      hemiLight.color.setHex(0xDCF0FF).lerp(_c1.setHex(0x2E3F63), night);
-      hemiLight.groundColor.setHex(0x4C7A4A).lerp(_c1.setHex(0x121C28), night);
+      // A good deal more ambient at night than there was. The sky is the
+      // only thing lighting anything once the sun is down, and at 0.3 of
+      // a very dark blue that came to nothing at all.
+      hemiLight.intensity = 0.55 + Math.max(0, elev) * 0.75;
+      hemiLight.color.setHex(0xDCF0FF).lerp(_c1.setHex(0x4E6492), night);
+      hemiLight.groundColor.setHex(0x4C7A4A).lerp(_c1.setHex(0x26344A), night);
     }
 
-    // The sea keeps its texture and loses its light.
-    const k = 0.16 + (1 - night) * 0.84;
-    sea.material.color.setRGB(k * 0.94, k * 0.97, Math.min(1, k * 1.06));
+    // The sea keeps its texture and loses its light, but not all of it:
+    // a black sea and a dark sky leaves no horizon to fly by.
+    const k = 0.34 + (1 - night) * 0.66;
+    sea.material.color.setRGB(k * 0.9, k * 0.96, Math.min(1, k * 1.1));
 
     // Cloud undersides pick up the sunset and go out at night.
-    cloudMat.color.setHex(0xFFFFFF).lerp(_c1.setHex(0xFFB37A), dusk * 0.8).lerp(_c2.setHex(0x2A3550), night);
-    cloudMat.emissiveIntensity = 0.8 * (1 - night * 0.85);
+    cloudMat.color.setHex(0xFFFFFF).lerp(_c1.setHex(0xFFB37A), dusk * 0.8).lerp(_c2.setHex(0x4A5878), night);
+    cloudMat.emissiveIntensity = 0.8 * (1 - night * 0.6);
 
     // Windows come on as the light goes, and a little before it is fully
     // dark, which is when they are actually switched on.
