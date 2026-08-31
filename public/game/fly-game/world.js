@@ -603,8 +603,8 @@ function enemyShipGeo(rnd) {
    The bands are what make the height readable from the air. A plain box
    of any size looks the same size; a box with eight floor lines on it is
    obviously eight floors. */
-function midriseGeo(rnd) {
-  const floors = 4 + Math.floor(rnd() * 5);
+function midriseGeo(rnd, floorsWanted) {
+  const floors = floorsWanted || 4 + Math.floor(rnd() * 5);
   const fh = 3.1;
   const height = floors * fh;
   const w = 6.5 + rnd() * 3.5, dp = 6 + rnd() * 3;
@@ -1052,36 +1052,52 @@ export function createWorld(scene) {
     const localBalloons = [];
     const localTargets = [];
 
-    // Islands. Not every chunk gets one, or the sea stops being sea.
-    const islandCount = rnd() < 0.62 ? 1 + (rnd() < 0.3 ? 1 : 0) : 0;
+    /* Islands, one to a chunk at most.
+
+       Two to a chunk and a free rein over eighty per cent of it is what
+       put them on top of each other once they got big. Chunks are built
+       independently and cannot see each other, so the only way to
+       guarantee a gap is to make one arithmetically impossible: one
+       island per chunk, kept within a fixed distance of the middle, and
+       no wider than the gap that leaves.
+
+       Small islands sit within 132 of their chunk centre, so two in
+       neighbouring chunks are at least 336 apart and their shelves reach
+       148 each: 296, and 40 to spare. The big ones do not wander at all,
+       which buys them the room to be big. */
+    const islandCount = rnd() < 0.58 ? 1 : 0;
     for (let i = 0; i < islandCount; i++) {
-      const ix = ox + (rnd() - 0.5) * CHUNK * 0.8;
-      const iz = oz + (rnd() - 0.5) * CHUNK * 0.8;
       /* What kind of island this is.
 
-         All of them used to be the same island at different sizes, which
-         is fine for one pass over and dull for twenty. A city is wide and
-         nearly flat so there is somewhere to put streets; an airfield is
-         the same but with a strip down it and guns that shoot back; a
-         volcano is steep with its top open. */
+         Mostly it is a small island. The set pieces are worth flying to
+         precisely because there is a stretch of ordinary sea and ordinary
+         rocks between them: one chunk in twenty has a town on it, one in
+         twenty five an airfield, one in twenty a volcano. */
       const roll = rnd();
-      const kind = roll < 0.12 ? 'city'
-                 : roll < 0.21 ? 'airfield'
-                 : roll < 0.30 ? 'volcano'
-                 : roll < 0.36 ? 'arch'
+      const kind = roll < 0.05 ? 'city'
+                 : roll < 0.09 ? 'airfield'
+                 : roll < 0.14 ? 'volcano'
                  : 'plain';
 
-      const r  = kind === 'city'     ? 195 + rnd() * 115
-               : kind === 'airfield' ? 170 + rnd() * 85
-               : 55 + rnd() * 130;
+      const big = kind === 'city' || kind === 'airfield';
+      // The big ones sit on their chunk centre; the rest wander a little.
+      const wander = big ? 0 : (kind === 'volcano' ? 100 : 132);
+      const ix = ox + (rnd() - 0.5) * 2 * wander;
+      const iz = oz + (rnd() - 0.5) * 2 * wander;
+
+      const r  = kind === 'city'     ? 112 + rnd() * 34
+               : kind === 'airfield' ? 120 + rnd() * 30
+               : kind === 'volcano'  ? 62 + rnd() * 27
+               : 42 + rnd() * 47;
       // Height from the radius rather than rolled on its own. Rolling them
       // separately is what produced the spikes: a 55 wide island could come
       // out 110 tall, which is a traffic cone, and a 185 wide one 25 tall,
       // which is a pancake. Tied together they come out as land. Cities and
       // airfields are flatter again, because nobody builds a runway on a
       // hill and a street on a 25 degree slope reads as a mistake.
-      const h  = kind === 'city' || kind === 'airfield' ? r * (0.05 + rnd() * 0.055)
-               : kind === 'volcano' ? r * (0.36 + rnd() * 0.22)
+      const h  = kind === 'airfield' ? r * (0.025 + rnd() * 0.025)
+               : kind === 'city' ? r * (0.05 + rnd() * 0.04)
+               : kind === 'volcano' ? r * (0.5 + rnd() * 0.22)
                : r * (0.17 + rnd() * 0.3);
 
       const hillRot = rnd() * 6.28;
@@ -1105,52 +1121,58 @@ export function createWorld(scene) {
          heightAt still treats it as a solid cone, so the crater is scenery
          you cannot land in. That is the right way round: flying into a
          volcano should stop you, and it does. */
+      /* A volcano.
+
+         The last one was a black lump with the lava buried under its own
+         crater. The fix is that you have to be able to see down into it:
+         the rim has to stand above the lava and be narrower than the
+         mountain, and the lava has to be wide enough to read as a pool
+         rather than a dot.
+
+         So: the top half of the cone in dark rock, sat exactly on the
+         green one so the two silhouettes agree, a raised rim, and a pool
+         inside it that is a good deal wider than it is deep. */
       if (kind === 'volcano') {
-        const cr = r * 0.19;
         const top = h - 2;
-        groundParts.push(piece(GEO.shelf, C.cinder, ix, top - h * 0.05, iz,
-                               cr * 1.5, h * 0.12, cr * 1.5, 0, 0, 0, GROUND_UV));
-        groundParts.push(piece(GEO.hill, C.cinder, ix, top - h * 0.16, iz,
-                               cr * 1.9, h * 0.2, cr * 1.9, rnd() * 6.28, 0, 0, GROUND_UV));
-        // The lava is unlit, so it holds its colour after dark.
-        glowParts.push(piece(GEO.shelf, C.lava, ix, top - h * 0.03, iz, cr, 0.9, cr, 0));
-        glowParts.push(piece(GEO.shelf, C.lavaHot, ix, top - h * 0.02, iz, cr * 0.55, 0.9, cr * 0.55, 0));
-        // A couple of flows down the flank.
+        const cr = r * 0.3;                       // the pool
+        const rim = cr * 1.42;                    // the lip around it
+
+        // Bare rock over the top half. At height 0.46h the cone's radius
+        // is 0.54r, so a cone of that base sat there matches it exactly.
+        groundParts.push(piece(GEO.hill, C.cinder,
+                               ix, h * 0.46 + (h * 0.54) / 2 - 2, iz,
+                               r * 0.54, h * 0.54, r * 0.54, hillRot, 0, 0, GROUND_UV));
+
+        // The rim: a squat ring standing proud of the summit.
+        groundParts.push(piece(GEO.cyl, 0x50463E, ix, top - h * 0.03, iz,
+                               rim, h * 0.1, rim, hillRot, 0, 0, GROUND_UV));
+        groundParts.push(piece(GEO.cyl, C.cinder, ix, top - h * 0.055, iz,
+                               rim * 0.94, h * 0.1, rim * 0.94, hillRot, 0, 0, GROUND_UV));
+
+        /* The pool, unlit, so it keeps its colour after dark and is the
+           thing you can see a volcano by at night. Set below the rim, but
+           not so far below that the rim hides it from anything but
+           straight overhead. */
+        const pool = top - h * 0.035;
+        glowParts.push(piece(GEO.shelf, C.lava, ix, pool, iz, cr, 1.4, cr, 0));
+        glowParts.push(piece(GEO.shelf, C.lavaHot, ix, pool + 0.5, iz, cr * 0.62, 1.4, cr * 0.62, 0));
+        glowParts.push(piece(GEO.shelf, 0xFFF1B0, ix, pool + 0.9, iz, cr * 0.26, 1.4, cr * 0.26, 0));
+
+        // Flows, running from under the rim down the flank in steps, so
+        // they follow the slope instead of hanging off it.
         for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
           const fa = rnd() * Math.PI * 2;
-          const fd = r * (0.2 + rnd() * 0.4);
-          glowParts.push(piece(GEO.box, C.lava,
-            ix + Math.cos(fa) * fd, islandSurface(h, r, fd, fa, hillRot) + 0.6, iz + Math.sin(fa) * fd,
-            r * 0.05, 0.7, fd * 1.3, -fa));
+          for (let s = 0; s < 7; s++) {
+            const fd = rim + (r * 0.72 - rim) * (s / 6);
+            const wob = fa + (s - 3) * 0.04;
+            glowParts.push(piece(GEO.box, s < 3 ? C.lava : 0xC03A12,
+              ix + Math.cos(wob) * fd,
+              islandSurface(h, r, fd, wob, hillRot) + 0.7,
+              iz + Math.sin(wob) * fd,
+              r * 0.035, 0.8, (r * 0.72 - rim) / 5.2, -wob));
+          }
         }
         localVolcanoes.push({ x: ix, y: top, z: iz, r: cr });
-      }
-
-      /* An arch, on its own little island.
-
-         Deliberately not in the ground check. That means you can fly
-         under it, which is the point, and also through the legs, which is
-         the price of not building a second collision system for one
-         piece of scenery. */
-      if (kind === 'arch') {
-        const span = r * 0.85, rise = h * 1.5 + 24;
-        const arot = rnd() * Math.PI * 2;
-        const ca = Math.cos(arot), sa = Math.sin(arot);
-        const at = (u, y) => [ix + ca * u, y, iz + sa * u];
-        const steps = 9;
-        for (let k = 0; k <= steps; k++) {
-          const ang = (k / steps) * Math.PI;
-          const u = -Math.cos(ang) * span * 0.5;
-          const y = Math.sin(ang) * rise;
-          const p = at(u, y);
-          const thick = 13 - Math.sin(ang) * 4;
-          landParts.push(piece(GEO.rock, C.rock, p[0], p[1] + 2, p[2],
-                               thick, thick * 0.9, thick, arot + k, 0, ang * 0.4));
-        }
-        for (const side of [-1, 1]) {
-          const p = at(side * span * 0.5, 0);
-          landParts.push(piece(GEO.rock, C.rock, p[0], rise * 0.22, p[2], 17, rise * 0.5, 15, arot));
-        }
       }
 
       /* Lobes.
@@ -1164,8 +1186,10 @@ export function createWorld(scene) {
          peak went into neither: it was drawn and then forgotten, so you
          could pass straight through it. */
       const lobes = [];
-      const flat = kind === 'city' || kind === 'airfield';
-      const lobeCount = flat ? 1 : 2 + Math.floor(rnd() * 3);
+      const flat = big;
+      // A volcano is one clean cone or it is nothing; a shoulder on the
+      // side of it just reads as a lump.
+      const lobeCount = kind === 'volcano' ? 0 : flat ? 1 : 2 + Math.floor(rnd() * 3);
       for (let k = 0; k < lobeCount; k++) {
         const la = rnd() * Math.PI * 2;
         const ld = r * (flat ? 0.55 + rnd() * 0.3 : 0.18 + rnd() * 0.5);
@@ -1288,64 +1312,167 @@ export function createWorld(scene) {
       }
 
       if (kind === 'city') {
-        /* A town, laid out in rough streets.
+        /* A town.
 
-           Rings rather than a grid: a grid on a round island leaves
-           corners hanging off the beach, and from the air a ring of
-           blocks around a centre reads as a town anyway. */
-        const rings = 2 + Math.floor(rnd() * 2);
-        for (let ring = 0; ring < rings; ring++) {
-          const rd = r * (0.16 + ring * 0.2);
-          const n = 4 + ring * 4 + Math.floor(rnd() * 3);
-          for (let k = 0; k < n; k++) {
-            if (rnd() < 0.18) continue;              // gaps, or it is a fence
-            const a = (k / n) * Math.PI * 2 + rnd() * 0.14;
-            const make = CITY_PROPS[Math.floor(rnd() * CITY_PROPS.length)];
-            place(make(rnd), a, rd * (0.92 + rnd() * 0.16), a + Math.PI / 2, false);
+           Scattering tall buildings over a green dome is not a town, it
+           is tall buildings on a dome, and that is what the last one was.
+           Three things make it read: a street grid, everything square to
+           that grid, and height that falls off from the middle. The last
+           one is what does most of the work. A town seen from the air is
+           a dark centre with a low fringe, and the eye reads that shape
+           long before it reads any single building.
+
+           The grid is laid in the island's own frame and then turned, so
+           the streets are parallel to each other rather than to the
+           chunk. Blocks that fall outside the circle are simply skipped,
+           which is what gives the edge of the town its ragged waterfront. */
+        const gridRot = rnd() * Math.PI * 2;
+        const cell = 30 + rnd() * 7;
+        const reach = r * 0.66;
+        const cells = Math.floor(reach / cell);
+        const cg = Math.cos(gridRot), sg = Math.sin(gridRot);
+        const road = 9.5;
+
+        for (let gx = -cells; gx <= cells; gx++) {
+          for (let gz = -cells; gz <= cells; gz++) {
+            const lx = gx * cell, lz = gz * cell;
+            const dd = Math.hypot(lx, lz);
+            if (dd > reach) continue;
+
+            // Into the island's frame, and then into an angle and a
+            // distance, which is what everything else here speaks.
+            const wx = lx * cg - lz * sg, wz = lx * sg + lz * cg;
+            const a = Math.atan2(wz, wx), d = Math.hypot(wx, wz);
+            const sy = islandSurface(h, r, d, a, hillRot);
+
+            // Streets down two sides of every block, which joins up into
+            // a grid without having to work out where the lines run.
+            for (const [ax, az] of [[cell * 0.5, 0], [0, cell * 0.5]]) {
+              const rx = (lx + ax) * cg - (lz + az) * sg;
+              const rz = (lx + ax) * sg + (lz + az) * cg;
+              const rd = Math.hypot(rx, rz);
+              if (rd > reach + cell * 0.4) continue;
+              groundParts.push(piece(GEO.box, C.tarmac,
+                ix + rx, islandSurface(h, r, rd, Math.atan2(rz, rx), hillRot) + 0.25, iz + rz,
+                ax ? road : cell + road, 0.5, az ? road : cell + road,
+                gridRot, 0, 0, GROUND_UV));
+            }
+
+            // A square in the middle, because every town has one and it
+            // stops the centre being a solid slab of towers.
+            if (dd < cell * 0.7) continue;
+
+            /* How tall, by how central. A block at the middle gets seven
+               or eight floors, the fringe gets cottages, and the ring
+               between them gets everything in order. */
+            const t = 1 - dd / reach;
+            let def;
+            if (t > 0.62) def = midriseGeo(rnd, 6 + Math.floor(rnd() * 3));
+            else if (t > 0.42) def = midriseGeo(rnd, 4 + Math.floor(rnd() * 2));
+            else if (t > 0.24) def = rnd() < 0.55 ? midriseGeo(rnd, 3) : houseGeo(rnd);
+            else if (rnd() < 0.22) continue;          // gaps out at the edge
+            else def = rnd() < 0.28 ? churchGeo(rnd) : houseGeo(rnd);
+
+            place(def, a, d, gridRot, false);
           }
+        }
+
+        // A quay along one side, so the town meets the water rather than
+        // stopping at it.
+        const quayA = rnd() * Math.PI * 2;
+        for (let k = -3; k <= 3; k++) {
+          const qa = quayA + k * 0.09;
+          const qd = r * 0.93;
+          groundParts.push(piece(GEO.box, C.concrete,
+            ix + Math.cos(qa) * qd, 1.1, iz + Math.sin(qa) * qd,
+            18, 2.4, 30, -qa, 0, 0, GROUND_UV));
         }
       } else if (kind === 'airfield') {
-        /* A strip, laid in segments.
+        /* An aerodrome.
 
-           One long slab would float at the ends and bury itself in the
-           middle, because the island is a dome. Segments each sat on
-           their own bit of ground follow it. */
+           A strip on its own is a grey stripe on a green dome. What makes
+           it an airfield is everything square to the strip and touching
+           it: an apron beside it with the hangars lined up along the
+           apron, a taxiway joining the two, thresholds at both ends and a
+           dashed centreline. Nothing here is at a random angle, because
+           nothing on an airfield is.
+
+           Laid in segments, because one long slab floats at the ends and
+           buries itself in the middle of a dome. */
         const rot = rnd() * Math.PI * 2;
-        const half = r * 0.62;
-        const segs = 9;
+        const side = rot + Math.PI / 2;
+        const half = r * 0.68;
+        const RW = 44;                              // runway width
+        const segs = 14;
+
+        // A local frame, so the rest of this can be written in "along the
+        // runway" and "across it" and put down in world coordinates.
+        const put = (along, across, w, l, colour, y, uv) => {
+          const px = Math.cos(rot) * along + Math.cos(side) * across;
+          const pz = Math.sin(rot) * along + Math.sin(side) * across;
+          const d = Math.hypot(px, pz);
+          const a = Math.atan2(pz, px);
+          const sy = Math.max(0.3, islandSurface(h, r, d, a, hillRot));
+          groundParts.push(piece(GEO.box, colour,
+            ix + px, sy + y, iz + pz, l, 0.7, w, rot, 0, 0, uv ? GROUND_UV : undefined));
+          return { px, pz, d, a, sy };
+        };
+
         for (let k = 0; k <= segs; k++) {
           const u = (k / segs - 0.5) * 2 * half;
-          const d = Math.abs(u);
-          const a = u >= 0 ? rot : rot + Math.PI;
-          const sy = Math.max(0.4, islandSurface(h, r, d, a, hillRot));
-          groundParts.push(piece(GEO.box, C.tarmac,
-            ix + Math.cos(rot) * u, sy + 0.35, iz + Math.sin(rot) * u,
-            (half * 2) / segs + 3, 0.8, 30, rot, 0, 0, GROUND_UV));
-          if (k % 2 === 0) {
-            groundParts.push(piece(GEO.box, 0xE6E2D6,
-              ix + Math.cos(rot) * u, sy + 0.8, iz + Math.sin(rot) * u,
-              (half * 2) / segs * 0.5, 0.3, 2.2, rot, 0, 0, GROUND_UV));
+          const segL = (half * 2) / segs + 2;
+          put(u, 0, RW, segL, C.tarmac, 0.3, true);
+          // Centreline, dashed.
+          if (k % 2 === 0 && Math.abs(u) < half * 0.86) {
+            put(u, 0, 2.4, segL * 0.45, 0xE8E4D6, 0.72, true);
           }
+          // Thresholds: a ladder of bars across each end.
+          if (k <= 1 || k >= segs - 1) {
+            for (let b = -3; b <= 3; b++) {
+              put(u, b * 5.4, 3.2, segL * 0.7, 0xE8E4D6, 0.72, true);
+            }
+          }
+          // Edge markers.
+          put(u, RW / 2 - 1.6, 2.0, segL * 0.8, 0xD9D3C2, 0.7, true);
+          put(u, -RW / 2 + 1.6, 2.0, segL * 0.8, 0xD9D3C2, 0.7, true);
         }
-        // Hangars and a tower off to one side of the strip.
-        const side = rot + Math.PI / 2;
-        for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
-          const along = (rnd() - 0.5) * half * 1.2;
-          const off = r * (0.3 + rnd() * 0.12);
-          const px = Math.cos(rot) * along + Math.cos(side) * off;
-          const pz = Math.sin(rot) * along + Math.sin(side) * off;
-          place(hangarGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rot, false);
+
+        // The apron, off one side, with a taxiway back to the strip.
+        const apronAcross = RW / 2 + 46;
+        for (let k = -3; k <= 3; k++) {
+          put(k * 26, apronAcross, 74, 28, C.tarmac, 0.28, true);
+        }
+        put(-half * 0.12, RW / 2 + 22, 22, 26, C.tarmac, 0.28, true);
+
+        // Hangars along the apron, all facing it.
+        const bays = 3 + Math.floor(rnd() * 2);
+        for (let k = 0; k < bays; k++) {
+          const along = (k - (bays - 1) / 2) * 30;
+          const px = Math.cos(rot) * along + Math.cos(side) * (apronAcross + 26);
+          const pz = Math.sin(rot) * along + Math.sin(side) * (apronAcross + 26);
+          place(hangarGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rot + Math.PI / 2, false);
         }
         {
-          const px = Math.cos(rot) * half * 0.3 + Math.cos(side) * r * 0.42;
-          const pz = Math.sin(rot) * half * 0.3 + Math.sin(side) * r * 0.42;
+          const px = Math.cos(rot) * (half * 0.42) + Math.cos(side) * (apronAcross + 8);
+          const pz = Math.sin(rot) * (half * 0.42) + Math.sin(side) * (apronAcross + 8);
           place(towerGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rot, false);
         }
-        // And the guns. These are what make it worth flying at.
-        const pits = 3 + Math.floor(rnd() * 3);
+
+        /* The guns, in a line down the far side and one at each end of
+           the strip. Spread out on purpose: a cluster is one pass and
+           they are all gone, a line means coming back. */
+        const pits = 4 + Math.floor(rnd() * 2);
         for (let k = 0; k < pits; k++) {
-          const a = (k / pits) * Math.PI * 2 + rnd() * 0.5;
-          place(flakGeo(rnd), a, r * (0.5 + rnd() * 0.32), rnd() * 6.28, true);
+          const along = (k - (pits - 1) / 2) * (half * 0.52);
+          const across = -(RW / 2 + 34 + rnd() * 22);
+          const px = Math.cos(rot) * along + Math.cos(side) * across;
+          const pz = Math.sin(rot) * along + Math.sin(side) * across;
+          place(flakGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rnd() * 6.28, true);
+        }
+        for (const end of [-1, 1]) {
+          const px = Math.cos(rot) * end * half * 1.08;
+          const pz = Math.sin(rot) * end * half * 1.08;
+          place(flakGeo(rnd), Math.atan2(pz, px), Math.hypot(px, pz), rnd() * 6.28, true);
         }
       } else {
         // Something built on the island, sited where the slope is gentle.

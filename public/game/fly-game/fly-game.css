@@ -229,7 +229,7 @@ body.fly-body {
    than a movement and you want to see the position you are holding. */
 .reticle {
     position: absolute; top: 0; left: 0;
-    width: 40px; height: 40px; margin: -20px 0 0 -20px;
+    width: 48px; height: 48px; margin: -24px 0 0 -24px;
     color: #FFFFFF;
     pointer-events: none;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,.55));
@@ -465,3 +465,81 @@ body.is-flying .back-strip { opacity: .55; }
 }
 .credit a { color: inherit; }
 
+
+
+/* ===== The way into the menu =====
+
+   Escape still works, but nobody is holding a keyboard: this is a game
+   played entirely with a mouse, so there has to be something to click.
+   Top left, out of the way of the horizon and the gauges, and dressed
+   like the pause card it opens. */
+.hud-btn {
+  position: absolute; top: 0; left: 0;
+  margin: clamp(.6rem, 1.4vh, 1.1rem) clamp(.7rem, 1.4vw, 1.9rem);
+  width: 2.7rem; height: 2.7rem;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: .85rem;
+  background: rgba(12, 26, 40, .42);
+  backdrop-filter: blur(3px);
+  color: #FFF;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background .15s ease, transform .15s ease;
+}
+.hud-btn:hover { background: rgba(12, 26, 40, .68); transform: scale(1.06); }
+.hud-btn:active { transform: scale(.97); }
+.hud-btn svg { width: 64%; height: 64%; display: block; }
+.fly-wrap.is-intro .hud-btn { opacity: 0; pointer-events: none; }
+.fly-wrap .hud-btn { transition: opacity .5s ease, background .15s ease, transform .15s ease; }
+
+/* ===== Setting presets =====
+
+   Six stops under every slider. A slider is precise and fiddly, and most
+   people want a number rather than a position; these give the number in
+   one click and leave the slider there for anyone who wants to fine tune.
+   Laid out under the slider and the same width as it, so the row reads as
+   belonging to that control and not the next one. */
+.preset-row {
+  display: flex;
+  gap: .28rem;
+  width: min(58%, 20rem);
+  margin: -.1rem 0 .55rem auto;
+}
+.preset {
+  flex: 1 1 0;
+  padding: .24rem 0;
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 600;
+  line-height: 1;
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, .16);
+  border-radius: .45rem;
+  background: rgba(255, 255, 255, .55);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.preset:hover { background: rgba(255, 255, 255, .95); }
+.preset.is-on {
+  background: var(--sky-deep);
+  border-color: transparent;
+  color: #FFF;
+}
+
+/* The pause card is dark, so the same row has to be the other way round. */
+.pause-opts .preset-row { width: min(52%, 13rem); }
+.pause-opts .preset {
+  background: rgba(255, 255, 255, .12);
+  border-color: rgba(255, 255, 255, .22);
+  color: #FFF;
+}
+.pause-opts .preset:hover { background: rgba(255, 255, 255, .3); }
+.pause-opts .preset.is-on { background: #FFF; color: #16232F; border-color: transparent; }
+
+/* Out on the rim it is a warning rather than a label, so it gets a harder
+   edge and a heavier shadow to sit against a bright sea. */
+.threat.is-edge {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .75));
+}

@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=29';
-import { buildCraft, CRAFT } from './craft.js?v=29';
-import { createAudio } from './audio.js?v=29';
-import { createEffects } from './effects.js?v=29';
+import { createWorld, ENEMY_GUNS } from './world.js?v=30';
+import { buildCraft, CRAFT } from './craft.js?v=30';
+import { createAudio } from './audio.js?v=30';
+import { createEffects } from './effects.js?v=30';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -1052,8 +1052,11 @@ function updateThreat() {
       // Drawn pointing down, so this is the turn that takes down to the
       // direction the ship lies in.
       turn = Math.atan2(-px, py);
-      size = 1.9;
+      // Fifteen per cent bigger than it was out here, where it is in the
+      // corner of your eye rather than in front of it.
+      size = 2.19;
     }
+    el.classList.toggle('is-edge', !inView);
     el.style.transform =
       'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) rotate(' + turn.toFixed(3) +
       'rad) scale(' + size + ')';
@@ -1295,6 +1298,9 @@ frame.addEventListener('pointerdown', e => {
 
 document.getElementById('btn-play').addEventListener('click', () => show('maps'));
 document.getElementById('btn-settings').addEventListener('click', () => show('settings'));
+// The gear in the corner of the HUD. Escape still works, but this is a
+// game played with a mouse and there has to be something to click.
+document.getElementById('btn-menu').addEventListener('click', togglePause);
 document.getElementById('btn-resume').addEventListener('click', togglePause);
 document.getElementById('btn-quit').addEventListener('click', () => {
   state.flying = false;
@@ -1356,22 +1362,61 @@ Object.entries(CRAFT).forEach(([key, def]) => {
    aircraft it applies to instead of from the title screen and a guess.
    They are bound to the same value rather than duplicated, so moving
    either moves both and there is never a stale slider to find later. */
+/* Every control that shows a setting registers how to redraw itself, so a
+   change made anywhere reaches all of them: the slider on the settings
+   screen, the slider in the pause menu, and the preset buttons under both
+   of them. */
+const syncers = [];
+const syncSettings = () => { for (const f of syncers) f(); };
+
 function bindRange(ids, key, after) {
   const els = ids.map(id => document.getElementById(id)).filter(Boolean);
-  const sync = () => { for (const el of els) el.value = settings[key]; };
-  sync();
+  syncers.push(() => { for (const el of els) el.value = settings[key]; });
   for (const el of els) {
     el.addEventListener('input', () => {
-      settings[key] = +el.value; save(); sync(); if (after) after();
+      settings[key] = +el.value; save(); syncSettings(); if (after) after();
     });
+  }
+
+  /* Six stops under each slider, a fifth of the range apart.
+
+     The label is the share of the range and the value behind it is that
+     share of this particular setting: sensitivity runs one to ten, the
+     volumes run zero to ten, and neither of those is a percentage of
+     anything the player should have to think about. A slider is precise
+     and fiddly; most people want a number, and this gives it in a click
+     while leaving the slider there for anyone who wants to fine tune. */
+  for (const el of els) {
+    const min = +el.min, max = +el.max;
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    const marks = [];
+    for (const pct of [0, 20, 40, 60, 80, 100]) {
+      const value = Math.round(min + (max - min) * pct / 100);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'preset';
+      b.textContent = pct + '%';
+      b.addEventListener('click', () => {
+        settings[key] = value; save(); syncSettings(); if (after) after();
+      });
+      row.appendChild(b);
+      marks.push({ b, value });
+    }
+    // The stop it is actually sitting on lights up, so the row reads as a
+    // position as well as a set of shortcuts.
+    syncers.push(() => {
+      for (const m of marks) m.b.classList.toggle('is-on', m.value === settings[key]);
+    });
+    const label = el.closest('label');
+    if (label) label.insertAdjacentElement('afterend', row);
   }
 }
 function bindCheck(ids, key) {
   const els = ids.map(id => document.getElementById(id)).filter(Boolean);
-  const sync = () => { for (const el of els) el.checked = !!settings[key]; };
-  sync();
+  syncers.push(() => { for (const el of els) el.checked = !!settings[key]; });
   for (const el of els) {
-    el.addEventListener('change', () => { settings[key] = el.checked; save(); sync(); });
+    el.addEventListener('change', () => { settings[key] = el.checked; save(); syncSettings(); });
   }
 }
 
@@ -1389,6 +1434,8 @@ bindRange(['opt-drone', 'p-drone'], 'drone', applyVolumes);
 bindRange(['opt-music', 'p-music'], 'music', applyVolumes);
 bindCheck(['opt-invert', 'p-invert'], 'invertY');
 
+// Every control is registered by now, so one call fills them all in.
+syncSettings();
 applyVolumes();
 // Queued rather than played: there is no audio context until a gesture, and
 // the request is held until there is one.

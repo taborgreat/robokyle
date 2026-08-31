@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="fly-game.css?v=29">
+    <link rel="stylesheet" href="fly-game.css?v=30">
 
     <!-- three.js resolves from the copy vendored at /public/vendor/three.
          The import map has to come before any module script that needs it,
@@ -101,6 +101,12 @@
                         </svg>
                     </div>
 
+                    <button class="hud-btn" id="btn-menu" type="button" aria-label="Settings and pause">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path fill="currentColor" d="M12 8.6a3.4 3.4 0 100 6.8 3.4 3.4 0 000-6.8zm8.9 3.4c0-.5-.05-1-.13-1.5l2-1.5-1.9-3.3-2.35.95a8.4 8.4 0 00-2.6-1.5L15.5 2h-3.8l-.42 2.55c-.95.32-1.83.82-2.6 1.5L6.33 5.1 4.43 8.4l2 1.5a8.9 8.9 0 000 3l-2 1.5 1.9 3.3 2.35-.95c.77.68 1.65 1.18 2.6 1.5L11.7 21h3.8l.42-2.55c.95-.32 1.83-.82 2.6-1.5l2.35.95 1.9-3.3-2-1.5c.08-.5.13-1 .13-1.5z"/>
+                        </svg>
+                    </button>
+
                     <div class="hud" aria-live="off">
                         <div class="gauge">
                             <span class="k">Speed</span>
@@ -116,8 +122,10 @@
 
                     <div class="threat" id="threat" hidden aria-hidden="true">
                         <svg viewBox="0 0 44 44" focusable="false">
-                            <path d="M22 41 L11 19 L22 24 L33 19 Z" fill="currentColor"/>
-                            <circle cx="22" cy="11" r="3.2" fill="currentColor" opacity=".75"/>
+                            <circle cx="22" cy="26" r="17" fill="#0A1622" opacity=".34"/>
+                            <path d="M22 41 L11 19 L22 24 L33 19 Z" fill="currentColor"
+                                  stroke="#20120E" stroke-width="1.4" stroke-linejoin="round"/>
+                            <circle cx="22" cy="11" r="3.2" fill="currentColor" opacity=".85"/>
                         </svg>
                     </div>
 
@@ -169,6 +177,6 @@
 
     <script src="/public/site.js"></script>
     <script src="/public/game/fullscreen.js?v=33"></script>
-    <script type="module" src="fly.js?v=29"></script>
+    <script type="module" src="fly.js?v=30"></script>
 </body>
 </html>
