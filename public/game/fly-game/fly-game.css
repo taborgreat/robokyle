@@ -12,6 +12,14 @@
    fullscreen script injects an unstyled button otherwise.
    ============================================================ */
 
+/* Everything below is in rem, so the whole interface scales from here.
+
+   This game is played by people who may not see small text well, and the
+   default sixteen pixels is a compromise struck for dense documents
+   rather than for a menu with eight things on it. There is room: nothing
+   here is tight for space. */
+:root { font-size: 112.5%; }
+
 :root {
     --sky:      #7FC7EE;
     --sky-deep: #2E86C8;
@@ -100,13 +108,13 @@ body.fly-body {
     margin: 0; text-transform: uppercase; letter-spacing: .02em;
 }
 .group-head {
-    font-size: .7rem; letter-spacing: .18em; text-transform: uppercase;
+    font-size: .84rem; letter-spacing: .18em; text-transform: uppercase;
     color: var(--ink-mute); margin: 1.6rem 0 .7rem; font-weight: 700;
 }
 .group-head:first-of-type { margin-top: 0; }
 
 .menu-back {
-    font: inherit; font-size: .84rem; font-weight: 600;
+    font: inherit; font-size: .96rem; font-weight: 600;
     color: var(--ink-soft); background: var(--panel);
     border: 1px solid var(--line); border-radius: 8px;
     padding: .45rem .8rem; cursor: pointer;
@@ -132,7 +140,7 @@ body.fly-body {
 
 .menu-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .7rem; justify-items: center; }
 .menu-btn {
-    font: inherit; font-weight: 700; font-size: 1.02rem;
+    font: inherit; font-weight: 700; font-size: 1.14rem;
     min-width: 15rem;
     color: var(--ink); background: var(--panel);
     border: 2px solid var(--ink);
@@ -156,18 +164,18 @@ body.fly-body {
     border-radius: 12px; padding: .8rem 1rem;
     transition: border-color .14s ease, background-color .14s ease;
 }
-.craft-card b { display: block; font-size: 1rem; }
-.craft-card small { display: block; color: var(--ink-mute); font-size: .84rem; margin-top: .15rem; }
+.craft-card b { display: block; font-size: 1.12rem; }
+.craft-card small { display: block; color: var(--ink-mute); font-size: .95rem; margin-top: .15rem; }
 .craft-card:hover { border-color: var(--sky-deep); }
 .craft-card.is-on { border-color: var(--ink); background: #FFF8E4; }
 
 .opt-row {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 1rem; padding: .55rem 0; font-size: .95rem; font-weight: 500;
+    gap: 1rem; padding: .55rem 0; font-size: 1.06rem; font-weight: 500;
 }
 .opt-row input[type="range"] { flex: 0 0 min(58%, 20rem); accent-color: var(--sky-deep); }
-.opt-check { display: flex; gap: .7rem; align-items: center; padding: .55rem 0; font-size: .95rem; font-weight: 500; cursor: pointer; }
-.opt-check input { width: 1.15rem; height: 1.15rem; accent-color: var(--sky-deep); }
+.opt-check { display: flex; gap: .75rem; align-items: center; padding: .55rem 0; font-size: 1.06rem; font-weight: 500; cursor: pointer; }
+.opt-check input { width: 1.4rem; height: 1.4rem; accent-color: var(--sky-deep); }
 
 /* ===== Map select ===== */
 
@@ -184,10 +192,10 @@ body.fly-body {
 .map-card:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 .map-card .shot { width: 132px; height: 84px; border-radius: 8px; overflow: hidden; display: block; }
 .map-card .shot svg { display: block; width: 100%; height: 100%; }
-.map-card b { display: block; font-size: 1.05rem; }
-.map-card .who { display: block; font-size: .78rem; font-weight: 700; letter-spacing: .1em;
+.map-card b { display: block; font-size: 1.18rem; }
+.map-card .who { display: block; font-size: .9rem; font-weight: 700; letter-spacing: .1em;
                  text-transform: uppercase; color: var(--sky-deep); margin: .1rem 0 .2rem; }
-.map-card small { display: block; color: var(--ink-mute); font-size: .85rem; line-height: 1.45; }
+.map-card small { display: block; color: var(--ink-mute); font-size: .96rem; line-height: 1.45; }
 
 .map-card.is-soon {
     cursor: default; opacity: .62;
@@ -197,7 +205,7 @@ body.fly-body {
 .map-card.is-soon:hover { background: var(--panel); }
 .map-card.is-soon:active { transform: none; box-shadow: none; }
 .map-card .tag {
-    display: inline-block; font-size: .62rem; font-weight: 800; letter-spacing: .12em;
+    display: inline-block; font-size: .76rem; font-weight: 800; letter-spacing: .12em;
     text-transform: uppercase; color: var(--ink-mute);
     border: 1px solid var(--line); border-radius: 999px; padding: .15rem .5rem; margin-top: .35rem;
 }
@@ -250,9 +258,9 @@ body.fly-body {
     padding: .4rem .7rem;
     box-shadow: 0 3px 0 rgba(14,36,54,.35);
 }
-.gauge .k { font-size: .58rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
-.gauge .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 2.6ch; text-align: right; }
-.gauge .u { font-size: .62rem; font-weight: 700; color: var(--ink-mute); }
+.gauge .k { font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
+.gauge .v { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 2.6ch; text-align: right; }
+.gauge .u { font-size: .78rem; font-weight: 700; color: var(--ink-mute); }
 
 /* One soft tint over the whole view when you go in, warm for fire and cold
    for water. Deliberately a single fade with no repeat: a flashing overlay
@@ -304,6 +312,15 @@ body.fly-body {
     background: var(--panel); border: 2px solid var(--ink);
     border-radius: 16px; padding: 1.8rem 2rem; text-align: center;
     box-shadow: 0 6px 0 var(--ink);
+    /* With the settings on it and the type a size up, this card can be
+       taller than a short window. It is a column with a scrolling middle:
+       the options give way, and Keep flying and Menu stay where they are.
+       Scrolling the whole card instead pushes the buttons off the bottom,
+       which is the one thing that must never happen to a pause menu. */
+    max-height: calc(100% - 1.6rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 .pause-card h2 {
     font-family: 'Black Ops One', Impact, sans-serif;
@@ -321,7 +338,7 @@ body.fly-body {
     background: rgba(255,255,255,.85);
     border: 2px solid var(--ink); border-radius: 8px;
     padding: .3rem .55rem; color: var(--ink);
-    font: inherit; font-size: .64rem; font-weight: 700;
+    font: inherit; font-size: .78rem; font-weight: 700;
     letter-spacing: .12em; text-transform: uppercase;
 }
 .fs-btn:hover { background: #fff; }
@@ -333,7 +350,7 @@ body.fly-body {
     display: flex; flex-wrap: wrap; justify-content: center;
     gap: clamp(1rem, 4vw, 2.2rem); padding: 1.1rem 0 .3rem;
 }
-.back-strip a { color: var(--ink-soft); text-decoration: none; font-size: .85rem; font-weight: 500; }
+.back-strip a { color: var(--ink-soft); text-decoration: none; font-size: .96rem; font-weight: 500; }
 .back-strip a:hover { color: var(--sky-deep); }
 body.is-flying .back-strip { opacity: .55; }
 
@@ -414,7 +431,7 @@ body.is-flying .back-strip { opacity: .55; }
 }
 .intro-card[hidden] { display: none; }
 .intro-card b { font-size: 1.5rem; letter-spacing: .04em; }
-.intro-card small { font-size: .85rem; opacity: .8; }
+.intro-card small { font-size: .98rem; opacity: .85; }
 .intro-card.is-out { animation: intro-out .7s ease both; }
 @keyframes intro-in  { from { opacity: 0; transform: translate(-50%, 1rem); } }
 @keyframes intro-out { to   { opacity: 0; transform: translate(-50%, -.6rem); } }
@@ -427,22 +444,28 @@ body.is-flying .back-strip { opacity: .55; }
    Same rows as the settings screen, narrower and quieter, with a rule
    above them so the card still reads as a menu with options on it rather
    than as an options screen with two buttons at the bottom. */
+/* The pause card is a white panel, not a dark one. Everything in here was
+   written for a dark card and came out white on white, which is why the
+   preset buttons could not be seen at all. */
 .pause-opts {
-  width: min(26rem, 78vw);
+  width: min(28rem, 80vw);
   margin: .2rem 0 1.1rem;
   padding-top: .6rem;
-  border-top: 1px solid rgba(255, 255, 255, .16);
+  border-top: 1px solid rgba(14, 36, 54, .16);
   text-align: left;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 .pause-opts .group-head {
   margin: .7rem 0 .1rem;
-  font-size: .72rem;
-  opacity: .62;
+  font-size: .86rem;
+  opacity: .7;
 }
 .pause-opts .group-head:first-child { margin-top: 0; }
-.pause-opts .opt-row { padding: .3rem 0; font-size: .9rem; }
+.pause-opts .opt-row { padding: .35rem 0; font-size: 1.02rem; }
 .pause-opts .opt-row input[type="range"] { flex: 0 0 min(52%, 13rem); }
-.pause-opts .opt-check { padding: .35rem 0; font-size: .9rem; }
+.pause-opts .opt-check { padding: .4rem 0; font-size: 1.02rem; }
 
 
 /* Nothing but the aeroplane during the opening pan. */
@@ -459,9 +482,9 @@ body.is-flying .back-strip { opacity: .55; }
   margin: 1.1rem 0 0;
   padding-top: .8rem;
   border-top: 1px solid rgba(0, 0, 0, .1);
-  font-size: .78rem;
+  font-size: .9rem;
   line-height: 1.5;
-  opacity: .72;
+  opacity: .78;
 }
 .credit a { color: inherit; }
 
@@ -512,7 +535,7 @@ body.is-flying .back-strip { opacity: .55; }
   min-height: 2.3rem;
   padding: .5rem 0;
   font: inherit;
-  font-size: .82rem;
+  font-size: .95rem;
   font-weight: 700;
   line-height: 1;
   color: inherit;
@@ -533,17 +556,11 @@ body.is-flying .back-strip { opacity: .55; }
 }
 
 /* The pause card is dark, so the same row has to be the other way round. */
-.pause-opts .preset-row { width: min(62%, 15rem); margin-bottom: .7rem; }
+.pause-opts .preset-row { width: min(74%, 18rem); margin-bottom: .7rem; }
 .pause-opts .preset {
-  min-height: 2rem;
-  font-size: .76rem;
-  background: rgba(255, 255, 255, .14);
-  border-color: rgba(255, 255, 255, .3);
-  color: #FFF;
-  box-shadow: none;
+  min-height: 2.2rem;
+  font-size: .9rem;
 }
-.pause-opts .preset:hover { background: rgba(255, 255, 255, .34); border-color: rgba(255, 255, 255, .6); }
-.pause-opts .preset.is-on { background: #FFF; color: #16232F; border-color: transparent; }
 
 /* Out on the rim it is a warning rather than a label, so it gets a harder
    edge and a heavier shadow to sit against a bright sea. */
