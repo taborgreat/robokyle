@@ -42,9 +42,6 @@ const C = {
   // Built things, and the things that burn.
   tarmac: 0x5A5E62,
   concrete: 0xB9B4A8,
-  lava:   0xFF5A18,
-  lavaHot: 0xFFC24A,
-  cinder: 0x3A322C,
   lamp:   0xFFD98A,
 };
 
@@ -783,10 +780,6 @@ export function createWorld(scene) {
     vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false,
   });
 
-  // Lit from within: lava, and anything else that should keep its colour
-  // after the sun has gone.
-  const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
-
   // Windows. One material for every lit window in the world, so dusk is a
   // single write rather than a walk over every building.
   const lampMat = new THREE.MeshBasicMaterial({
@@ -806,7 +799,6 @@ export function createWorld(scene) {
   const targets  = [];             // live, shootable and destructible
   const burning  = [];             // rubble that is still alight
   const sinking  = [];             // hulls on their way down
-  const volcanoes = [];            // live, for the smoke off them
 
   /* ===== The day =====
 
@@ -1044,10 +1036,8 @@ export function createWorld(scene) {
 
     const groundParts = [];         // hills and beaches, textured
     const shallowParts = [];        // the water over the shelf, translucent
-    const glowParts = [];           // lava, and anything else lit from within
     const landParts = [];           // trees and rocks, flat colour
     const cloudParts = [];
-    const localVolcanoes = [];
     const localIslands = [];
     const localBalloons = [];
     const localTargets = [];
@@ -1071,23 +1061,21 @@ export function createWorld(scene) {
 
          Mostly it is a small island. The set pieces are worth flying to
          precisely because there is a stretch of ordinary sea and ordinary
-         rocks between them: one chunk in twenty has a town on it, one in
-         twenty five an airfield, one in twenty a volcano. */
+         rocks between them: one chunk in twenty has a town on it and one
+         in twenty five an airfield. */
       const roll = rnd();
       const kind = roll < 0.05 ? 'city'
                  : roll < 0.09 ? 'airfield'
-                 : roll < 0.14 ? 'volcano'
                  : 'plain';
 
       const big = kind === 'city' || kind === 'airfield';
       // The big ones sit on their chunk centre; the rest wander a little.
-      const wander = big ? 0 : (kind === 'volcano' ? 100 : 132);
+      const wander = big ? 0 : 132;
       const ix = ox + (rnd() - 0.5) * 2 * wander;
       const iz = oz + (rnd() - 0.5) * 2 * wander;
 
       const r  = kind === 'city'     ? 112 + rnd() * 34
                : kind === 'airfield' ? 120 + rnd() * 30
-               : kind === 'volcano'  ? 62 + rnd() * 27
                : 42 + rnd() * 47;
       // Height from the radius rather than rolled on its own. Rolling them
       // separately is what produced the spikes: a 55 wide island could come
@@ -1097,7 +1085,6 @@ export function createWorld(scene) {
       // hill and a street on a 25 degree slope reads as a mistake.
       const h  = kind === 'airfield' ? r * (0.025 + rnd() * 0.025)
                : kind === 'city' ? r * (0.05 + rnd() * 0.04)
-               : kind === 'volcano' ? r * (0.5 + rnd() * 0.22)
                : r * (0.17 + rnd() * 0.3);
 
       const hillRot = rnd() * 6.28;
@@ -1116,65 +1103,6 @@ export function createWorld(scene) {
       groundParts.push(piece(GEO.hill, rnd() < 0.5 ? C.grass : C.grass2,
                              ix, h / 2 - 2, iz, r, h, r, hillRot, 0, 0, GROUND_UV));
 
-      /* A volcano is the same cone with its top opened up.
-
-         heightAt still treats it as a solid cone, so the crater is scenery
-         you cannot land in. That is the right way round: flying into a
-         volcano should stop you, and it does. */
-      /* A volcano.
-
-         The last one was a black lump with the lava buried under its own
-         crater. The fix is that you have to be able to see down into it:
-         the rim has to stand above the lava and be narrower than the
-         mountain, and the lava has to be wide enough to read as a pool
-         rather than a dot.
-
-         So: the top half of the cone in dark rock, sat exactly on the
-         green one so the two silhouettes agree, a raised rim, and a pool
-         inside it that is a good deal wider than it is deep. */
-      if (kind === 'volcano') {
-        const top = h - 2;
-        const cr = r * 0.3;                       // the pool
-        const rim = cr * 1.42;                    // the lip around it
-
-        // Bare rock over the top half. At height 0.46h the cone's radius
-        // is 0.54r, so a cone of that base sat there matches it exactly.
-        groundParts.push(piece(GEO.hill, C.cinder,
-                               ix, h * 0.46 + (h * 0.54) / 2 - 2, iz,
-                               r * 0.54, h * 0.54, r * 0.54, hillRot, 0, 0, GROUND_UV));
-
-        // The rim: a squat ring standing proud of the summit.
-        groundParts.push(piece(GEO.cyl, 0x50463E, ix, top - h * 0.03, iz,
-                               rim, h * 0.1, rim, hillRot, 0, 0, GROUND_UV));
-        groundParts.push(piece(GEO.cyl, C.cinder, ix, top - h * 0.055, iz,
-                               rim * 0.94, h * 0.1, rim * 0.94, hillRot, 0, 0, GROUND_UV));
-
-        /* The pool, unlit, so it keeps its colour after dark and is the
-           thing you can see a volcano by at night. Set below the rim, but
-           not so far below that the rim hides it from anything but
-           straight overhead. */
-        const pool = top - h * 0.035;
-        glowParts.push(piece(GEO.shelf, C.lava, ix, pool, iz, cr, 1.4, cr, 0));
-        glowParts.push(piece(GEO.shelf, C.lavaHot, ix, pool + 0.5, iz, cr * 0.62, 1.4, cr * 0.62, 0));
-        glowParts.push(piece(GEO.shelf, 0xFFF1B0, ix, pool + 0.9, iz, cr * 0.26, 1.4, cr * 0.26, 0));
-
-        // Flows, running from under the rim down the flank in steps, so
-        // they follow the slope instead of hanging off it.
-        for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
-          const fa = rnd() * Math.PI * 2;
-          for (let s = 0; s < 7; s++) {
-            const fd = rim + (r * 0.72 - rim) * (s / 6);
-            const wob = fa + (s - 3) * 0.04;
-            glowParts.push(piece(GEO.box, s < 3 ? C.lava : 0xC03A12,
-              ix + Math.cos(wob) * fd,
-              islandSurface(h, r, fd, wob, hillRot) + 0.7,
-              iz + Math.sin(wob) * fd,
-              r * 0.035, 0.8, (r * 0.72 - rim) / 5.2, -wob));
-          }
-        }
-        localVolcanoes.push({ x: ix, y: top, z: iz, r: cr });
-      }
-
       /* Lobes.
 
          One cone is a traffic cone. Two or three overlapping ones at
@@ -1187,9 +1115,7 @@ export function createWorld(scene) {
          could pass straight through it. */
       const lobes = [];
       const flat = big;
-      // A volcano is one clean cone or it is nothing; a shoulder on the
-      // side of it just reads as a lump.
-      const lobeCount = kind === 'volcano' ? 0 : flat ? 1 : 2 + Math.floor(rnd() * 3);
+      const lobeCount = flat ? 1 : 2 + Math.floor(rnd() * 3);
       for (let k = 0; k < lobeCount; k++) {
         const la = rnd() * Math.PI * 2;
         const ld = r * (flat ? 0.55 + rnd() * 0.3 : 0.18 + rnd() * 0.5);
@@ -1202,7 +1128,7 @@ export function createWorld(scene) {
         lobes.push({ x: lx, z: lz, r: lr, h: lh });
       }
 
-      const trees = kind === 'volcano' ? 0 : (flat ? 5 + Math.floor(rnd() * 8) : 3 + Math.floor(rnd() * 7));
+      const trees = flat ? 5 + Math.floor(rnd() * 8) : 3 + Math.floor(rnd() * 7);
       for (let t = 0; t < trees; t++) {
         const a = rnd() * Math.PI * 2;
         const d = r * (0.25 + rnd() * 0.6);
@@ -1580,10 +1506,6 @@ export function createWorld(scene) {
       ? new THREE.Mesh(mergeGeometries(shallowParts), shallowMat) : null;
     if (shallow) { shallow.frustumCulled = true; shallow.renderOrder = 1; scene.add(shallow); }
 
-    const glow = glowParts.length
-      ? new THREE.Mesh(mergeGeometries(glowParts), glowMat) : null;
-    if (glow) { glow.frustumCulled = true; scene.add(glow); }
-
     const land = landParts.length
       ? new THREE.Mesh(mergeGeometries(landParts), landMat) : null;
     if (land) { land.frustumCulled = true; scene.add(land); }
@@ -1593,10 +1515,9 @@ export function createWorld(scene) {
     if (cloud) { cloud.frustumCulled = true; scene.add(cloud); }
 
     for (const isl of localIslands) islands.push(isl);
-    for (const v of localVolcanoes) volcanoes.push(v);
 
-    return { ground, shallow, glow, land, cloud, islands: localIslands,
-             balloons: localBalloons, targets: localTargets, volcanoes: localVolcanoes };
+    return { ground, shallow, land, cloud, islands: localIslands,
+             balloons: localBalloons, targets: localTargets };
   }
 
   function dropChunk(key) {
@@ -1604,8 +1525,7 @@ export function createWorld(scene) {
     if (!c) return;
     if (c.ground) { scene.remove(c.ground); c.ground.geometry.dispose(); }
     if (c.shallow) { scene.remove(c.shallow); c.shallow.geometry.dispose(); }
-    if (c.glow) { scene.remove(c.glow); c.glow.geometry.dispose(); }
-    for (const v of c.volcanoes) { const i = volcanoes.indexOf(v); if (i >= 0) volcanoes.splice(i, 1); }
+
     if (c.land)  { scene.remove(c.land);  c.land.geometry.dispose(); }
     if (c.cloud) { scene.remove(c.cloud); c.cloud.geometry.dispose(); }
     for (const b of c.balloons) {
@@ -1750,25 +1670,6 @@ export function createWorld(scene) {
                t.mesh.position.y + (t.stack ? 13.2 : 11.8) * BUILT_SCALE,
                t.mesh.position.z - Math.sin(ry) * lx);
         fx.smoke(_p, t.stack ? 4.4 : 3.6, 0x24242C, 14);
-      }
-
-      // Volcanoes, smoking. Warmer and more of it at night, when the glow
-      // off the crater is the thing you navigate by.
-      if (fx) {
-        let cones = 0;
-        for (const v of volcanoes) {
-          if (cones > 3) break;
-          if (Math.abs(v.x - pos.x) > 2600 || Math.abs(v.z - pos.z) > 2600) continue;
-          cones++;
-          v.puff = (v.puff || 0) - dt;
-          if (v.puff > 0) continue;
-          v.puff = 0.22;
-          _p.set(v.x + (Math.random() - 0.5) * v.r * 1.2,
-                 v.y + 4,
-                 v.z + (Math.random() - 0.5) * v.r * 1.2);
-          fx.smoke(_p, v.r * 0.5, 0x2E2A28, 16);
-          if (Math.random() < 0.35) fx.fire(_p, v.r * 0.34);
-        }
       }
 
       /* Wrecks that are still going.
