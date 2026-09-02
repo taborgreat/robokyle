@@ -606,10 +606,10 @@ code { background: var(--panel); padding: .1rem .35rem; border-radius: 4px; font
    of the way - they were sitting on top of the letterbox and the caption. */
 .heist-wrap.is-intro .hud,
 .heist-wrap.is-intro .heist-hint,
-.heist-wrap.is-intro .touch-ui,
+.heist-wrap.is-intro .tl,
 .heist-wrap.is-cine .hud,
 .heist-wrap.is-cine .heist-hint,
-.heist-wrap.is-cine .touch-ui { opacity: 0; pointer-events: none; }
+.heist-wrap.is-cine .tl { opacity: 0; pointer-events: none; }
 .heist-wrap .hud,
 .heist-wrap .heist-hint { transition: opacity .28s ease; }
 
@@ -1060,3 +1060,15 @@ kbd { display: inline-block; background: var(--panel-2); border: 1px solid var(-
     .vd-ring, .vd-dial, .searchlight, .hud-alarm.bad { animation: none; }
     .menu-btn, .bank-card, .mate-card, .item, .curtain { transition: none; }
 }
+
+
+/* ===== Touch =====
+   The shared layer, in the game's own colours. */
+.tl.heist-touch {
+  --tl-line: rgba(224, 180, 76, .55);
+  --tl-fill: rgba(16, 12, 10, .5);
+  --tl-knob: rgba(224, 180, 76, .92);
+  --tl-ink: #F1E4D2;
+}
+.tl.heist-touch .tl-btn.is-on { color: #14100A; }
+.heist-wrap .tl { transition: opacity .4s ease; }

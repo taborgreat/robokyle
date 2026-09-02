@@ -5192,6 +5192,10 @@
     let dt = Math.min(50, now - H.last);
     H.last = now;
 
+    // Read the pads once, here, so the sticks arrive at the same place
+    // the keys and the mouse do rather than through a second path.
+    pollTouch();
+
     // The opening look round. Nothing in the world moves, nothing notices
     // you, and no clock runs - H.t is held so the police response and the
     // getaway driver both start counting when you actually start.
@@ -7795,69 +7799,69 @@
   }
 
   // ==================== TOUCH ====================
+
+  /* Two sticks and three buttons, from the shared layer.
+
+     What was here before was a pair of invisible drag zones: the left
+     half of the screen moved and the right half aimed and fired. It
+     worked if you already knew, and there was no way to find out and no
+     way to see whether you were holding anything. Drawn pads cost a
+     corner of the screen each and answer both questions.
+
+     The aim stick fires while it is pushed, so one thumb aims and
+     shoots, which is the only arrangement that leaves the other thumb
+     free to move. */
   const touch = { active: false, mx: 0, my: 0, aiming: false, aimAngle: 0, firing: false, interact: false };
-  const tState = { moveId: null, aimId: null, moveOrigin: null, aimOrigin: null };
+  let touchLayer = null;
 
   function isTouch() {
-    return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    return typeof isCoarsePointer === 'function'
+      ? isCoarsePointer()
+      : (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
   }
 
   function bindTouch() {
-    if (!isTouch()) return;
+    if (!isTouch() || typeof createTouchLayer !== 'function') return;
     touch.active = true;
-    document.getElementById('heist-touch').style.display = 'block';
 
-    const surf = canvas;
-    surf.addEventListener('touchstart', (e) => {
-      for (const t of e.changedTouches) {
-        const r = surf.getBoundingClientRect();
-        const x = t.clientX - r.left, y = t.clientY - r.top;
-        if (x < r.width / 2 && tState.moveId === null) {
-          tState.moveId = t.identifier; tState.moveOrigin = { x, y };
-        } else if (x >= r.width / 2 && tState.aimId === null) {
-          tState.aimId = t.identifier; tState.aimOrigin = { x, y };
-          touch.aiming = true; touch.firing = true;
-        }
-      }
-      e.preventDefault();
-    }, { passive: false });
+    const host = canvas.parentElement || document.body;
+    touchLayer = createTouchLayer(host, {
+      theme: 'heist-touch',
+      sticks: [
+        { id: 'move', side: 'left', label: 'Move' },
+        { id: 'aim', side: 'right', label: 'Aim', dead: 0.2 },
+      ],
+      buttons: [
+        { id: 'interact', label: 'Use', side: 'left', onPress: () => tryInteract() },
+        // Escape is the only other way to the menu, and there is no
+        // Escape on a phone.
+        { id: 'pause', label: 'Menu', side: 'left', onPress: () => togglePause() },
+        { id: 'reload', label: 'Reload', side: 'right', onPress: () => tryReload(H.robo) },
+        { id: 'stance', label: 'Crouch', side: 'right', onPress: () => toggleStance() },
+      ],
+    });
+    touchLayer.show(true);
+  }
 
-    surf.addEventListener('touchmove', (e) => {
-      const r = surf.getBoundingClientRect();
-      for (const t of e.changedTouches) {
-        const x = t.clientX - r.left, y = t.clientY - r.top;
-        if (t.identifier === tState.moveId && tState.moveOrigin) {
-          const dx = x - tState.moveOrigin.x, dy = y - tState.moveOrigin.y;
-          const m = Math.hypot(dx, dy) || 1;
-          const cl = Math.min(1, m / 55);
-          touch.mx = dx / m * cl; touch.my = dy / m * cl;
-        } else if (t.identifier === tState.aimId && tState.aimOrigin) {
-          const dx = x - tState.aimOrigin.x, dy = y - tState.aimOrigin.y;
-          if (Math.hypot(dx, dy) > 8) touch.aimAngle = Math.atan2(dy, dx);
-        }
-      }
-      e.preventDefault();
-    }, { passive: false });
-
-    const endT = (e) => {
-      for (const t of e.changedTouches) {
-        if (t.identifier === tState.moveId) { tState.moveId = null; touch.mx = 0; touch.my = 0; }
-        if (t.identifier === tState.aimId) { tState.aimId = null; touch.aiming = false; touch.firing = false; }
-      }
-    };
-    surf.addEventListener('touchend', endT);
-    surf.addEventListener('touchcancel', endT);
-
-    const btn = (id, on, off) => {
-      const n = document.getElementById(id);
-      if (!n) return;
-      n.addEventListener('touchstart', (e) => { e.preventDefault(); on(); }, { passive: false });
-      n.addEventListener('touchend', (e) => { e.preventDefault(); off && off(); }, { passive: false });
-    };
-    btn('t-interact', () => { touch.interact = true; tryInteract(); }, () => { touch.interact = false; });
-    btn('t-reload', () => tryReload(H.robo));
-    btn('t-stance', () => toggleStance());
-    btn('t-pause', () => togglePause());
+  /* Read once a frame, so the sticks arrive at the same place the keys
+     and the mouse do rather than through a second path. */
+  function pollTouch() {
+    if (!touchLayer) return;
+    const m = touchLayer.sticks.move;
+    touch.mx = m.x; touch.my = m.y;
+    const a = touchLayer.sticks.aim;
+    const mag = Math.hypot(a.x, a.y);
+    if (mag > 0.001) {
+      touch.aimAngle = Math.atan2(a.y, a.x);
+      touch.aiming = true;
+      // Only a firm push fires, so nudging the aim round does not empty
+      // the magazine into a wall.
+      touch.firing = mag > 0.45;
+    } else {
+      touch.aiming = false;
+      touch.firing = false;
+    }
+    touch.interact = !!touchLayer.buttons.interact;
   }
 
   // ==================== PAUSE BUTTONS ====================

@@ -567,3 +567,38 @@ body.is-flying .back-strip { opacity: .55; }
 .threat.is-edge {
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .75));
 }
+
+
+/* ===== Touch =====
+
+   Themed to the game rather than restyled: the shared layer exposes
+   three colours and takes care of everything else.
+
+   The HUD and the gear move up out of the way when the pads are live,
+   because a gauge under a thumb is a gauge nobody reads. */
+.tl.fly-touch {
+  --tl-line: rgba(255, 255, 255, .5);
+  --tl-fill: rgba(12, 32, 50, .38);
+  --tl-knob: rgba(255, 255, 255, .9);
+  --tl-ink: #FFF;
+}
+.fly-wrap.is-intro .tl { opacity: 0; pointer-events: none; }
+.fly-wrap .tl { transition: opacity .4s ease; }
+
+/* With pads on screen the reticle is the only thing saying where the
+   nose is going, so it gets bigger and brighter. */
+html.has-touch .reticle { width: 62px; height: 62px; margin: -31px 0 0 -31px; }
+
+/* With pads on screen the bottom corners belong to thumbs, so the gauges
+   move up beside the gear. A readout under a thumb is a readout nobody
+   reads, and the speed and altitude are the two numbers that matter. */
+html.has-touch .hud {
+  inset: 0 auto auto calc(5.2rem + env(safe-area-inset-left, 0px));
+}
+
+/* Fly Game has no right stick, so the trigger takes the corner a right
+   thumb is already resting in rather than floating above an empty one. */
+.tl.fly-touch .tl-stack-right {
+  bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px));
+  right: calc(1.4rem + env(safe-area-inset-right, 0px));
+}

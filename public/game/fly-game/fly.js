@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=34';
-import { buildCraft, CRAFT } from './craft.js?v=34';
-import { createAudio } from './audio.js?v=34';
-import { createEffects } from './effects.js?v=34';
+import { createWorld, ENEMY_GUNS } from './world.js?v=35';
+import { buildCraft, CRAFT } from './craft.js?v=35';
+import { createAudio } from './audio.js?v=35';
+import { createEffects } from './effects.js?v=35';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -589,8 +589,34 @@ function clearFlak() {
 /* ===== Cursor ===== */
 
 // Where the cursor sits in the frame, as -1 to 1 on each axis. Nothing else
-// in the game reads the pointer directly.
+// in the game reads the pointer directly, which is what lets a thumb stick
+// drive the aeroplane without the flight code knowing it exists.
 const cursor = { x: 0, y: 0, seen: false, down: false, sx: 0, sy: 0 };
+
+/* ===== Touch =====
+
+   The aeroplane is flown by a position rather than a movement: the nose
+   goes where the cursor is. So a stick maps straight onto it, and the
+   whole flight model, the crosshair and the gunner's aim come along
+   without changing a line.
+
+   Held rather than sprung, though. A stick that snaps back to the middle
+   would snap the nose back to level with it, and holding a turn would
+   mean holding a thumb at full deflection for as long as the turn lasts.
+   So the stick moves the aim and the aim stays put, which is the same
+   bargain the mouse gets. */
+let touch = null;
+
+function aimFromStick(nx, ny) {
+  const r = canvas.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  cursor.x = Math.max(-1, Math.min(1, nx));
+  cursor.y = Math.max(-1, Math.min(1, -ny));
+  cursor.seen = true;
+  cursor.sx = (cursor.x * 0.5 + 0.5) * r.width;
+  cursor.sy = (1 - (cursor.y * 0.5 + 0.5)) * r.height;
+  if (reticle) reticle.style.transform = 'translate(' + cursor.sx + 'px,' + cursor.sy + 'px)';
+}
 
 function readCursor(e) {
   const r = canvas.getBoundingClientRect();
@@ -961,6 +987,7 @@ function show(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.body.classList.toggle('is-flying', name === 'fly');
+  if (touch) touch.show(name === 'fly');
   if (name === 'fly') resize();
   // Leaving mid pan, by any route, takes the pan with it.
   else if (state.intro) endIntro();
@@ -1206,6 +1233,18 @@ function loop() {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
+  if (touch && touch.isTouch && state.screen === 'fly' && state.flying && !state.paused && !state.dead) {
+    /* The stick nudges the aim rather than setting it, at a rate, so a
+       held deflection keeps turning and letting go holds the turn. Full
+       deflection crosses the frame in about a second and a quarter,
+       which is quick enough to react and slow enough to hold a line. */
+    const s = touch.sticks.aim;
+    if (s.x || s.y) {
+      aimFromStick(cursor.x + s.x * dt * 1.6, -(cursor.y - s.y * dt * 1.6));
+    }
+    cursor.down = touch.buttons.fire;
+  }
+
   if (state.screen === 'fly' && state.flying && !state.paused) {
     if (!state.dead) {
       if (state.intro) {
@@ -1293,6 +1332,27 @@ document.getElementById('btn-play').addEventListener('click', () => show('maps')
 document.getElementById('btn-settings').addEventListener('click', () => show('settings'));
 // The gear in the corner of the HUD. Escape still works, but this is a
 // game played with a mouse and there has to be something to click.
+/* The pads.
+
+   Built always and shown only on a coarse pointer, so a desktop mouse
+   never sees them and a tablet does not have to be detected twice. The
+   aeroplane needs one stick and one trigger and nothing else: the gear
+   in the corner already covers the menu, which is the whole reason it
+   is there. */
+if (typeof createTouchLayer === 'function') {
+  touch = createTouchLayer(wrap, {
+    theme: 'fly-touch',
+    sticks: [{ id: 'aim', side: 'left', label: 'Fly', dead: 0.14 }],
+    buttons: [{ id: 'fire', label: 'Fire', side: 'right', big: true }],
+  });
+  if (touch.isTouch) {
+    document.documentElement.classList.add('has-touch');
+    // Start the aim in the middle rather than at the top left corner,
+    // which is where an unseen cursor sits.
+    aimFromStick(0, 0);
+  }
+}
+
 document.getElementById('btn-menu').addEventListener('click', togglePause);
 document.getElementById('btn-resume').addEventListener('click', togglePause);
 document.getElementById('btn-quit').addEventListener('click', () => {

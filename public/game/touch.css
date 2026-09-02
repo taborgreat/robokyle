@@ -1,0 +1,132 @@
+/* ============================================================
+   Touch controls, shared.
+
+   Sized deliberately small. A thumb reaches about fifty pixels from
+   where it lands, so the base only needs to be big enough to find
+   without looking; anything larger is screen you cannot see the game
+   through. Corners, because that is where thumbs already are when you
+   are holding a phone in two hands.
+
+   Every game themes it by overriding the three custom properties
+   rather than restyling the parts.
+   ============================================================ */
+
+.tl {
+  --tl-line: rgba(255, 255, 255, .38);
+  --tl-fill: rgba(12, 20, 30, .34);
+  --tl-knob: rgba(255, 255, 255, .82);
+  --tl-ink: #FFF;
+
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: none;
+  pointer-events: none;      /* the parts opt back in */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tl.is-live { display: block; }
+
+/* ---------- Thumb sticks ---------- */
+.tl-stick {
+  position: absolute;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  width: 116px;
+  height: 116px;
+  pointer-events: auto;
+  touch-action: none;
+}
+.tl-left  { left: calc(1rem + env(safe-area-inset-left, 0px)); }
+.tl-right { right: calc(1rem + env(safe-area-inset-right, 0px)); }
+
+.tl-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tl-fill);
+  border: 2px solid var(--tl-line);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.tl-label {
+  font: inherit;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--tl-ink);
+  opacity: .72;
+  pointer-events: none;
+}
+.tl-knob {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 52px; height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: var(--tl-knob);
+  border: 2px solid rgba(255, 255, 255, .5);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .45);
+  pointer-events: none;
+  transition: transform .06s linear;
+}
+.tl-stick.is-on .tl-base { border-color: var(--tl-ink); }
+.tl-stick.is-on .tl-label { opacity: 0; }
+
+/* ---------- Buttons ----------
+   Stacked above the stick on their own side, so a thumb can reach
+   either without crossing the screen. */
+.tl-stack {
+  position: absolute;
+  bottom: calc(8.6rem + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column-reverse;
+  gap: .5rem;
+  align-items: center;
+  pointer-events: auto;
+}
+.tl-stack-left  { left: calc(1.1rem + env(safe-area-inset-left, 0px)); }
+.tl-stack-right { right: calc(1.1rem + env(safe-area-inset-right, 0px)); }
+
+.tl-btn {
+  /* Auto width with a floor, so a short label is a circle and a long one
+     grows into a pill rather than spilling over the edge of it. */
+  min-width: 62px;
+  height: 62px;
+  border-radius: 31px;
+  padding: 0 .8rem;
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--tl-ink);
+  background: var(--tl-fill);
+  border: 2px solid var(--tl-line);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  touch-action: none;
+  cursor: pointer;
+  transition: transform .07s ease, background .07s ease;
+}
+.tl-btn.is-big { min-width: 84px; height: 84px; border-radius: 42px; font-size: .84rem; }
+.tl-btn.is-on {
+  transform: scale(.93);
+  background: var(--tl-knob);
+  color: #101820;
+  border-color: #FFF;
+}
+
+/* On a short screen in landscape there is no room to stack; shrink
+   rather than overlap the sticks. */
+@media (max-height: 460px) {
+  .tl-stick { width: 96px; height: 96px; }
+  .tl-knob { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+  .tl-stack { bottom: calc(7.2rem + env(safe-area-inset-bottom, 0px)); gap: .4rem; }
+  .tl-btn { min-width: 54px; height: 54px; border-radius: 27px; font-size: .66rem; padding: 0 .6rem; }
+  .tl-btn.is-big { min-width: 70px; height: 70px; border-radius: 35px; }
+}
