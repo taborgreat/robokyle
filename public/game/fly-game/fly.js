@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=35';
-import { buildCraft, CRAFT } from './craft.js?v=35';
-import { createAudio } from './audio.js?v=35';
-import { createEffects } from './effects.js?v=35';
+import { createWorld, ENEMY_GUNS } from './world.js?v=36';
+import { buildCraft, CRAFT } from './craft.js?v=36';
+import { createAudio } from './audio.js?v=36';
+import { createEffects } from './effects.js?v=36';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -597,21 +597,45 @@ const cursor = { x: 0, y: 0, seen: false, down: false, sx: 0, sy: 0 };
 
    The aeroplane is flown by a position rather than a movement: the nose
    goes where the cursor is. So a stick maps straight onto it, and the
-   whole flight model, the crosshair and the gunner's aim come along
-   without changing a line.
+   flight model, the crosshair and the gunner's aim come along without
+   changing a line.
 
-   Held rather than sprung, though. A stick that snaps back to the middle
-   would snap the nose back to level with it, and holding a turn would
-   mean holding a thumb at full deflection for as long as the turn lasts.
-   So the stick moves the aim and the aim stays put, which is the same
-   bargain the mouse gets. */
+   Straight onto it, and nothing cleverer. The first attempt had the
+   stick move the aim at a rate and leave it where it landed, on the
+   theory that a sprung stick would snap the nose back to level and you
+   would have to hold full deflection through a whole turn. That was
+   wrong twice over.
+
+   It was wrong because it stacked two integrators: the stick fed the
+   cursor and the cursor fed the turn rate. Push for half a second and
+   the cursor is pinned at the edge of the frame; let go and the
+   aeroplane is still turning as hard as it can, because the cursor is
+   still out there. Correcting means driving it back past the middle,
+   which overshoots, and from then on you are chasing your own inputs
+   round in circles. That is not a sensitivity problem and no amount of
+   tuning fixes it; a second integrator in a control loop a human is
+   closing by eye is simply not flyable.
+
+   And the premise was wrong anyway: a stick that centres is not a
+   problem, it is what everyone expects. Centre is straight and level,
+   held is turning, and let go is wings level, which is the one thing you
+   want when it has all gone wrong. */
 let touch = null;
 
-function aimFromStick(nx, ny) {
+// Where the stick has the aim, eased. Full deflection is deliberately
+// short of the edge of the frame: the frame edge is the aircraft's
+// hardest possible turn and no thumb needs that on tap.
+const TOUCH_REACH = 0.72;
+const touchAim = { x: 0, y: 0 };
+
+/* Put the aim somewhere, in cursor space: x right, y UP, both -1 to 1,
+   the same frame the mouse reports in. Taking a screen-space y here and
+   flipping it inside is what inverted the pitch axis the first time. */
+function aimAt(cx, cy) {
   const r = canvas.getBoundingClientRect();
   if (!r.width || !r.height) return;
-  cursor.x = Math.max(-1, Math.min(1, nx));
-  cursor.y = Math.max(-1, Math.min(1, -ny));
+  cursor.x = Math.max(-1, Math.min(1, cx));
+  cursor.y = Math.max(-1, Math.min(1, cy));
   cursor.seen = true;
   cursor.sx = (cursor.x * 0.5 + 0.5) * r.width;
   cursor.sy = (1 - (cursor.y * 0.5 + 0.5)) * r.height;
@@ -1234,14 +1258,20 @@ function loop() {
   last = now;
 
   if (touch && touch.isTouch && state.screen === 'fly' && state.flying && !state.paused && !state.dead) {
-    /* The stick nudges the aim rather than setting it, at a rate, so a
-       held deflection keeps turning and letting go holds the turn. Full
-       deflection crosses the frame in about a second and a quarter,
-       which is quick enough to react and slow enough to hold a line. */
+    /* Where the stick is, is where the nose goes. Let go and it centres
+       itself, which is wings level.
+
+       Eased rather than followed exactly, because a thumb on glass is
+       noisy and the crosshair should not shiver. A tenth of a second is
+       enough to settle the noise and short enough that it still feels
+       like it is attached to your thumb; much more than that and the lag
+       starts putting the overshoot back. */
     const s = touch.sticks.aim;
-    if (s.x || s.y) {
-      aimFromStick(cursor.x + s.x * dt * 1.6, -(cursor.y - s.y * dt * 1.6));
-    }
+    const k = Math.min(1, 10 * dt);
+    touchAim.x += (s.x * TOUCH_REACH - touchAim.x) * k;
+    touchAim.y += (s.y * TOUCH_REACH - touchAim.y) * k;
+    // Stick y is screen-down; cursor y is up. Hence the sign.
+    aimAt(touchAim.x, -touchAim.y);
     cursor.down = touch.buttons.fire;
   }
 
@@ -1349,7 +1379,7 @@ if (typeof createTouchLayer === 'function') {
     document.documentElement.classList.add('has-touch');
     // Start the aim in the middle rather than at the top left corner,
     // which is where an unseen cursor sits.
-    aimFromStick(0, 0);
+    aimAt(0, 0);
   }
 }
 
