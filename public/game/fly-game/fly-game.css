@@ -302,7 +302,10 @@ body.fly-body {
 }
 
 .fly-pause {
-    position: absolute; inset: 0;
+    /* Above the thumb pads, which are z-index 6. Without this the pause
+       card draws under them, and in landscape the sticks sit exactly
+       where Keep flying and Menu are, so the menu cannot be closed. */
+    position: absolute; inset: 0; z-index: 30;
     display: grid; place-items: center;
     background: rgba(207,234,247,.78);
     backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);

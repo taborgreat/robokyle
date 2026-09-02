@@ -17,10 +17,10 @@ import * as THREE from 'three';
 // fly.js gets you a fresh fly.js that then imports whatever stale copy of
 // world.js the browser already had, which is worse than not busting the
 // cache at all: the two halves disagree.
-import { createWorld, ENEMY_GUNS } from './world.js?v=36';
-import { buildCraft, CRAFT } from './craft.js?v=36';
-import { createAudio } from './audio.js?v=36';
-import { createEffects } from './effects.js?v=36';
+import { createWorld, ENEMY_GUNS } from './world.js?v=37';
+import { buildCraft, CRAFT } from './craft.js?v=37';
+import { createAudio } from './audio.js?v=37';
+import { createEffects } from './effects.js?v=37';
 
 const frame  = document.getElementById('fly-frame');
 const canvas = document.getElementById('fly-canvas');
@@ -625,7 +625,7 @@ let touch = null;
 // Where the stick has the aim, eased. Full deflection is deliberately
 // short of the edge of the frame: the frame edge is the aircraft's
 // hardest possible turn and no thumb needs that on tap.
-const TOUCH_REACH = 0.72;
+const TOUCH_REACH = 0.44;
 const touchAim = { x: 0, y: 0 };
 
 /* Put the aim somewhere, in cursor space: x right, y UP, both -1 to 1,
@@ -1224,6 +1224,10 @@ function togglePause() {
   if (!state.flying || state.intro) return;
   state.paused = !state.paused;
   pauseEl.hidden = !state.paused;
+  // Pads off while the menu is up. Stacking order alone would do it, but
+  // a trigger you can still press through a pause screen is wrong even
+  // when it is not in the way.
+  if (touch) touch.show(!state.paused);
   // The loop stops calling flight() while paused, and the engine gain would
   // otherwise hold its last value and keep droning behind the menu.
   if (state.paused) audio.idle();
