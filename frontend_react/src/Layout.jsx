@@ -133,6 +133,7 @@ export default function Layout() {
               <a href="/about.html">About</a>
               <a href="/guide.html">Guide</a>
               <a href="/public/game/game.html">Game</a>
+              <a href="/hand.html">Hand</a>
               <a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a>
             </nav>
           </div>

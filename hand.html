@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Hand | Robo Kyle</title>
+    <meta
+      name="description"
+      content="An interactive 3D human arm and hand: every bone, joint, muscle and nerve from the shoulder to the fingertips. Pull the fingers, bend the wrist, turn the forearm, and click anything to learn what it does."
+    />
+    <meta property="og:site_name" content="Robo Kyle" />
+    <meta property="og:title" content="Hand — interactive arm anatomy" />
+    <meta property="og:description" content="Pull on a 3D hand and see the bones, muscles and nerves that move it." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://robokyle.org/hand.html" />
+    <meta property="og:image" content="https://robokyle.org/public/logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Alegreya:wght@600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href="/public/logo.png" />
+    <link rel="stylesheet" href="/public/index.css" />
+    <link rel="stylesheet" href="/public/hand/hand.css" />
+
+    <!-- three.js is vendored under /public/vendor/three; the import map has
+         to come before the module script that uses it. -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "/public/vendor/three/build/three.module.min.js",
+        "three/addons/": "/public/vendor/three/addons/"
+      }
+    }
+    </script>
+  </head>
+  <body class="page-body">
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <!-- BEGIN: site nav (keep identical across all pages) -->
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Main">
+        <a class="site-logo" href="index.html" aria-label="Robo Kyle home">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <span class="logo-word">Robo Kyle</span>
+        </a>
+        <button
+          class="nav-toggle"
+          id="navToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-menu"
+          aria-label="Open menu"
+        >
+          <span class="nav-toggle-bars" aria-hidden="true"
+            ><span></span><span></span><span></span
+          ></span>
+          <span class="nav-toggle-text">Menu</span>
+        </button>
+        <ul id="site-menu" class="nav-links">
+          <li><a href="about.html">About</a></li>
+          <li><a class="nav-strong" href="/works">Works</a></li>
+          <li><a href="/creators">Creators</a></li>
+          <li><a href="/talk">Talk</a></li>
+          <li><a href="/login">Log in</a></li>
+        </ul>
+      </nav>
+    </header>
+    <!-- END: site nav -->
+
+    <main id="main">
+      <header class="hand-hero page-vignette">
+        <span class="doc-mark" aria-hidden="true"></span>
+        <h1>HAND</h1>
+        <p class="lede">
+          A human arm from the shoulder to the fingertips — every bone, joint,
+          muscle and nerve — that you can take hold of. Pull a finger and the
+          tendons slide; bend the elbow and the muscles follow. Click anything
+          to find out what it is and what it does.
+        </p>
+        <ul class="hand-legend" aria-label="Colour key">
+          <li><i class="sw-bone"></i> bone</li>
+          <li><i class="sw-joint"></i> joint</li>
+          <li><i class="sw-muscle"></i> muscle</li>
+          <li><i class="sw-tendon"></i> tendon</li>
+          <li><i class="sw-nerve"></i> nerve</li>
+          <li><i class="sw-skin"></i> skin</li>
+        </ul>
+      </header>
+
+      <!-- ============ THE STAGE ============
+           The canvas fills this box; hand.js sizes it with a ResizeObserver.
+           Panels are absolutely positioned over it and become bottom sheets
+           on phones. -->
+      <section class="hand-stage" id="hand-stage" tabindex="0" aria-label="3D arm and hand">
+        <div class="stage-loading" aria-live="polite"><div><div class="spin"></div>Building the arm…</div></div>
+        <div class="stage-fallback">
+          <p>
+            This page needs WebGL, and the browser did not provide it.<br />
+            If that is unexpected, check the console — a 404 on
+            <code>/public/vendor/three/</code> means the library is not deployed.
+          </p>
+        </div>
+        <div class="hand-tip" id="hand-tip" hidden></div>
+
+        <!-- Left: what to show, and how the hand is posed. -->
+        <aside class="hand-panel panel-left" data-panel="layers" aria-label="Layers and pose">
+          <div class="panel-head"><span>Layers &amp; pose</span><button class="panel-close" type="button" aria-label="Close">×</button></div>
+          <div class="panel-body">
+            <h4>Show</h4>
+            <ul class="layer-list">
+              <li><label><input type="checkbox" data-layer="skin" checked /><i class="sw-skin"></i> Skin</label></li>
+              <li><label><input type="checkbox" data-layer="bones" checked /><i class="sw-bone"></i> Bones</label></li>
+              <li><label><input type="checkbox" data-layer="joints" checked /><i class="sw-joint"></i> Joints</label></li>
+              <li><label><input type="checkbox" data-layer="nerves" checked /><i class="sw-nerve"></i> Nerves</label></li>
+              <li><label><input type="checkbox" data-layer="m:arm" checked /><i class="sw-muscle"></i> Upper-arm muscles</label></li>
+              <li><label><input type="checkbox" data-layer="m:flexors" checked /><i class="sw-muscle"></i> Forearm flexors</label></li>
+              <li><label><input type="checkbox" data-layer="m:extensors" checked /><i class="sw-muscle"></i> Forearm extensors</label></li>
+              <li><label><input type="checkbox" data-layer="m:hand" checked /><i class="sw-muscle"></i> Hand muscles</label></li>
+            </ul>
+            <label class="range-row"><span>Muscle opacity</span><input type="range" id="muscle-opacity" min="0.15" max="1" step="0.05" value="1" /></label>
+            <label class="range-row"><span>Skin opacity</span><input type="range" id="skin-opacity" min="0" max="0.7" step="0.02" value="0.28" /></label>
+            <label class="chk-row"><input type="checkbox" id="chk-isolate" /> Dim everything but the selection</label>
+            <label class="chk-row"><input type="checkbox" id="chk-autorotate" /> Slowly rotate the view</label>
+
+            <h4>Poses</h4>
+            <div class="preset-grid">
+              <button class="hand-btn" type="button" data-preset="open">Open</button>
+              <button class="hand-btn" type="button" data-preset="relaxed">Relaxed</button>
+              <button class="hand-btn" type="button" data-preset="fist">Fist</button>
+              <button class="hand-btn" type="button" data-preset="point">Point</button>
+              <button class="hand-btn" type="button" data-preset="pinch">Pinch</button>
+              <button class="hand-btn" type="button" data-preset="thumbsup">Thumbs up</button>
+              <button class="hand-btn" type="button" data-preset="peace">Peace</button>
+              <button class="hand-btn" type="button" data-preset="ok">OK</button>
+              <button class="hand-btn wide accent" type="button" id="btn-demo" aria-pressed="false">▶ Play them all</button>
+            </div>
+            <div class="btn-row" style="margin-top:.5rem">
+              <button class="hand-btn" type="button" id="btn-reset-pose">Reset pose</button>
+              <button class="hand-btn" type="button" id="btn-home">Frame hand</button>
+              <button class="hand-btn" type="button" id="btn-frame-arm">Frame arm</button>
+            </div>
+
+            <h4>Move</h4>
+            <div id="pose-sliders"></div>
+            <details>
+              <summary>Every joint</summary>
+              <div id="joint-sliders"></div>
+            </details>
+          </div>
+        </aside>
+
+        <!-- Right: what you clicked on, and the full index. -->
+        <aside class="hand-panel panel-right" data-panel="info" aria-label="Information">
+          <div class="panel-head"><span>What is that?</span><span class="btn-row"><button class="hand-btn" type="button" id="btn-clear" style="min-height:28px;padding:.15rem .5rem">Clear</button><button class="panel-close" type="button" aria-label="Close">×</button></span></div>
+          <div class="panel-body">
+            <div id="info-empty" class="info-empty">
+              <p>
+                <b>Drag</b> a finger, the palm, the forearm or the upper arm to move it
+                (<kbd>Shift</kbd>-drag for the other direction). Drag empty space to
+                orbit, scroll to zoom. <b>Click</b> any bone, muscle, nerve or joint
+                and it will be explained here.
+              </p>
+            </div>
+            <div id="info-body" hidden></div>
+            <h4 style="margin-top:1.1rem">Index</h4>
+            <input class="index-search" id="index-search" type="search" placeholder="Search structures…" aria-label="Search structures" />
+            <div id="index-list"></div>
+          </div>
+        </aside>
+
+        <div class="hand-hints" aria-hidden="true">
+          <span><b>drag</b> a part to move it</span>
+          <span><b>shift + drag</b> spread · tilt · turn · roll</span>
+          <span><b>drag space</b> orbit</span>
+          <span><b>scroll</b> zoom</span>
+          <span><b>click</b> to learn</span>
+          <span><b>R</b> reset · <b>1–8</b> poses</span>
+        </div>
+        <div class="hand-mobile-bar">
+          <button class="hand-btn" type="button" data-open-panel="layers" aria-expanded="false">Layers &amp; poses</button>
+          <button class="hand-btn" type="button" data-open-panel="info" aria-expanded="false">What is that?</button>
+        </div>
+      </section>
+
+      <!-- ============ THE DOCUMENT ============ -->
+      <article class="hand-doc">
+        <h2>What you are looking at</h2>
+        <ul class="hand-stats" aria-label="Structures in the model">
+          <li><span class="rs-num" id="count-bones">—</span><span>bones</span></li>
+          <li><span class="rs-num" id="count-joints">—</span><span>joints</span></li>
+          <li><span class="rs-num" id="count-muscles">—</span><span>muscles</span></li>
+          <li><span class="rs-num" id="count-nerves">—</span><span>nerves</span></li>
+        </ul>
+        <p>
+          A right arm at adult proportions, built joint by joint. The bones are
+          the frame: humerus, radius and ulna, the eight carpal bones of the wrist,
+          five metacarpals and fourteen phalanges. Every joint between them has its
+          real range of motion, so the model will not do anything your own hand
+          cannot. Muscles are drawn from where they start to where they pull, red
+          where they are meat and pale where they turn into tendon, and they are
+          rebuilt every time the pose changes so the tendons really do slide over
+          the knuckles. The three nerves that run the hand — median, ulnar and
+          radial — follow their real routes, with the musculocutaneous nerve for
+          the muscles that bend the elbow.
+        </p>
+        <p>
+          It is a teaching model, not a scan: proportions are textbook averages,
+          each muscle is one strand rather than a sheet, and the forearm turns as
+          one piece instead of the radius crossing over the ulna. The point is to
+          see how the parts connect and what each one is for.
+        </p>
+
+        <h2>How to use it</h2>
+        <table class="controls-table">
+          <tbody>
+            <tr><td>Drag a finger</td><td>curls it — the knuckle, middle and tip joints bend together the way they do in life. Shift-drag spreads it sideways.</td></tr>
+            <tr><td>Drag the thumb</td><td>curls it across the palm. Shift-drag swings it out away from the palm.</td></tr>
+            <tr><td>Drag the palm</td><td>flexes and extends the wrist. Shift-drag tilts it toward the thumb or little-finger side.</td></tr>
+            <tr><td>Drag the forearm</td><td>bends the elbow. Shift-drag turns the palm up or down.</td></tr>
+            <tr><td>Drag the upper arm</td><td>aims the shoulder. Shift-drag rolls it.</td></tr>
+            <tr><td>Drag empty space</td><td>orbits the camera; scroll or pinch to zoom; right-drag or two fingers to pan.</td></tr>
+            <tr><td>Click anything</td><td>selects it. The panel on the right explains it and, for bones and joints, gives sliders for the joints that move it.</td></tr>
+            <tr><td>Layers</td><td>switch skin, bones, joints, nerves and each muscle group on and off. “Dim everything but the selection” isolates one structure so you can follow its whole course.</td></tr>
+            <tr><td>Poses</td><td>eight common hand positions, or press play to cycle through them. Keys 1–8 do the same, R resets.</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Why this is here</h2>
+        <p>
+          Robo Kyle is about building the equipment people are missing, and a
+          hand is the most complicated piece of equipment most of us own. Before
+          you can build a hand you have to understand which muscle pulls which
+          tendon over which joint — and that is easier to learn by pulling on one
+          than by reading about it.
+        </p>
+        <div class="story-panel note-panel">
+          <h2 style="border:0;padding:0;margin-top:0">What comes next</h2>
+          <p>
+            This interface is the first half of a longer plan. The second half is
+            sensors: small electrodes on the forearm that read the muscle signals a
+            person makes when they try to move fingers they no longer have, so
+            that trying to curl the index finger curls the index finger on this
+            page. That means EMG testing can happen at home, on a screen, long
+            before anyone has to build a bionic hand to test against.
+          </p>
+          <p style="margin-bottom:0">
+            For now nothing on this page reads any sensor. It runs on its own, as a
+            demonstration of the interface those sensors will one day drive.
+          </p>
+        </div>
+
+        <h2>For builders</h2>
+        <p>
+          The page exposes a small API on <code>window.RoboHand</code> so a signal
+          source can move a joint without touching the 3D code. Angles are in
+          degrees and curl is 0–1:
+        </p>
+<pre><code>RoboHand.joints()                     // every joint and its degrees of freedom
+RoboHand.setJoint('mcp2', 'flex', 45) // index knuckle to 45°
+RoboHand.setCurl('index', 0.7)        // curl the index finger 70% of the way
+RoboHand.setJoint('wrist', 'flex', -30)
+RoboHand.pose('fist')                 // any preset
+RoboHand.onChange(() =&gt; console.log(RoboHand.snapshot()))</code></pre>
+        <p>
+          Joint ids: <code>shoulder</code> (swing, elev, twist), <code>elbow</code>
+          (flex, twist), <code>wrist</code> (flex, dev), <code>cmc1</code> (abd,
+          flex), <code>mcp1</code>, <code>ip1</code>, and for the fingers 2–5
+          <code>mcp2…5</code> (abd, flex), <code>pip2…5</code>, <code>dip2…5</code>.
+          The model itself is plain three.js in
+          <code>/public/hand/hand.js</code>, with every measurement, path and
+          description in <code>/public/hand/anatomy.js</code> — edit that file to
+          correct or extend the anatomy.
+        </p>
+      </article>
+    </main>
+
+    <!-- BEGIN: site footer (keep identical across all pages) -->
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer-row">
+          <a class="site-logo" href="index.html" aria-label="Robo Kyle home">
+            <span class="logo-mark" aria-hidden="true"></span>
+            <span class="logo-word">Robo Kyle</span>
+          </a>
+          <nav class="footer-links" aria-label="Footer">
+            <a href="/works">Works</a>
+            <a href="/talk">Talk</a>
+            <a href="/creators">Creators</a>
+            <a href="about.html">About</a>
+            <a href="guide.html">Guide</a>
+            <a href="/public/game/game.html">Game</a>
+            <a href="hand.html" aria-current="page">Hand</a>
+            <a href="mailto:robokyleorg@gmail.com">robokyleorg@gmail.com</a>
+          </nav>
+        </div>
+        <div class="footer-bottom">
+          <span>&copy; <span id="year">2026</span> Robo Kyle</span>
+          <span>Everything here is free to download and build.</span>
+        </div>
+      </div>
+    </footer>
+    <!-- END: site footer -->
+
+    <script src="/public/site.js"></script>
+    <script type="module" src="/public/hand/hand.js"></script>
+  </body>
+</html>
