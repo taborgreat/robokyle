@@ -12,7 +12,7 @@
       content="An interactive 3D human arm and hand: every bone, joint, muscle and nerve from the shoulder to the fingertips. Pull the fingers, bend the wrist, turn the forearm, and click anything to learn what it does."
     />
     <meta property="og:site_name" content="Robo Kyle" />
-    <meta property="og:title" content="Hand — interactive arm anatomy" />
+    <meta property="og:title" content="Hand: interactive arm anatomy" />
     <meta property="og:description" content="Pull on a 3D hand and see the bones, muscles and nerves that move it." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://robokyle.org/hand.html" />
@@ -39,7 +39,7 @@
     }
     </script>
   </head>
-  <body class="page-body">
+  <body class="page-body hand-page">
     <a class="skip-link" href="#main">Skip to main content</a>
 
     <!-- BEGIN: site nav (keep identical across all pages) -->
@@ -74,58 +74,88 @@
     <!-- END: site nav -->
 
     <main id="main">
+      <!-- A short hero: one screen-height further down, the model starts
+           exactly at the top of the viewport (scroll-snap does the landing). -->
       <header class="hand-hero page-vignette">
-        <span class="doc-mark" aria-hidden="true"></span>
-        <h1>HAND</h1>
-        <p class="lede">
-          A human arm from the shoulder to the fingertips — every bone, joint,
-          muscle and nerve — that you can take hold of. Pull a finger and the
-          tendons slide; bend the elbow and the muscles follow. Click anything
-          to find out what it is and what it does.
-        </p>
-        <ul class="hand-legend" aria-label="Colour key">
-          <li><i class="sw-bone"></i> bone</li>
-          <li><i class="sw-joint"></i> joint</li>
-          <li><i class="sw-muscle"></i> muscle</li>
-          <li><i class="sw-tendon"></i> tendon</li>
-          <li><i class="sw-nerve"></i> nerve</li>
-          <li><i class="sw-skin"></i> skin</li>
-        </ul>
+        <div class="hand-hero-row">
+          <div class="hand-hero-text">
+            <h1>HAND</h1>
+            <p class="lede">
+              A human arm from the shoulder to the fingertips, every bone, joint,
+              muscle and nerve, that you can take hold of. Pull a finger and the
+              tendons slide; bend the elbow and the muscles that do it light up.
+              Click anything to find out what it is.
+            </p>
+          </div>
+          <div class="hand-hero-side">
+            <ul class="hand-legend" aria-label="Colour key">
+              <li><i class="sw-bone"></i> bone</li>
+              <li><i class="sw-joint"></i> joint</li>
+              <li><i class="sw-muscle"></i> muscle</li>
+              <li><i class="sw-tendon"></i> tendon</li>
+              <li><i class="sw-nerve"></i> nerve</li>
+              <li><i class="sw-active"></i> working</li>
+            </ul>
+            <a class="btn btn-primary hand-jump" id="btn-jump" href="#hand-stage">Open the model <span class="arrow">&darr;</span></a>
+          </div>
+        </div>
       </header>
 
       <!-- ============ THE STAGE ============
            The canvas fills this box; hand.js sizes it with a ResizeObserver.
            Panels are absolutely positioned over it and become bottom sheets
-           on phones. -->
+           on phones. Press F or the button for fullscreen. -->
       <section class="hand-stage" id="hand-stage" tabindex="0" aria-label="3D arm and hand">
         <div class="stage-loading" aria-live="polite"><div><div class="spin"></div>Building the arm…</div></div>
         <div class="stage-fallback">
           <p>
             This page needs WebGL, and the browser did not provide it.<br />
-            If that is unexpected, check the console — a 404 on
+            If that is unexpected, check the console: a 404 on
             <code>/public/vendor/three/</code> means the library is not deployed.
           </p>
         </div>
         <div class="hand-tip" id="hand-tip" hidden></div>
 
+        <!-- Top toolbar: views and fullscreen. -->
+        <div class="hand-toolbar" role="toolbar" aria-label="View">
+          <span class="toolbar-group">
+            <button class="hand-btn" type="button" data-view="home" title="Frame the hand">Hand</button>
+            <button class="hand-btn" type="button" data-view="arm" title="Frame the whole arm">Arm</button>
+            <button class="hand-btn" type="button" data-view="palm" title="Look at the palm">Palm</button>
+            <button class="hand-btn" type="button" data-view="back" title="Look at the back of the hand">Back</button>
+            <button class="hand-btn" type="button" data-view="thumb" title="Look from the thumb side">Thumb side</button>
+          </span>
+          <span class="toolbar-group">
+            <button class="hand-btn" type="button" id="btn-fullscreen" aria-pressed="false" title="Fullscreen (F)">⛶ Fullscreen</button>
+          </span>
+        </div>
+
         <!-- Left: what to show, and how the hand is posed. -->
         <aside class="hand-panel panel-left" data-panel="layers" aria-label="Layers and pose">
           <div class="panel-head"><span>Layers &amp; pose</span><button class="panel-close" type="button" aria-label="Close">×</button></div>
           <div class="panel-body">
+            <h4>Quick views</h4>
+            <div class="btn-row">
+              <button class="hand-btn" type="button" data-layerset="all">Everything</button>
+              <button class="hand-btn" type="button" data-layerset="bones">Skeleton</button>
+              <button class="hand-btn" type="button" data-layerset="muscles">Muscles</button>
+              <button class="hand-btn" type="button" data-layerset="nerves">Nerves</button>
+              <button class="hand-btn" type="button" data-layerset="hand">Hand only</button>
+            </div>
             <h4>Show</h4>
             <ul class="layer-list">
               <li><label><input type="checkbox" data-layer="skin" checked /><i class="sw-skin"></i> Skin</label></li>
               <li><label><input type="checkbox" data-layer="bones" checked /><i class="sw-bone"></i> Bones</label></li>
-              <li><label><input type="checkbox" data-layer="joints" checked /><i class="sw-joint"></i> Joints</label></li>
+              <li><label><input type="checkbox" data-layer="joints" checked /><i class="sw-joint"></i> Joint handles</label></li>
               <li><label><input type="checkbox" data-layer="nerves" checked /><i class="sw-nerve"></i> Nerves</label></li>
-              <li><label><input type="checkbox" data-layer="m:arm" checked /><i class="sw-muscle"></i> Upper-arm muscles</label></li>
-              <li><label><input type="checkbox" data-layer="m:flexors" checked /><i class="sw-muscle"></i> Forearm flexors</label></li>
-              <li><label><input type="checkbox" data-layer="m:extensors" checked /><i class="sw-muscle"></i> Forearm extensors</label></li>
-              <li><label><input type="checkbox" data-layer="m:hand" checked /><i class="sw-muscle"></i> Hand muscles</label></li>
+              <li><label><input type="checkbox" data-layer="m:arm" checked /><i class="sw-m-arm"></i> Upper-arm muscles</label></li>
+              <li><label><input type="checkbox" data-layer="m:flexors" checked /><i class="sw-m-flex"></i> Forearm flexors</label></li>
+              <li><label><input type="checkbox" data-layer="m:extensors" checked /><i class="sw-m-ext"></i> Forearm extensors</label></li>
+              <li><label><input type="checkbox" data-layer="m:hand" checked /><i class="sw-m-hand"></i> Hand muscles</label></li>
             </ul>
             <label class="range-row"><span>Muscle opacity</span><input type="range" id="muscle-opacity" min="0.15" max="1" step="0.05" value="1" /></label>
-            <label class="range-row"><span>Skin opacity</span><input type="range" id="skin-opacity" min="0" max="0.7" step="0.02" value="0.28" /></label>
-            <label class="chk-row"><input type="checkbox" id="chk-isolate" /> Dim everything but the selection</label>
+            <label class="range-row"><span>Skin opacity</span><input type="range" id="skin-opacity" min="0" max="0.7" step="0.02" value="0.26" /></label>
+            <label class="chk-row"><input type="checkbox" id="chk-dim" checked /> Dim everything but the selection</label>
             <label class="chk-row"><input type="checkbox" id="chk-autorotate" /> Slowly rotate the view</label>
 
             <h4>Poses</h4>
@@ -139,11 +169,7 @@
               <button class="hand-btn" type="button" data-preset="peace">Peace</button>
               <button class="hand-btn" type="button" data-preset="ok">OK</button>
               <button class="hand-btn wide accent" type="button" id="btn-demo" aria-pressed="false">▶ Play them all</button>
-            </div>
-            <div class="btn-row" style="margin-top:.5rem">
-              <button class="hand-btn" type="button" id="btn-reset-pose">Reset pose</button>
-              <button class="hand-btn" type="button" id="btn-home">Frame hand</button>
-              <button class="hand-btn" type="button" id="btn-frame-arm">Frame arm</button>
+              <button class="hand-btn wide" type="button" id="btn-reset-pose">Reset pose (R)</button>
             </div>
 
             <h4>Move</h4>
@@ -161,10 +187,11 @@
           <div class="panel-body">
             <div id="info-empty" class="info-empty">
               <p>
-                <b>Drag</b> a finger, the palm, the forearm or the upper arm to move it
+                <b>Drag</b> a finger, the palm, the forearm or the upper arm to move it,
+                or grab any glowing <b>joint handle</b> and turn it
                 (<kbd>Shift</kbd>-drag for the other direction). Drag empty space to
-                orbit, scroll to zoom. <b>Click</b> any bone, muscle, nerve or joint
-                and it will be explained here.
+                orbit, scroll to zoom toward the cursor. <b>Click</b> any bone,
+                muscle, nerve or joint and it lights up and is explained here.
               </p>
             </div>
             <div id="info-body" hidden></div>
@@ -174,13 +201,15 @@
           </div>
         </aside>
 
+        <div class="hand-active" id="hand-active" hidden></div>
+
         <div class="hand-hints" aria-hidden="true">
-          <span><b>drag</b> a part to move it</span>
+          <span><b>drag</b> a part or a joint handle to move it</span>
           <span><b>shift + drag</b> spread · tilt · turn · roll</span>
           <span><b>drag space</b> orbit</span>
-          <span><b>scroll</b> zoom</span>
+          <span><b>scroll</b> zoom to cursor</span>
           <span><b>click</b> to learn</span>
-          <span><b>R</b> reset · <b>1–8</b> poses</span>
+          <span><b>R</b> reset · <b>1 to 8</b> poses · <b>F</b> fullscreen</span>
         </div>
         <div class="hand-mobile-bar">
           <button class="hand-btn" type="button" data-open-panel="layers" aria-expanded="false">Layers &amp; poses</button>
@@ -192,22 +221,30 @@
       <article class="hand-doc">
         <h2>What you are looking at</h2>
         <ul class="hand-stats" aria-label="Structures in the model">
-          <li><span class="rs-num" id="count-bones">—</span><span>bones</span></li>
-          <li><span class="rs-num" id="count-joints">—</span><span>joints</span></li>
-          <li><span class="rs-num" id="count-muscles">—</span><span>muscles</span></li>
-          <li><span class="rs-num" id="count-nerves">—</span><span>nerves</span></li>
+          <li><span class="rs-num" id="count-bones">30</span><span>bones</span></li>
+          <li><span class="rs-num" id="count-joints">26</span><span>joints</span></li>
+          <li><span class="rs-num" id="count-muscles">38</span><span>muscles</span></li>
+          <li><span class="rs-num" id="count-nerves">4</span><span>nerves</span></li>
         </ul>
         <p>
           A right arm at adult proportions, built joint by joint. The bones are
           the frame: humerus, radius and ulna, the eight carpal bones of the wrist,
           five metacarpals and fourteen phalanges. Every joint between them has its
           real range of motion, so the model will not do anything your own hand
-          cannot. Muscles are drawn from where they start to where they pull, red
-          where they are meat and pale where they turn into tendon, and they are
-          rebuilt every time the pose changes so the tendons really do slide over
-          the knuckles. The three nerves that run the hand — median, ulnar and
-          radial — follow their real routes, with the musculocutaneous nerve for
+          cannot, and the metacarpals sit on the transverse arch of the palm, which
+          is why flexed fingers converge toward the thumb instead of closing in
+          parallel rows. Muscles are drawn from where they start to where they pull:
+          flattened against the bone where they are meat, pale where they turn into
+          tendon, and rebuilt every time the pose changes so the tendons really do
+          slide over the knuckles. The three nerves that run the hand, median, ulnar
+          and radial, follow their real routes, with the musculocutaneous nerve for
           the muscles that bend the elbow.
+        </p>
+        <p>
+          When anything moves, the muscles that would produce that movement glow
+          orange and are listed along the bottom of the stage, together with the
+          nerves that drive them. Play the poses and watch the flexors hand over
+          to the extensors and back.
         </p>
         <p>
           It is a teaching model, not a scan: proportions are textbook averages,
@@ -219,15 +256,17 @@
         <h2>How to use it</h2>
         <table class="controls-table">
           <tbody>
-            <tr><td>Drag a finger</td><td>curls it — the knuckle, middle and tip joints bend together the way they do in life. Shift-drag spreads it sideways.</td></tr>
+            <tr><td>Drag a finger</td><td>curls it: the knuckle, middle and tip joints bend together the way they do in life. Shift-drag spreads it sideways.</td></tr>
             <tr><td>Drag the thumb</td><td>curls it across the palm. Shift-drag swings it out away from the palm.</td></tr>
             <tr><td>Drag the palm</td><td>flexes and extends the wrist. Shift-drag tilts it toward the thumb or little-finger side.</td></tr>
             <tr><td>Drag the forearm</td><td>bends the elbow. Shift-drag turns the palm up or down.</td></tr>
             <tr><td>Drag the upper arm</td><td>aims the shoulder. Shift-drag rolls it.</td></tr>
-            <tr><td>Drag empty space</td><td>orbits the camera; scroll or pinch to zoom; right-drag or two fingers to pan.</td></tr>
-            <tr><td>Click anything</td><td>selects it. The panel on the right explains it and, for bones and joints, gives sliders for the joints that move it.</td></tr>
-            <tr><td>Layers</td><td>switch skin, bones, joints, nerves and each muscle group on and off. “Dim everything but the selection” isolates one structure so you can follow its whole course.</td></tr>
-            <tr><td>Poses</td><td>eight common hand positions, or press play to cycle through them. Keys 1–8 do the same, R resets.</td></tr>
+            <tr><td>Drag a joint handle</td><td>the glowing spheres and rings at every joint. Up and down for flexion, sideways for the joint’s second movement (spread, tilt, turning). One joint at a time, precisely.</td></tr>
+            <tr><td>Drag empty space</td><td>orbits the camera; the scroll wheel zooms toward whatever is under the cursor; right-drag or two fingers pan.</td></tr>
+            <tr><td>Click anything</td><td>selects it. It lights up, everything else dims so you can see where it sits, and the panel on the right explains it. Muscles link to the nerves that drive them and nerves to the muscles they supply.</td></tr>
+            <tr><td>Views</td><td>Hand, Arm, Palm, Back and Thumb side buttons along the top; Fullscreen (or press F) takes over the whole screen.</td></tr>
+            <tr><td>Layers</td><td>quick views for skeleton, muscles, nerves or hand only, or switch each group on and off. Muscle and skin opacity sliders let you see through to what is underneath.</td></tr>
+            <tr><td>Poses</td><td>eight common hand positions, or press play to cycle through them and watch which muscles work. Keys 1 to 8 do the same, R resets.</td></tr>
           </tbody>
         </table>
 
@@ -236,7 +275,7 @@
           Robo Kyle is about building the equipment people are missing, and a
           hand is the most complicated piece of equipment most of us own. Before
           you can build a hand you have to understand which muscle pulls which
-          tendon over which joint — and that is easier to learn by pulling on one
+          tendon over which joint, and that is easier to learn by pulling on one
           than by reading about it.
         </p>
         <div class="story-panel note-panel">
@@ -259,22 +298,24 @@
         <p>
           The page exposes a small API on <code>window.RoboHand</code> so a signal
           source can move a joint without touching the 3D code. Angles are in
-          degrees and curl is 0–1:
+          degrees and curl is 0 to 1:
         </p>
 <pre><code>RoboHand.joints()                     // every joint and its degrees of freedom
-RoboHand.setJoint('mcp2', 'flex', 45) // index knuckle to 45°
+RoboHand.setJoint('mcp2', 'flex', 45) // index knuckle to 45 degrees
 RoboHand.setCurl('index', 0.7)        // curl the index finger 70% of the way
 RoboHand.setJoint('wrist', 'flex', -30)
 RoboHand.pose('fist')                 // any preset
+RoboHand.activity()                   // which muscles are working, 0 to 1
 RoboHand.onChange(() =&gt; console.log(RoboHand.snapshot()))</code></pre>
         <p>
           Joint ids: <code>shoulder</code> (swing, elev, twist), <code>elbow</code>
           (flex, twist), <code>wrist</code> (flex, dev), <code>cmc1</code> (abd,
-          flex), <code>mcp1</code>, <code>ip1</code>, and for the fingers 2–5
+          flex), <code>mcp1</code>, <code>ip1</code>, and for the fingers 2 to 5
           <code>mcp2…5</code> (abd, flex), <code>pip2…5</code>, <code>dip2…5</code>.
+          Deep links work too: <code>hand.html?pose=fist&amp;view=arm&amp;select=median</code>.
           The model itself is plain three.js in
           <code>/public/hand/hand.js</code>, with every measurement, path and
-          description in <code>/public/hand/anatomy.js</code> — edit that file to
+          description in <code>/public/hand/anatomy.js</code>; edit that file to
           correct or extend the anatomy.
         </p>
       </article>
