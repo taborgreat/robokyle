@@ -29,7 +29,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   FINGERS, THUMB, ARM, CARPALS, BONE_TEXT, JOINT_TEXT,
-  MUSCLES, MUSCLE_GROUPS, NERVES, PRESETS,
+  MUSCLES, MUSCLE_GROUPS, NERVES, LIGAMENTS, PRESETS,
 } from './anatomy.js';
 
 const DEG = Math.PI / 180;
@@ -45,8 +45,10 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const stage = $('#hand-stage');
 const broken = setTimeout(() => stage.classList.add('is-broken'), 6000);
 
+/* No fog: the arm is up to 60 cm long and an orbit can put its far end
+   well past any sensible fog distance, which made bones and nerves fade
+   out and back as the view turned. The dark backdrop does the job. */
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x0a0e15, 120, 220);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 400);
 
@@ -114,6 +116,8 @@ const COL = {
   joint: 0x6fbfcb,
   skin: 0xd9a68c,
   active: 0xff7a2e,
+  ligament: 0xc4d6de,
+  nail: 0xf1d9cc,
 };
 
 function boneMaterial() {
@@ -124,7 +128,11 @@ function muscleMaterial() {
 }
 function nerveMaterial() {
   return new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.45, metalness: 0.0,
-    emissive: 0x8a6a14, emissiveIntensity: 0.4 });
+    emissive: 0x8a6a14, emissiveIntensity: 0.3 });
+}
+function ligamentMaterial() {
+  return new THREE.MeshStandardMaterial({ color: COL.ligament, roughness: 0.7, metalness: 0.0,
+    transparent: true, opacity: 0.78, side: THREE.DoubleSide });
 }
 function jointMaterial(ring = false) {
   return new THREE.MeshStandardMaterial({ color: COL.joint, roughness: 0.3, metalness: 0.1,
@@ -134,7 +142,7 @@ function jointMaterial(ring = false) {
 /* Translucent skin: a fresnel glow with no lighting, so the arm reads as a
    ghost around the working parts rather than hiding them. */
 const skinMaterial = new THREE.ShaderMaterial({
-  uniforms: { color: { value: new THREE.Color(COL.skin) }, opacity: { value: 0.26 } },
+  uniforms: { color: { value: new THREE.Color(COL.skin) }, opacity: { value: 0.16 } },
   vertexShader: `
     varying vec3 vN; varying vec3 vV;
     void main() {
@@ -147,9 +155,9 @@ const skinMaterial = new THREE.ShaderMaterial({
     uniform vec3 color; uniform float opacity;
     varying vec3 vN; varying vec3 vV;
     void main() {
-      float f = pow(1.0 - max(dot(normalize(vN), normalize(vV)), 0.0), 2.6);
-      vec3 c = mix(color * 0.55, color * 1.35 + 0.18, f);
-      gl_FragColor = vec4(c, opacity * (0.28 + 1.1 * f));
+      float f = pow(1.0 - max(dot(normalize(vN), normalize(vV)), 0.0), 3.2);
+      vec3 c = mix(color * 0.5, color * 1.25 + 0.12, f);
+      gl_FragColor = vec4(c, opacity * (0.22 + 1.0 * f));
     }`,
   transparent: true,
   depthWrite: false,
@@ -457,7 +465,7 @@ for (const f of FINGERS) {
   mcp.add(ppMesh);
   addStructure({ id: `pp${f.id}`, kind: 'bone', name: `${f.label}, proximal phalanx`, info: BONE_TEXT.pp, meshes: [ppMesh], drag: { type: 'finger', finger: f.key } });
   addStructure({ id: `j-mcp${f.id}`, kind: 'joint', name: `${JOINT_TEXT.mcp.name} (${f.label.toLowerCase()})`, info: JOINT_TEXT.mcp, joint: `mcp${f.id}`,
-    drag: { type: 'joint', joint: `mcp${f.id}` }, meshes: jointHandle(mcNode, new THREE.Vector3(f.mc, 0, 0), 0.62, 'y') });
+    drag: { type: 'joint', joint: `mcp${f.id}` }, meshes: jointHandle(mcNode, new THREE.Vector3(f.mc, 0, 0), 0.58) });
 
   const pip = new THREE.Object3D(); pip.position.set(f.pp, 0, 0); mcp.add(pip);
   frame(`mp${f.id}`, pip, f.mp);
@@ -509,7 +517,7 @@ const pp1Mesh = boneMesh(longBoneGeometry(THUMB.pp, 0.74, 0.5, 0.6), 0.85);
 mcp1.add(pp1Mesh);
 addStructure({ id: 'pp1', kind: 'bone', name: BONE_TEXT.pp1.name, info: BONE_TEXT.pp1, meshes: [pp1Mesh], drag: { type: 'thumb' } });
 addStructure({ id: 'j-mcp1', kind: 'joint', name: JOINT_TEXT.mcp1.name, info: JOINT_TEXT.mcp1, joint: 'mcp1',
-  drag: { type: 'joint', joint: 'mcp1' }, meshes: jointHandle(cmc1, new THREE.Vector3(THUMB.mc, 0, 0), 0.58, 'y') });
+  drag: { type: 'joint', joint: 'mcp1' }, meshes: jointHandle(cmc1, new THREE.Vector3(THUMB.mc, 0, 0), 0.55) });
 
 const ip1 = new THREE.Object3D(); ip1.position.set(THUMB.pp, 0, 0); mcp1.add(ip1);
 frame('dp1', ip1, THUMB.dp);
@@ -521,6 +529,29 @@ addStructure({ id: 'j-ip1', kind: 'joint', name: JOINT_TEXT.ip1.name, info: JOIN
   drag: { type: 'joint', joint: 'ip1' }, meshes: jointHandle(mcp1, new THREE.Vector3(THUMB.pp, 0, 0), 0.46) });
 
 const THUMB_CHAIN = { cmc: jointsById.get('cmc1'), mcp: jointsById.get('mcp1'), ip: jointsById.get('ip1'), tipNode: ip1 };
+
+/* --- ligaments: the retinacula and the interosseous membrane, as plates --- */
+for (const l of LIGAMENTS) {
+  const f = frames.get(l.frame);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(l.size[0], l.size[1], l.size[2], 1, 1, 1), ligamentMaterial());
+  m.position.set(...l.pos);
+  m.castShadow = false;
+  m.receiveShadow = true;
+  m.userData.layer = 'bones';
+  f.node.add(m);
+  addStructure({ id: l.id, kind: 'ligament', name: l.name, info: { text: l.text, role: l.role }, meshes: [m] });
+}
+
+/* --- fingernails: a small plate on the back of each distal phalanx --- */
+const nailMaterial = new THREE.MeshStandardMaterial({ color: COL.nail, roughness: 0.35, metalness: 0.05, transparent: true, opacity: 0.9 });
+function nail(parent, len, width, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(len * 0.55, width, 0.1), nailMaterial);
+  m.position.set(len * 0.62, 0, z);
+  m.userData.layer = 'skin';
+  parent.add(m);
+}
+for (const f of FINGERS) nail(frames.get(`dp${f.id}`).node, f.dp, (f.id <= 3 ? 1 : f.id === 4 ? 0.95 : 0.87) * 0.8, -0.62);
+nail(ip1, THUMB.dp, 0.95, -0.75);
 
 /* ============================================================ skin */
 
@@ -800,7 +831,7 @@ function holdMap() {
   if (w.get('flex') > 8) { add('fcr', 0.22); add('fcu', 0.22); add('pl', 0.15); }
   if (w.get('flex') < -8) { add('ecrl', 0.22); add('ecrb', 0.22); add('ecu', 0.18); }
   const e = jointsById.get('elbow');
-  if (e.get('flex') > 25) { add('brachialis', 0.24); add('biceps', 0.18); }
+  if (e.get('flex') > 25) { add('brachialis', 0.14); add('biceps', 0.1); }
   if (e.get('twist') > 20) { add('pt', 0.2); add('pq', 0.2); }
   if (e.get('twist') < -20) { add('supinator', 0.2); add('biceps', 0.16); }
   const t = jointsById.get('cmc1');
@@ -888,19 +919,20 @@ function applyLooks(now = performance.now()) {
     const isHov = s === hovered && !isSel;
     const isRel = related.has(s.id);
     let dim = 1;
-    if (dimOthers && selected && !isSel) dim = isRel ? 0.75 : (s.kind === 'bone' ? 0.42 : s.kind === 'joint' ? 0.35 : 0.14);
+    if (dimOthers && selected && !isSel) dim = isRel ? 0.75 : (s.kind === 'bone' || s.kind === 'ligament' ? 0.42 : s.kind === 'joint' ? 0.35 : 0.14);
     if (s.kind === 'muscle' && muscleOpacity < 1) dim *= muscleOpacity;
     const act = s.kind === 'muscle' ? (intensity.get(s.id) || 0) : s.kind === 'nerve' ? (nerveIntensity.get(s.id) || 0) : 0;
+    const translucent = s.kind === 'joint' || s.kind === 'ligament';
     for (const mat of s.mats) {
-      mat.transparent = dim < 1 || s.kind === 'joint';
-      mat.opacity = (s.kind === 'joint' ? mat.userData.baseOpacity ?? (mat.userData.baseOpacity = mat.opacity) : 1) * dim;
-      mat.depthWrite = dim >= 0.5;
+      mat.transparent = dim < 1 || translucent;
+      mat.opacity = (translucent ? mat.userData.baseOpacity ?? (mat.userData.baseOpacity = mat.opacity) : 1) * dim;
+      mat.depthWrite = dim >= 0.5 && s.kind !== 'ligament';
       if (isSel) {
-        _emis.setHex(s.kind === 'bone' ? 0x3fb8c8 : s.kind === 'nerve' ? 0xd9b032 : s.kind === 'joint' ? 0x2fd6e6 : 0xff4a3a);
+        _emis.setHex(s.kind === 'bone' || s.kind === 'ligament' ? 0x3fb8c8 : s.kind === 'nerve' ? 0xd9b032 : s.kind === 'joint' ? 0x2fd6e6 : 0xff4a3a);
         mat.emissive.copy(_emis);
-        mat.emissiveIntensity = (s.kind === 'bone' ? 0.95 : s.kind === 'joint' ? 2.4 : 1.1) * pulse;
+        mat.emissiveIntensity = (s.kind === 'bone' || s.kind === 'ligament' ? 0.95 : s.kind === 'joint' ? 2.4 : 1.1) * pulse;
       } else if (isHov) {
-        _emis.setHex(s.kind === 'bone' ? 0x1e6b7a : s.kind === 'nerve' ? 0xb08a1a : s.kind === 'joint' ? 0x2fd6e6 : 0x8a2a2e);
+        _emis.setHex(s.kind === 'bone' || s.kind === 'ligament' ? 0x1e6b7a : s.kind === 'nerve' ? 0xb08a1a : s.kind === 'joint' ? 0x2fd6e6 : 0x8a2a2e);
         mat.emissive.copy(_emis);
         mat.emissiveIntensity = s.kind === 'joint' ? 1.8 : 0.8;
       } else if (act > 0.02 && (s.kind === 'muscle' || s.kind === 'nerve')) {
@@ -908,7 +940,7 @@ function applyLooks(now = performance.now()) {
         mat.emissiveIntensity = (s.kind === 'nerve' ? 0.4 : 0) + 1.7 * act;
       } else {
         mat.emissive.setHex(s.kind === 'nerve' ? 0x8a6a14 : s.kind === 'joint' ? 0x1f8a99 : 0x000000);
-        mat.emissiveIntensity = s.kind === 'nerve' ? 0.4 : s.kind === 'joint' ? (mat.userData.baseOpacity < 0.7 ? 0.6 : 0.9) : 1;
+        mat.emissiveIntensity = s.kind === 'nerve' ? 0.3 : s.kind === 'joint' ? (mat.userData.baseOpacity < 0.7 ? 0.5 : 0.75) : 1;
       }
     }
   }
@@ -963,16 +995,13 @@ function beginDrag(struct, e) {
   raycaster.setFromCamera(pointer, camera);
   if (d.type === 'finger' || d.type === 'thumb') {
     const key = d.type === 'thumb' ? 'thumb' : d.finger;
-    const t = curlTables[key];
     drag.key = key;
     drag.startCurl = getCurl(key);
-    drag.startAngleCurl = angleCurlAt(t) ?? drag.startCurl;
-  } else if (d.type === 'wrist') {
-    const j = jointsById.get('wrist');
-    drag.offset = j.get('flex') - (hingeAngle(forearmNode, wristNode.position) ?? j.get('flex'));
-  } else if (d.type === 'elbow') {
-    const j = jointsById.get('elbow');
-    drag.offset = j.get('flex') - (hingeAngle(shoulderNode, forearmNode.position) ?? j.get('flex'));
+    drag.startAngleCurl = angleCurlAt(curlTables[key]);   // null when the plane is edge-on
+    drag.lastAngleCurl = drag.startAngleCurl;
+  } else if (d.type === 'wrist' || d.type === 'elbow') {
+    drag.offset = null;                                    // set on the first usable reading
+    drag.lastAngle = null;
   } else if (d.type === 'shoulder') {
     drag.pivot = root.getWorldPosition(new THREE.Vector3());
     drag.normal = camera.getWorldDirection(new THREE.Vector3());
@@ -982,17 +1011,46 @@ function beginDrag(struct, e) {
   }
 }
 
+/* A pull only makes sense when the pointer can be read through the joint's
+   plane. Looking at that plane edge-on, a one-pixel move sweeps the whole
+   range, which is what made fingers snap open and shut; in that case these
+   return null and the drag falls back to a plain relative motion. */
+const EDGE_ON = 0.3;
+function planeFacing(normalWorld) {
+  return Math.abs(normalWorld.dot(raycaster.ray.direction)) >= EDGE_ON;
+}
 function angleCurlAt(t) {
-  if (!planeHit(t.base.localToWorld(tmpV2.set(t.offset, 0, 0)), worldAxis(t.base, 'y'))) return null;
+  const n = worldAxis(t.base, 'y');
+  if (!planeFacing(n)) return null;
+  if (!planeHit(t.base.localToWorld(tmpV2.set(t.offset, 0, 0)), n)) return null;
   t.base.worldToLocal(hitPt);
   return curlFromAngle(t.key, Math.atan2(hitPt.z, hitPt.x - t.offset) / DEG);
 }
 function hingeAngle(parentNode, pivotLocal) {
   const pivotWorld = parentNode.localToWorld(tmpV2.copy(pivotLocal));
-  if (!planeHit(pivotWorld, worldAxis(parentNode, 'y'))) return null;
+  const n = worldAxis(parentNode, 'y');
+  if (!planeFacing(n)) return null;
+  if (!planeHit(pivotWorld, n)) return null;
   parentNode.worldToLocal(hitPt);
   hitPt.sub(pivotLocal);
   return Math.atan2(hitPt.z, hitPt.x) / DEG;
+}
+
+/* Pull a hinge (wrist, elbow) toward the pointer, or slide it when the
+   pointer cannot be read. Jumps larger than a quarter turn between two
+   events are treated as unreadable, and every event moves at most 12°. */
+function pullHinge(j, parentNode, pivotLocal, dy) {
+  const cur = j.get('flex');
+  let a = hingeAngle(parentNode, pivotLocal);
+  if (a != null && drag.lastAngle != null && Math.abs(a - drag.lastAngle) > 90) a = null;
+  if (a == null) {
+    j.set('flex', cur + dy * K);
+    drag.offset = null;
+    return;
+  }
+  if (drag.offset == null) drag.offset = cur - a;
+  drag.lastAngle = a;
+  j.set('flex', cur + clamp(a + drag.offset - cur, -12, 12));
 }
 
 /* Joint handles turn with the pointer: down for flexion, sideways for the
@@ -1027,19 +1085,29 @@ function moveDrag(e) {
       else FINGER[key].mcp.set('abd', FINGER[key].mcp.get('abd') - dy * 0.25);
       return;
     }
-    const a = angleCurlAt(curlTables[key]);
-    if (a == null) return;
-    setCurl(key, clamp(drag.startCurl + (a - drag.startAngleCurl), -0.25, 1));
+    const cur = getCurl(key);
+    let a = angleCurlAt(curlTables[key]);
+    if (a != null && drag.lastAngleCurl != null && Math.abs(a - drag.lastAngleCurl) > 0.45) a = null;
+    if (a == null) {
+      // Plane unreadable: slide the curl with the pointer instead, and
+      // re-anchor so a later readable pull does not jump.
+      setCurl(key, clamp(cur + dy * 0.006, -0.25, 1));
+      drag.startCurl = getCurl(key);
+      drag.startAngleCurl = null;
+      return;
+    }
+    if (drag.startAngleCurl == null) { drag.startAngleCurl = a; drag.startCurl = cur; }
+    drag.lastAngleCurl = a;
+    const want = clamp(drag.startCurl + (a - drag.startAngleCurl), -0.25, 1);
+    setCurl(key, cur + clamp(want - cur, -0.08, 0.08));
   } else if (drag.type === 'wrist') {
     const j = jointsById.get('wrist');
     if (drag.shift) { j.set('dev', j.get('dev') - dy * 0.3); return; }
-    const a = hingeAngle(forearmNode, wristNode.position);
-    if (a != null) j.set('flex', a + drag.offset);
+    pullHinge(j, forearmNode, wristNode.position, dy);
   } else if (drag.type === 'elbow') {
     const j = jointsById.get('elbow');
     if (drag.shift) { j.set('twist', j.get('twist') + dx * 0.5); return; }
-    const a = hingeAngle(shoulderNode, forearmNode.position);
-    if (a != null) j.set('flex', a + drag.offset);
+    pullHinge(j, shoulderNode, forearmNode.position, dy);
   } else if (drag.type === 'shoulder') {
     const j = jointsById.get('shoulder');
     if (drag.shift) { j.set('twist', j.get('twist') + dx * 0.5); return; }
@@ -1100,7 +1168,7 @@ const infoEmpty = $('#info-empty');
 const infoBody = $('#info-body');
 const indexList = $('#index-list');
 const activeStrip = $('#hand-active');
-const KIND_LABEL = { bone: 'Bone', joint: 'Joint', muscle: 'Muscle', nerve: 'Nerve' };
+const KIND_LABEL = { bone: 'Bone', joint: 'Joint', muscle: 'Muscle', nerve: 'Nerve', ligament: 'Ligament' };
 
 function updateHover() {
   if (drag) return;
@@ -1140,6 +1208,8 @@ function renderInfo(s) {
     rows = row('Type', i.type) + row('Movement', i.motion);
   } else if (s.kind === 'bone') {
     rows = row('Articulates with', i.articulates);
+  } else if (s.kind === 'ligament') {
+    rows = row('Role', i.role);
   }
   const group = s.kind === 'muscle' ? ` · ${MUSCLE_GROUPS[s.group].label}` : '';
   const related = [...relatedTo(s)].map(id => structById.get(id)).filter(Boolean);
@@ -1249,6 +1319,7 @@ function buildIndex() {
   const groups = [
     { title: 'Bones', items: structures.filter(s => s.kind === 'bone') },
     { title: 'Joints', items: structures.filter(s => s.kind === 'joint') },
+    { title: 'Ligaments', items: structures.filter(s => s.kind === 'ligament') },
     ...Object.keys(MUSCLE_GROUPS).map(g => ({ title: `Muscles: ${MUSCLE_GROUPS[g].label}`, items: structures.filter(s => s.kind === 'muscle' && s.group === g) })),
     { title: 'Nerves', items: structures.filter(s => s.kind === 'nerve') },
   ];
@@ -1281,6 +1352,58 @@ function buildIndex() {
   $('#count-nerves').textContent = structures.filter(s => s.kind === 'nerve').length;
 }
 
+/* ============================================================ labels
+   Floating names, projected from the 3D model each frame: the big joints
+   and muscles when labels are switched on, and always the selection, so
+   there is never any doubt what lit up. */
+
+const labelHost = $('#hand-labels');
+let showLabels = false;
+let labelsDirty = true;
+const LABEL_IDS = ['j-shoulder', 'j-elbow', 'j-wrist', 'j-cmc1', 'j-mcp2', 'j-mcp5', 'biceps', 'triceps', 'br', 'fds', 'ed', 'fcu', 'apb', 'adm', 'median', 'ulnar', 'radial'];
+const labelEls = new Map();
+const _lp = new THREE.Vector3();
+
+function labelAnchor(s) {
+  box.makeEmpty();
+  for (const m of s.meshes) if (m.visible) box.expandByObject(m);
+  return box.isEmpty() ? null : box.getCenter(_lp);
+}
+
+function updateLabels() {
+  const wanted = new Set();
+  if (showLabels) for (const id of LABEL_IDS) wanted.add(id);
+  if (selected) wanted.add(selected.id);
+  for (const [id, el] of labelEls) if (!wanted.has(id)) { el.remove(); labelEls.delete(id); }
+  if (!wanted.size) return;
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const id of wanted) {
+    const s = structById.get(id);
+    if (!s) continue;
+    let el = labelEls.get(id);
+    if (!el) {
+      el = document.createElement('span');
+      el.className = `hand-label kind-${s.kind}`;
+      el.textContent = s.name.replace(/ \(.*\)$/, '');
+      el.dataset.id = id;
+      labelHost.appendChild(el);
+      labelEls.set(id, el);
+    }
+    el.classList.toggle('is-selected', s === selected);
+    const p = labelAnchor(s);
+    if (!p) { el.hidden = true; continue; }
+    p.project(camera);
+    const behind = p.z > 1;
+    el.hidden = behind;
+    if (behind) continue;
+    el.style.transform = `translate(${((p.x + 1) / 2 * w).toFixed(1)}px, ${((1 - p.y) / 2 * h).toFixed(1)}px)`;
+  }
+}
+labelHost.addEventListener('click', (e) => {
+  const el = e.target.closest('.hand-label');
+  if (el) select(structById.get(el.dataset.id), true);
+});
+
 /* ============================================================ camera */
 
 const box = new THREE.Box3();
@@ -1288,6 +1411,7 @@ let camTween = null;
 function frameStructure(s) {
   box.makeEmpty();
   for (const m of s.meshes) box.expandByObject(m);
+  if (box.isEmpty()) return;
   if (box.isEmpty()) return;
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3()).length();
@@ -1379,7 +1503,26 @@ $$('button[data-layerset]').forEach(b => b.addEventListener('click', () => {
   $$('input[data-layer]').forEach(inp => { inp.checked = layerState[inp.dataset.layer]; });
   applyLayers();
 }));
+/* Peel: one slider that strips the arm down layer by layer, from the
+   full picture to the bare skeleton. Each step hides what sits on top. */
+const PEEL = [
+  { skin: false, nerves: false, 'm:arm': false, 'm:flexors': false, 'm:extensors': false, 'm:hand': false },   // 0 bones and joints
+  { skin: false, nerves: true,  'm:arm': false, 'm:flexors': false, 'm:extensors': false, 'm:hand': false },   // 1 + nerves
+  { skin: false, nerves: true,  'm:arm': false, 'm:flexors': false, 'm:extensors': false, 'm:hand': true },    // 2 + hand muscles
+  { skin: false, nerves: true,  'm:arm': false, 'm:flexors': true,  'm:extensors': false, 'm:hand': true },    // 3 + forearm flexors
+  { skin: false, nerves: true,  'm:arm': true,  'm:flexors': true,  'm:extensors': true,  'm:hand': true },    // 4 + extensors and upper arm
+  { skin: true,  nerves: true,  'm:arm': true,  'm:flexors': true,  'm:extensors': true,  'm:hand': true },    // 5 everything
+];
+const PEEL_NAMES = ['Skeleton', 'Nerves', 'Hand muscles', 'Forearm flexors', 'Every muscle', 'Skin on'];
+$('#peel').addEventListener('input', (e) => {
+  const level = clamp(parseInt(e.target.value, 10), 0, 5);
+  Object.assign(layerState, PEEL[level]);
+  $$('input[data-layer]').forEach(inp => { inp.checked = layerState[inp.dataset.layer]; });
+  $('#peel-out').textContent = PEEL_NAMES[level];
+  applyLayers();
+});
 $('#muscle-opacity').addEventListener('input', (e) => { muscleOpacity = parseFloat(e.target.value); applyLooks(); });
+$('#chk-labels').addEventListener('change', (e) => { showLabels = e.target.checked; labelsDirty = true; });
 $('#skin-opacity').addEventListener('input', (e) => { skinMaterial.uniforms.opacity.value = parseFloat(e.target.value); });
 $('#chk-dim').addEventListener('change', (e) => { dimOthers = e.target.checked; applyLooks(); });
 $('#chk-autorotate').addEventListener('change', (e) => { controls.autoRotate = e.target.checked; });
@@ -1497,6 +1640,7 @@ renderer.setAnimationLoop((now) => {
   if (changed || (selected && now - selectedAt < 3200)) { applyLooks(now); renderActive(); }
   if (pointerMoved) { updateHover(); pointerMoved = false; }
   controls.update();
+  if (showLabels || selected || labelEls.size) updateLabels();
   renderer.render(scene, camera);
 });
 

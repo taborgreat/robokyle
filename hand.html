@@ -94,6 +94,7 @@
               <li><i class="sw-muscle"></i> muscle</li>
               <li><i class="sw-tendon"></i> tendon</li>
               <li><i class="sw-nerve"></i> nerve</li>
+              <li><i class="sw-ligament"></i> ligament</li>
               <li><i class="sw-active"></i> working</li>
             </ul>
             <a class="btn btn-primary hand-jump" id="btn-jump" href="#hand-stage">Open the model <span class="arrow">&darr;</span></a>
@@ -115,6 +116,7 @@
           </p>
         </div>
         <div class="hand-tip" id="hand-tip" hidden></div>
+        <div class="hand-labels" id="hand-labels" aria-hidden="true"></div>
 
         <!-- Top toolbar: views and fullscreen. -->
         <div class="hand-toolbar" role="toolbar" aria-label="View">
@@ -142,6 +144,8 @@
               <button class="hand-btn" type="button" data-layerset="nerves">Nerves</button>
               <button class="hand-btn" type="button" data-layerset="hand">Hand only</button>
             </div>
+            <h4>Peel</h4>
+            <label class="range-row peel-row"><span>Strip it down</span><output id="peel-out">Skin on</output><input type="range" id="peel" min="0" max="5" step="1" value="5" aria-label="Peel layers" /></label>
             <h4>Show</h4>
             <ul class="layer-list">
               <li><label><input type="checkbox" data-layer="skin" checked /><i class="sw-skin"></i> Skin</label></li>
@@ -154,8 +158,9 @@
               <li><label><input type="checkbox" data-layer="m:hand" checked /><i class="sw-m-hand"></i> Hand muscles</label></li>
             </ul>
             <label class="range-row"><span>Muscle opacity</span><input type="range" id="muscle-opacity" min="0.15" max="1" step="0.05" value="1" /></label>
-            <label class="range-row"><span>Skin opacity</span><input type="range" id="skin-opacity" min="0" max="0.7" step="0.02" value="0.26" /></label>
+            <label class="range-row"><span>Skin opacity</span><input type="range" id="skin-opacity" min="0" max="0.7" step="0.02" value="0.16" /></label>
             <label class="chk-row"><input type="checkbox" id="chk-dim" checked /> Dim everything but the selection</label>
+            <label class="chk-row"><input type="checkbox" id="chk-labels" /> Label the main parts</label>
             <label class="chk-row"><input type="checkbox" id="chk-autorotate" /> Slowly rotate the view</label>
 
             <h4>Poses</h4>
@@ -238,7 +243,9 @@
           tendon, and rebuilt every time the pose changes so the tendons really do
           slide over the knuckles. The three nerves that run the hand, median, ulnar
           and radial, follow their real routes, with the musculocutaneous nerve for
-          the muscles that bend the elbow.
+          the muscles that bend the elbow. The flexor and extensor retinacula strap
+          the tendons down at the wrist, the interosseous membrane ties the two
+          forearm bones together, and each fingertip carries its nail.
         </p>
         <p>
           When anything moves, the muscles that would produce that movement glow
@@ -265,7 +272,8 @@
             <tr><td>Drag empty space</td><td>orbits the camera; the scroll wheel zooms toward whatever is under the cursor; right-drag or two fingers pan.</td></tr>
             <tr><td>Click anything</td><td>selects it. It lights up, everything else dims so you can see where it sits, and the panel on the right explains it. Muscles link to the nerves that drive them and nerves to the muscles they supply.</td></tr>
             <tr><td>Views</td><td>Hand, Arm, Palm, Back and Thumb side buttons along the top; Fullscreen (or press F) takes over the whole screen.</td></tr>
-            <tr><td>Layers</td><td>quick views for skeleton, muscles, nerves or hand only, or switch each group on and off. Muscle and skin opacity sliders let you see through to what is underneath.</td></tr>
+            <tr><td>Peel</td><td>one slider that strips the arm down a layer at a time: skin off, then the upper arm and extensors, the forearm flexors, the hand muscles, the nerves, until only the skeleton and joints are left. The best way to see one layer without the rest in the way.</td></tr>
+            <tr><td>Layers</td><td>quick views for skeleton, muscles, nerves or hand only, or switch each group on and off. Muscle and skin opacity sliders let you see through to what is underneath. "Label the main parts" pins names to the big joints, muscles and nerves.</td></tr>
             <tr><td>Poses</td><td>eight common hand positions, or press play to cycle through them and watch which muscles work. Keys 1 to 8 do the same, R resets.</td></tr>
           </tbody>
         </table>

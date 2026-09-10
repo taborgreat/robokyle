@@ -50,6 +50,30 @@ html { scroll-snap-type: y proximity; scroll-behavior: smooth; }
 .sw-joint  { background: #6fbfcb; }
 .sw-skin   { background: #d9a68c; }
 .sw-active { background: #ff7a2e; box-shadow: 0 0 6px #ff7a2e !important; }
+.sw-ligament { background: #c4d6de; }
+.info-kind.kind-ligament { background: #c4d6de; }
+
+/* Peel slider: the label sits above a full-width track. */
+.peel-row { grid-template-columns: 1fr auto; }
+.peel-row input { grid-column: 1 / -1; }
+.peel-row output { color: var(--p-gold); font-weight: 700; font-size: .8rem; }
+
+/* Floating labels projected from the model. */
+.hand-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.hand-label {
+    position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer;
+    padding: .18rem .5rem; margin: -.9em 0 0 .6em; white-space: nowrap;
+    background: rgba(10, 13, 19, .82); color: var(--p-ink);
+    border: 1px solid var(--p-line); border-left-width: 3px; border-radius: 2px;
+    font-size: .72rem; font-weight: 600; letter-spacing: .02em;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.hand-label::before { content: ""; position: absolute; left: -.6em; top: 50%; width: .5em; height: 1px; background: var(--p-line); }
+.hand-label.kind-joint { border-left-color: #6fbfcb; }
+.hand-label.kind-muscle { border-left-color: #d15461; }
+.hand-label.kind-nerve { border-left-color: #f6dc66; }
+.hand-label.kind-bone, .hand-label.kind-ligament { border-left-color: #efe6d0; }
+.hand-label.is-selected { background: rgba(20, 26, 36, .95); color: var(--p-gold); border-color: var(--p-gold); font-size: .8rem; z-index: 1; }
 .hand-jump { white-space: nowrap; }
 @media (max-width: 860px) {
     .hand-hero-row { flex-direction: column; align-items: flex-start; gap: 1rem; }

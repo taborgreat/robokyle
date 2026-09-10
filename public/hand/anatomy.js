@@ -109,7 +109,7 @@ export const JOINT_TEXT = {
    the nerve structures that supply the muscle, so they light up together. */
 
 const fingerFrames = { 2: 'index', 3: 'middle', 4: 'ring', 5: 'little' };
-const tendonY = { 2: 0.95, 3: 0.32, 4: -0.32, 5: -0.95 };
+const tendonY = { 2: 1.2, 3: 0.4, 4: -0.4, 5: -1.2 };
 
 function flexorTendons(fromX, z, endBone, endZ, endX) {
   return [2, 3, 4, 5].map(i => ({
@@ -424,6 +424,21 @@ export const NERVES = [
     motor: 'Biceps brachii, brachialis and coracobrachialis: the front of the upper arm.',
     sensory: 'The outer (thumb-side) surface of the forearm.',
     text: 'The elbow flexor nerve. Small next to the other three, but without it the arm cannot bend at the elbow with any force, nor turn the palm up against resistance.' },
+];
+
+/* ------------------------------------------------------------ ligaments
+   Flat sheets and bands, drawn as thin plates in a bone's frame:
+   centre (x, y, z), size (along the bone, across it, thickness). */
+export const LIGAMENTS = [
+  { id: 'flexret', name: 'Flexor retinaculum (transverse carpal ligament)', frame: 'wrist', pos: [2.1, 0.1, 1.25], size: [1.7, 3.6, 0.22], tilt: 0,
+    text: 'A tough band of fibrous tissue stretched across the front of the carpus, from the scaphoid and trapezium on one side to the pisiform and hook of the hamate on the other. Together with the carpal bones it forms a tunnel, the carpal tunnel, through which nine flexor tendons and the median nerve pass into the hand. The thenar and hypothenar muscles take origin from its surface.',
+    role: 'Roofs the carpal tunnel; holds the flexor tendons against the wrist so they do not bowstring when the wrist bends.' },
+  { id: 'extret', name: 'Extensor retinaculum', frame: 'forearm', pos: [24.0, 0.1, -1.6], size: [1.9, 5.0, 0.2], tilt: 0,
+    text: 'A strap of thickened fascia across the back of the wrist, divided underneath into six compartments, each carrying one group of extensor tendons in its own synovial sheath. The first compartment (abductor pollicis longus and extensor pollicis brevis) is the one inflamed in de Quervain’s tenosynovitis.',
+    role: 'Holds the extensor tendons down against the radius and ulna when the wrist extends.' },
+  { id: 'iom', name: 'Interosseous membrane', frame: 'forearm', pos: [12.5, 0.15, 0.05], size: [19.5, 2.4, 0.08], tilt: 0,
+    text: 'A sheet of fibrous tissue filling the gap between the shafts of the radius and ulna. Its fibres run obliquely downward from radius to ulna, so load taken by the hand through the radius is transferred to the ulna and up to the humerus. Several deep forearm muscles take origin from it.',
+    role: 'Binds the two forearm bones together, transfers load between them, and gives the deep muscles a broad origin.' },
 ];
 
 /* ------------------------------------------------------------ presets
