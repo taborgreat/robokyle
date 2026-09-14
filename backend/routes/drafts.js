@@ -9,8 +9,8 @@ const WorkDraft = require('../models/WorkDraft');
 const User = require('../models/User');
 const { requireAuth, requireVerified } = require('../middleware/auth');
 const { parseRequires } = require('../lib/requires');
-const { ALLOWED_EXT, kindFor } = require('../lib/files');
-const { UPLOAD_DIR, IS_HASH, ingest } = require('../lib/storage');
+const { ALLOWED_EXT, kindFor, inlineMimeFor } = require('../lib/files');
+const { UPLOAD_DIR, IS_HASH, ingest, blobPath } = require('../lib/storage');
 const xp = require('../lib/xp');
 const ports = require('../lib/ports');
 const { sanitizeLinks } = require('../lib/links');
@@ -150,7 +150,11 @@ router.get('/:id', async (req, res, next) => {
    the backstop. */
 const cleanFileRefs = (list, max = 20) => (Array.isArray(list) ? list : [])
   .filter(f => f && IS_HASH.test(String(f.storedName)))
-  .slice(0, max);
+  .slice(0, max)
+  // The note under a picture is the one field the author types straight
+  // onto a file ref; bound it here so a long paste autosaves as a trim
+  // instead of failing the whole save.
+  .map(f => ({ ...f, caption: String(f.caption || '').slice(0, 200) }));
 
 // PUT /api/drafts/:id — the autosave. Partial: only sent fields change.
 router.put('/:id', async (req, res, next) => {
@@ -211,6 +215,29 @@ router.post('/:id/files', (req, res, next) => {
       out.push({ originalName: f.originalname, storedName, mimeType: f.mimetype, size: f.size, kind: kindFor(f.originalname) });
     }
     res.status(201).json({ files: out });
+  } catch (err) { next(err); }
+});
+
+/* GET /api/drafts/:id/files/:storedName/view — the wizard's own preview of
+   a picture it uploaded. Drafts are private, so unlike the work's view route
+   this sits behind the router's auth and only serves a blob the draft itself
+   references (overview or a step), never an arbitrary hash. Raster images
+   only, same as the public one. */
+router.get('/:id/files/:storedName/view', async (req, res, next) => {
+  try {
+    const draft = await myDraft(req, res);
+    if (!draft) return;
+    const { storedName } = req.params;
+    if (!IS_HASH.test(storedName)) return res.status(400).json({ error: 'Invalid stored file name' });
+    const all = [...draft.files, ...draft.steps.flatMap(st => st.attachments || [])];
+    const file = all.find(f => f.storedName === storedName);
+    if (!file) return res.status(404).json({ error: 'File not found' });
+    const mime = inlineMimeFor(file.originalName);
+    if (!mime) return res.status(415).json({ error: 'This file type cannot be previewed' });
+    res.type(mime);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.sendFile(blobPath(storedName));
   } catch (err) { next(err); }
 });
 

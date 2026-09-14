@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { api, fileUrl, getConfig } from '../lib/api.js';
+import { api, apiBlobUrl, fileUrl, getConfig } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import NeedTagPicker from '../NeedTagPicker.jsx';
 import RequiresEditor from '../RequiresEditor.jsx';
@@ -69,6 +69,7 @@ export default function WorkWizard() {
           d = resumable ? await api(`/drafts/${resumable.id}`) : await api('/drafts', { method: 'POST', body: {} });
         }
         draftId.current = d.id;
+        draftRef.current = d;
         if (!d.steps.length) d.steps = [blankStep()];
         // Drafts written before the standard-toggle fix can carry a phantom
         // 'standard' type with no definition; load them as the plain works
@@ -86,7 +87,9 @@ export default function WorkWizard() {
   }, [ready, user, editWorkId]);
 
   /* The autosave: any change schedules a debounced PUT of the whole draft. */
+  const draftRef = useRef(null);
   const scheduleSave = useCallback((next) => {
+    draftRef.current = next;
     setDraft(next);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -104,7 +107,13 @@ export default function WorkWizard() {
       finally { setSaving(false); }
     }, 800);
   }, []);
-  const patch = (fields) => scheduleSave({ ...draft, ...fields });
+  /* patch({...}) merges into the draft; patch(d => ({...})) reads the latest
+     draft first, which is what an upload finishing seconds later needs so it
+     does not overwrite a note typed in the meantime. */
+  const patch = (fields) => {
+    const cur = draftRef.current || draft;
+    scheduleSave({ ...cur, ...(typeof fields === 'function' ? fields(cur) : fields) });
+  };
 
   async function uploadFiles(fileList, place) {
     const fd = new FormData();
@@ -127,6 +136,7 @@ export default function WorkWizard() {
       draftId.current = fresh.id;
       fresh.steps = [blankStep()];
       fresh.stage = 1;
+      draftRef.current = fresh;
       setDraft(fresh);
     } catch (err) { setError(err.message); }
   }
@@ -248,7 +258,7 @@ export default function WorkWizard() {
               </div>
               {canUpload
                 ? <input type="file" multiple accept="image/*"
-                         onChange={e => { uploadFiles(e.target.files, fs => patch({ files: [...draft.files, ...fs] })); e.target.value = ''; }} />
+                         onChange={e => { uploadFiles(e.target.files, fs => patch(d => ({ files: [...d.files, ...fs] }))); e.target.value = ''; }} />
                 : <small>Uploads are admin only for now. Link your images and files in the External links panel on the next page.</small>}
             </div>
           </div>
@@ -318,18 +328,9 @@ export default function WorkWizard() {
                   <div className="field"><label htmlFor={`sb${i}`}>Instructions</label>
                     <textarea id={`sb${i}`} style={{ minHeight: '4rem' }} value={st.body}
                               onChange={e => patch({ steps: draft.steps.map((x, j) => j === i ? { ...x, body: e.target.value } : x) })} /></div>
-                  <div className="wizard-files">
-                    {(st.attachments || []).map((f, k) => (
-                      <span key={f.storedName + k} className="wizard-file">{f.originalName}
-                        <button type="button" aria-label={`Remove ${f.originalName}`}
-                                onClick={() => patch({ steps: draft.steps.map((x, j) => j === i ? { ...x, attachments: x.attachments.filter((_, m) => m !== k) } : x) })}>×</button>
-                      </span>
-                    ))}
-                  </div>
-{canUpload && (
-                                    <input type="file" multiple
-                         onChange={e => { uploadFiles(e.target.files, fs => patch({ steps: draft.steps.map((x, j) => j === i ? { ...x, attachments: [...x.attachments, ...fs] } : x) })); e.target.value = ''; }} />
-                  )}
+                  <StepAttachments draftId={draftId.current} stepIndex={i} files={st.attachments || []} canUpload={canUpload}
+                                   onChange={attachments => patch(d => ({ steps: d.steps.map((x, j) => j === i ? { ...x, attachments } : x) }))}
+                                   onUpload={list => uploadFiles(list, fs => patch(d => ({ steps: d.steps.map((x, j) => j === i ? { ...x, attachments: [...(x.attachments || []), ...fs] } : x) })))} />
                   <StepLinks links={st.links || []}
                              onChange={links => patch({ steps: draft.steps.map((x, j) => j === i ? { ...x, links } : x) })} />
                   {(draft.requires?.equipment || []).length > 0 && (
@@ -584,6 +585,71 @@ function StepLinks({ links, onChange }) {
       )}
     </div>
   );
+}
+
+/* The files on one step. Pictures show as thumbnails, each with its own
+   note, which becomes the caption under that picture in the finished guide;
+   other files (an STL, a PDF) list by name and take a note the same way.
+   Order here is the order on the page. */
+function StepAttachments({ draftId, stepIndex, files, canUpload, onChange, onUpload }) {
+  const update = (k, fields) => onChange(files.map((f, m) => (m === k ? { ...f, ...fields } : f)));
+  const move = (k, dir) => { const s = [...files]; [s[k], s[k + dir]] = [s[k + dir], s[k]]; onChange(s); };
+  const noteId = (k) => `sa${stepIndex}-${k}`;
+  return (
+    <div className="step-attach">
+      {files.length > 0 && (
+        <ul className="step-attach-list">
+          {files.map((f, k) => (
+            <li key={f.storedName + k} className="step-attach-item">
+              {f.kind === 'image'
+                ? <DraftImage draftId={draftId} file={f} />
+                : <span className="step-attach-file" title={f.originalName}>{f.originalName}</span>}
+              <div className="step-attach-body">
+                <label htmlFor={noteId(k)} className="step-attach-name" title={f.originalName}>
+                  {f.kind === 'image' ? 'Note under this picture' : 'Note on this file'}
+                  <small className="stat"> · {f.originalName}</small>
+                </label>
+                <input id={noteId(k)} maxLength={200}
+                       placeholder={f.kind === 'image' ? 'What this picture shows, or what to watch for' : 'What this file is for'}
+                       value={f.caption || ''} onChange={e => update(k, { caption: e.target.value })} />
+                <span className="step-attach-tools">
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={k === 0} aria-label="Move up" onClick={() => move(k, -1)}>↑</button>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={k === files.length - 1} aria-label="Move down" onClick={() => move(k, 1)}>↓</button>
+                  <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${f.originalName}`}
+                          onClick={() => onChange(files.filter((_, m) => m !== k))}>Remove</button>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {canUpload && (
+        <div className="field">
+          <label htmlFor={`saf${stepIndex}`}>Add pictures or files to this step</label>
+          <small>Several at once is fine. Each picture gets its own note once it is here.</small>
+          <input id={`saf${stepIndex}`} type="file" multiple
+                 onChange={e => { onUpload(e.target.files); e.target.value = ''; }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* A draft's picture, fetched with the caller's token (the draft is private,
+   so a bare <img src> cannot load it). */
+function DraftImage({ draftId, file }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setSrc(null); setFailed(false);
+    apiBlobUrl(`/drafts/${draftId}/files/${file.storedName}/view`)
+      .then(u => { if (live) setSrc(u); })
+      .catch(() => { if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [draftId, file.storedName]);
+  if (!src) return <span className="step-attach-thumb step-attach-thumb-empty">{failed ? 'no preview' : '…'}</span>;
+  return <img className="step-attach-thumb" src={src} alt={file.caption || file.originalName} />;
 }
 
 /* A step that IS another work. */

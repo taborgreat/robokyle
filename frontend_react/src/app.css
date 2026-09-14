@@ -430,6 +430,24 @@ select:focus { outline: 2px solid var(--rs-gold); outline-offset: 0; border-colo
 .ref-step-card h3 { margin: 0 0 .2rem; }
 .step-files { list-style: none; margin: .4rem 0 0; padding: 0; font-size: .92rem; }
 .step-files li { padding: .2rem 0; }
+.step-figure { margin: 0; }
+.step-figure figcaption { color: var(--ink-mute); font-size: .9rem; margin-top: .35rem; }
+/* Per-step attachments in the wizard: a thumbnail (or file name) beside its note. */
+.step-attach { margin-top: .6rem; }
+.step-attach-list { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .5rem; }
+.step-attach-item { display: flex; gap: .7rem; align-items: flex-start; padding: .5rem;
+  background: var(--bg-sunk); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.step-attach-thumb { width: 104px; height: 78px; flex: 0 0 auto; object-fit: cover;
+  border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-elev); }
+.step-attach-thumb-empty { display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; color: var(--ink-mute); }
+.step-attach-file { flex: 0 0 104px; font-size: .85rem; word-break: break-all; padding-top: .3rem; }
+.step-attach-body { flex: 1; min-width: 0; display: grid; gap: .3rem; }
+.step-attach-name { font-size: .85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step-attach-name .stat { font-weight: 400; }
+.step-attach-body input { width: 100%; box-sizing: border-box; padding: .4rem .6rem; font: inherit;
+  color: var(--ink); background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.step-attach-tools { display: flex; gap: .3rem; flex-wrap: wrap; }
+@media (max-width: 480px) { .step-attach-item { flex-wrap: wrap; } .step-attach-file { flex-basis: 100%; } }
 .preview-steps { margin: .5rem 0 0; padding-left: 1.2rem; }
 .preview-steps li { margin-bottom: .35rem; }
 

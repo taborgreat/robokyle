@@ -396,16 +396,19 @@ export default function DesignView() {
                         {st.body && <p className="desc">{st.body}</p>}
                         {st.needs?.length > 0 && <p className="stat">You will need: {st.needs.join(', ')}</p>}
                         {st.attachments.filter(f => f.viewUrl).map(f => (
-                          <a key={f._id} href={fileUrl(f.viewUrl)} target="_blank" rel="noreferrer">
-                            <img className="step-photo" src={fileUrl(f.viewUrl)} alt={f.caption || st.title || `Step ${i + 1}`} />
-                          </a>
+                          <figure key={f._id} className="step-figure">
+                            <a href={fileUrl(f.viewUrl)} target="_blank" rel="noreferrer">
+                              <img className="step-photo" src={fileUrl(f.viewUrl)} alt={f.caption || st.title || `Step ${i + 1}`} />
+                            </a>
+                            {f.caption && <figcaption>{f.caption}</figcaption>}
+                          </figure>
                         ))}
                         {st.attachments.filter(f => !f.viewUrl).length > 0 && (
                           <ul className="step-files">
                             {st.attachments.filter(f => !f.viewUrl).map(f => (
                               <li key={f._id}>
                                 <a href={fileUrl(f.url)}>{f.originalName}</a>
-                                <span className="stat"> {fmtSize(f.size)}</span>
+                                <span className="stat"> {fmtSize(f.size)}{f.caption ? ` · ${f.caption}` : ''}</span>
                               </li>
                             ))}
                           </ul>

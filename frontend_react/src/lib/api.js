@@ -19,6 +19,23 @@ export const setToken = (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : 
 
 export function fileUrl(path) { return BASE + path; }
 
+/* A private file (a draft's own upload) as an object URL: an <img src> cannot
+   carry the bearer token, so the bytes are fetched with it and handed back as
+   a blob URL. Cached per path so the wizard's re-renders never refetch. */
+const blobUrls = new Map();
+export async function apiBlobUrl(path) {
+  if (blobUrls.has(path)) return blobUrls.get(path);
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const p = fetch(BASE + '/api' + path, { headers }).then(async res => {
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    return URL.createObjectURL(await res.blob());
+  }).catch(err => { blobUrls.delete(path); throw err; });
+  blobUrls.set(path, p);
+  return p;
+}
+
 /* The adaptive avatar: the ring IS the stat sheet, rendered server-side and
    cached hard. One URL per member; the bytes change only when a level does. */
 export const avatarUrl = (username, size) => `${BASE}/api/users/${encodeURIComponent(username)}/avatar.svg${size ? `?s=${size}` : ''}`;

@@ -161,13 +161,18 @@ export default function TalkPostView() {
     } catch (err) { setError(err.message); }
   }
 
-  function CommentNode({ c, depth }) {
+  /* A plain render function, not a component: a component declared inside
+     this one would be a new type on every keystroke in the composer, so
+     React would remount the whole tree and the reply box with it. That
+     remount refocused the textarea with the caret at the start, and text
+     came out backwards. */
+  function renderComment(c, depth) {
     const kids = c.children || [];
     const replies = kids.length > 0 && (
-      <div className="talk-replies">{kids.map(k => <CommentNode key={k._id} c={k} depth={depth + 1} />)}</div>
+      <div className="talk-replies">{kids.map(k => renderComment(k, depth + 1))}</div>
     );
     return (
-      <div className={'comment talk-comment' + (c.accepted ? ' is-accepted' : '')} id={`c-${c._id}`}>
+      <div key={c._id} className={'comment talk-comment' + (c.accepted ? ' is-accepted' : '')} id={`c-${c._id}`}>
         {c.forkedTo ? (
           <p className="stat">↪ This tangent continued as <Link to={`/talk/${c.forkedTo}`}>its own post</Link>.</p>
         ) : c.deleted ? (
@@ -311,7 +316,7 @@ export default function TalkPostView() {
       <div className="panel talk-thread">
         <h2>{p.type === 'question' ? 'Answers' : 'Comments'} ({p.comments.length})</h2>
         {tree.length === 0 && <p className="stat">{p.type === 'question' ? 'No answers yet.' : 'Nothing yet.'}</p>}
-        {tree.map(c => <CommentNode key={c._id} c={c} depth={0} />)}
+        {tree.map(c => renderComment(c, 0))}
       </div>
     </div>
   );
