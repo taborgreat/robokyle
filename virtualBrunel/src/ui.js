@@ -8,6 +8,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const THREE_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.resolve('three'))));
 
 const HISTORY_SIZE = 200;
+const PING_MS = 25_000;
 const MIME = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -32,12 +33,25 @@ export function createUi(hand) {
     broadcast('request', entry);
   }
 
+  // X-Accel-Buffering tells a proxy (nginx) to pass events through as they happen
+  // instead of batching them, which otherwise shows up as the hand moving late.
+  // The comment ping keeps idle streams alive through proxy read timeouts.
   function openStream(req, res) {
-    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders?.();
     write(res, 'history', history);
     write(res, 'state', hand.snapshot());
     clients.add(res);
-    req.on('close', () => clients.delete(res));
+    const ping = setInterval(() => res.write(': ping\n\n'), PING_MS);
+    req.on('close', () => {
+      clearInterval(ping);
+      clients.delete(res);
+    });
   }
 
   function sendFile(res, dir, relative) {

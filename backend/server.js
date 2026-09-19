@@ -101,6 +101,11 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
    so nothing under backend/ or Factum/ is reachable through here.
    Set SERVE_SITE=false to run the API on its own (GitHub Pages serves the site
    in production).                                                            */
+/* The server's own front door: what api.robokyle.org shows at /. A plain page
+   linking the things that live here (the virtual hand, Factum when it lands).
+   The GitHub Pages site is still reachable through /index.html and friends. */
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'home', 'index.html')));
+
 if (process.env.SERVE_SITE !== 'false') {
   const SITE_ROOT = path.join(__dirname, '..');
   const APP_SHELL = path.join(SITE_ROOT, 'app.html');
