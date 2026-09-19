@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Virtual Brunel Hand</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="ui/css/style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./ui/three/build/three.module.js",
+          "three/addons/": "./ui/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header id="hud"></header>
+    <canvas id="scene"></canvas>
+    <main id="panels">
+      <aside id="left">
+        <div id="joints"></div>
+        <section id="emg"></section>
+        <section id="console"></section>
+      </aside>
+      <aside id="log"></aside>
+    </main>
+    <script type="module" src="ui/js/main.js"></script>
+  </body>
+</html>

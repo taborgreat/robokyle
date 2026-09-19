@@ -15,6 +15,14 @@ npm run dev               # or: npm start
 Requires a local `mongod` (defaults to `mongodb://127.0.0.1:27017/robokyle`).
 Uploaded files live in `server/uploads/` (git-ignored).
 
+## Virtual Brunel hand
+
+The Open Bionics hand simulator in `../virtualBrunel` is mounted at `/brunel`:
+the 3D viewer at `/brunel/`, its HTTP API underneath (`POST /brunel/gesture/execute`,
+`GET /brunel/status/health`, ...). It has its own dependency, so run
+`npm install` in `virtualBrunel/` once; until then `/brunel` answers 503 and the
+rest of the API is unaffected. Saved gestures land in `virtualBrunel/data/`.
+
 ## Auth
 
 Send `Authorization: Bearer <token>` on protected routes. Tokens last 7 days.

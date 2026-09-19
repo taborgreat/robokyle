@@ -30,6 +30,10 @@ Environment=NODE_ENV=production
 # The .env in WorkingDirectory is read by dotenv; keep secrets there, not here.
 # uploads/ lives under the working dir, so the service needs write access to it.
 ReadWritePaths=/home/tabor/github/robokyle/backend/uploads
+# The virtual Brunel hand keeps its saved gestures (its "EEPROM") here; create
+# the directory before starting (mkdir -p), the leading - only stops systemd
+# failing when it is absent.
+ReadWritePaths=-/home/tabor/github/robokyle/virtualBrunel/data
 
 # Basic hardening -- the process only needs its own directory and Mongo's socket.
 NoNewPrivileges=yes

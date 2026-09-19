@@ -30,6 +30,29 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
+
+/* ---------------- virtual Brunel hand ----------------
+   The Open Bionics hand simulator (../virtualBrunel) mounted at /brunel: the
+   viewer at /brunel/, its HTTP API underneath (POST /brunel/gesture/execute,
+   GET /brunel/status/health, ...). Express strips the prefix, so the package
+   sees the spec's own paths. It sits ahead of the JSON and CORS middleware on
+   purpose: it reads request bodies itself and answers CORS the way the real
+   device does. The package is ESM and serves `three` from its own
+   node_modules, so it needs `npm install` in virtualBrunel/; if that is
+   missing the mount answers 503 rather than taking the API down.          */
+const BRUNEL_STORE = path.join(__dirname, '..', 'virtualBrunel', 'data', 'eeprom.json');
+const brunel = import('../virtualBrunel/index.js')
+  .then(({ createBrunelHand }) => createBrunelHand({ storePath: BRUNEL_STORE }))
+  .catch(err => { console.error('[brunel] not mounted:', err.message); return null; });
+app.use('/brunel', (req, res, next) => {
+  // The viewer's URLs are page-relative, so it has to live at /brunel/ not /brunel.
+  if (req.url === '/' && !req.originalUrl.startsWith('/brunel/')) return res.redirect(302, '/brunel/');
+  brunel.then(hand => {
+    if (!hand) return res.status(503).json({ status: 'error', error_code: 'UNAVAILABLE', message: 'Virtual hand not loaded; run npm install in virtualBrunel/.' });
+    return hand.handle(req, res);
+  }).catch(next);
+});
+
 app.use(cors({
   origin: CORS_ORIGINS.length ? CORS_ORIGINS : true,
   credentials: true,
