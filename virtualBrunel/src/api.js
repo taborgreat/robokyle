@@ -145,8 +145,8 @@ export function createApi(hand, { onRequest = () => {} } = {}) {
     },
 
     'POST /safety/estop': () => {
-      hand.estop();
-      return { message: 'ESTOP engaged. All actuators halted.' };
+      const engaged = hand.estop();
+      return { message: engaged ? 'ESTOP engaged. All actuators halted.' : 'ESTOP is disabled on this simulator. Nothing was halted.' };
     },
 
     'POST /safety/estop/release': async ({ body }) => {
@@ -164,8 +164,11 @@ export function createApi(hand, { onRequest = () => {} } = {}) {
     'GET /safety/config': () => ({ message: 'Safety configuration', data: hand.safetyConfig() }),
 
     'POST /safety/keepalive': () => {
-      hand.keepalive();
-      return { message: 'Watchdog reset', data: { next_deadline_ms: WATCHDOG_TIMEOUT_MS } };
+      const armed = hand.keepalive();
+      return {
+        message: armed ? 'Watchdog reset' : 'Watchdog is disabled on this simulator. Keepalive ignored.',
+        data: { next_deadline_ms: WATCHDOG_TIMEOUT_MS },
+      };
     },
 
     // force_pct is validated but has no visible effect: the virtual hand grips nothing.
@@ -230,7 +233,7 @@ export function createApi(hand, { onRequest = () => {} } = {}) {
     if (req.method === 'OPTIONS') return void res.writeHead(204, CORS).end();
 
     const startedAt = Date.now();
-    const path = new URL(req.url, 'http://hand').pathname;
+    const path = new URL(req.url.replace(/^\/+/, '/'), 'http://hand').pathname;
     const { status, request, payload } = await respond(req, path);
 
     res.writeHead(status, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify(payload));

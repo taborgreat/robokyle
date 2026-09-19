@@ -7,6 +7,11 @@ export const MAX_CUSTOM_GESTURES = 16;
 export const DEFAULT_SPEED = 60;
 export const DEFAULT_FORCE_LIMIT_N = 15;
 export const WATCHDOG_TIMEOUT_MS = 2000;
+// ESTOP and the keepalive watchdog are switched off for now. Over a public link the
+// watchdog tripped on any stall (a backgrounded tab is enough) and left the hand frozen
+// until someone released it. The endpoints still answer, as no-ops, so clients written
+// against the spec keep working. Set to true to get the spec's behaviour back.
+export const SAFETY_INTERLOCKS = false;
 export const REBOOT_DELAY_MS = 500;
 export const REBOOT_OFFLINE_MS = 5000;
 

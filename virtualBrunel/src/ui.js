@@ -65,7 +65,8 @@ export function createUi(hand) {
 
   // Returns true when the request was for the viewer.
   function handle(req, res) {
-    const { pathname } = new URL(req.url, 'http://hand');
+    // Leading slashes are collapsed: '//' parses as a host-less URL and throws.
+    const { pathname } = new URL(req.url.replace(/^\/+/, '/'), 'http://hand');
     if (req.method !== 'GET' || (pathname !== '/' && !pathname.startsWith('/ui/'))) return false;
 
     if (pathname === '/') sendFile(res, PUBLIC_DIR, 'index.html');

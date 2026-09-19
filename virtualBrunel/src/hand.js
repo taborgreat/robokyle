@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import {
   ACTUATORS, DEFAULT_FORCE_LIMIT_N, DEFAULT_SPEED, FINGERS, FINGER_RANGE, FIRMWARE, GESTURES, INTENTS, JOINTS,
-  MAX_CUSTOM_GESTURES, MAX_FAULTS, REBOOT_DELAY_MS, REBOOT_OFFLINE_MS, SIZE_SCALE, WATCHDOG_TIMEOUT_MS,
+  MAX_CUSTOM_GESTURES, MAX_FAULTS, REBOOT_DELAY_MS, REBOOT_OFFLINE_MS, SAFETY_INTERLOCKS, SIZE_SCALE, WATCHDOG_TIMEOUT_MS,
 } from './constants.js';
 import { ApiError } from './errors.js';
 import { Joints, travelMs } from './motion.js';
@@ -249,7 +249,10 @@ export class Hand extends EventEmitter {
 
   // ── Safety ────────────────────────────────────────────────────────────────
 
+  // Returns false when the interlocks are switched off and nothing was halted. A reboot
+  // still stops the hand either way; that stop clears itself when the reboot finishes.
   estop(reason = 'command') {
+    if (!SAFETY_INTERLOCKS && reason !== 'reboot') return false;
     clearTimeout(this.#nextStep);
     this.#nextStep = null;
     this.#busyUntil = 0;
@@ -257,6 +260,7 @@ export class Hand extends EventEmitter {
     this.#estop ??= reason;
     this.#motion = 'idle';
     this.emit('state');
+    return true;
   }
 
   releaseEstop() {
@@ -266,12 +270,15 @@ export class Hand extends EventEmitter {
 
   // The watchdog arms on the first keepalive, so the hand is usable from curl without
   // a heartbeat. Once armed, a missed deadline engages ESTOP until the next keepalive.
+  // Returns false when the interlocks are switched off and the watchdog stays unarmed.
   keepalive() {
+    if (!SAFETY_INTERLOCKS) return false;
     const changed = this.#watchdog === null || !this.#watchdogOk;
     clearTimeout(this.#watchdog);
     this.#watchdog = setTimeout(() => this.#watchdogExpired(), WATCHDOG_TIMEOUT_MS).unref();
     this.#watchdogOk = true;
     if (changed) this.emit('state');
+    return true;
   }
 
   #watchdogExpired() {
@@ -288,6 +295,7 @@ export class Hand extends EventEmitter {
   safetyConfig() {
     return {
       estop_active: this.#estop !== null,
+      interlocks_enabled: SAFETY_INTERLOCKS,
       max_force_n: this.#maxForce,
       compliance_mode: 'soft',
       watchdog_timeout_ms: WATCHDOG_TIMEOUT_MS,

@@ -1,4 +1,3 @@
-import { api } from './api-client.js';
 import { h } from './dom.js';
 
 const JOINT_LABELS = {
@@ -10,31 +9,23 @@ const JOINT_LABELS = {
   thumb_rotator: 'Thumb rot.',
 };
 
-const ESTOP_REASONS = { command: 'ESTOP', watchdog: 'ESTOP · watchdog', reboot: 'ESTOP · rebooting' };
+// ESTOP and the watchdog are switched off in the simulator for now (SAFETY_INTERLOCKS in
+// src/constants.js), so the only stop the page can see is the one a reboot causes.
+const STOP_REASONS = { command: 'stopped', watchdog: 'stopped · watchdog', reboot: 'rebooting' };
 
 const MODES = {
   emg: 'Drive the hand from the simulated EMG band',
   api: 'Build API requests by hand',
 };
 
-// Header (mode switch, device status, keepalive, ESTOP) and the live joint read-out.
+// Header (mode switch, device status) and the live joint read-out.
 // `onMode` is called with 'emg' or 'api' whenever the mode changes.
-export function createHud(header, jointsRoot, { keepalive, onMode }) {
+export function createHud(header, jointsRoot, { onMode }) {
   const chip = (text) => h('span', { className: 'chip', textContent: text });
   const link = chip('connecting');
-  const estop = chip('');
-  const watchdog = chip('');
+  const device = chip('');
   const motion = chip('');
   const speed = chip('');
-
-  const keepaliveBox = h('input', { type: 'checkbox', onchange: () => keepalive.set(keepaliveBox.checked) });
-  const release = h('button', {
-    className: 'release',
-    textContent: 'Release ESTOP',
-    hidden: true,
-    onclick: () => api('POST', '/safety/estop/release', { confirm: true }),
-  });
-  const stop = h('button', { className: 'estop', textContent: 'E-STOP', onclick: () => api('POST', '/safety/estop', {}) });
 
   const modeButtons = Object.entries(MODES).map(([mode, title]) =>
     h('button', { textContent: mode.toUpperCase(), title, value: mode, onclick: () => setMode(mode) }),
@@ -47,10 +38,7 @@ export function createHud(header, jointsRoot, { keepalive, onMode }) {
   header.append(
     h('h1', {}, 'Virtual Brunel Hand'),
     h('div', { className: 'modes' }, modeButtons),
-    h('div', { className: 'chips' }, link, estop, watchdog, motion, speed),
-    h('label', { className: 'toggle', title: 'POST /safety/keepalive every 500 ms' }, keepaliveBox, 'Keepalive'),
-    release,
-    stop,
+    h('div', { className: 'chips' }, link, device, motion, speed),
   );
 
   const bars = {};
@@ -70,17 +58,10 @@ export function createHud(header, jointsRoot, { keepalive, onMode }) {
       set(link, connected ? 'viewer linked' : 'viewer offline', connected ? 'good' : 'bad');
     },
 
-    setKeepalive(on) {
-      keepaliveBox.checked = on;
-      keepalive.set(on);
-    },
-
-    update({ estop: reason, watchdog: dog, motion: label, speed: pct, offline }) {
-      set(estop, offline ? 'off network' : (ESTOP_REASONS[reason] ?? 'ready'), reason || offline ? 'bad' : 'good');
-      set(watchdog, !dog.ok ? 'watchdog expired' : dog.armed ? 'watchdog armed' : 'watchdog idle', dog.ok ? '' : 'bad');
+    update({ estop: reason, motion: label, speed: pct, offline }) {
+      set(device, offline ? 'off network' : (STOP_REASONS[reason] ?? 'ready'), reason || offline ? 'bad' : 'good');
       set(motion, label, '');
       set(speed, `speed ${pct}%`, '');
-      release.hidden = !reason;
     },
 
     setPose(pose) {

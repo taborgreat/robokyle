@@ -3,7 +3,6 @@ import { createConsole } from './console.js';
 import { createEmgPanel } from './emg/panel.js';
 import { createHandModel } from './hand-model.js';
 import { createHud } from './hud.js';
-import { createKeepalive } from './keepalive.js';
 import { createLog } from './log.js';
 import { createScene } from './scene.js';
 
@@ -16,9 +15,9 @@ function onMode(mode) {
   emg.setEnabled(mode === 'emg');
 }
 
-const hud = createHud($('hud'), $('joints'), { keepalive: createKeepalive(), onMode });
+const hud = createHud($('hud'), $('joints'), { onMode });
 const log = createLog($('log'));
-const emg = createEmgPanel($('emg'), { onEnable: () => hud.setKeepalive(true) });
+const emg = createEmgPanel($('emg'));
 createConsole($('console'));
 hud.setMode('emg');
 

@@ -229,20 +229,6 @@ textarea {
   overflow: hidden;
 }
 
-button.estop {
-  background: var(--bad);
-  border-color: var(--bad);
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 8px 18px;
-}
-
-button.release {
-  border-color: var(--warn);
-  color: var(--warn);
-}
-
 /* ── Side panels ── */
 
 #left,

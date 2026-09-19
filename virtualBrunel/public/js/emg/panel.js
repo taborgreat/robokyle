@@ -37,9 +37,8 @@ const hand = {
 };
 
 // EMG mode: simulated flexor / extensor effort and arm orientation run through the
-// band's control scheme. `onEnable` fires when the mode turns on (the band keeps the
-// hand's watchdog fed). Returns { setEnabled, setHalted }.
-export function createEmgPanel(root, { onEnable }) {
+// band's control scheme. Returns { setEnabled, setHalted }.
+export function createEmgPanel(root) {
   const settings = { flexOn: 0.25, extOn: 0.25, flexStrength: 0.8, extStrength: 0.8, maxSpeed: 2, openFirst: false };
   const signal = createSignal(settings);
   const joystick = createJoystick();
@@ -173,7 +172,6 @@ export function createEmgPanel(root, { onEnable }) {
     enabled = on;
     releaseAll();
     if (!on) return;
-    onEnable();
     controller.selectGrip(controller.view.index ?? DEFAULT_GRIP);
     last = performance.now();
     if (!running) requestAnimationFrame(frame);
